@@ -151,8 +151,7 @@ origin, so changes still waiting in the old address's outbox would stay there.
    (fieldtime.evans.tools) and check it says **Synced**, not "N unsent". Then don't log anything
    until step 6.
 2. **GitHub:** the repo was renamed to `sideshow` on 2026-10-10 (GitHub redirects the old URL,
-   so the mini PC's pull works either way). On the mini PC, also:
-   `git -C C:\Apps\fieldtime remote set-url origin https://github.com/eacartwright/sideshow`.
+   so the mini PC's pull works either way). Step 3 points the clone at the new URL.
 3. **Mini PC, admin PowerShell.** Stop the server, move the folder, and set up under the new name:
    ```powershell
    cd C:\Apps\fieldtime
@@ -164,6 +163,7 @@ origin, so changes still waiting in the old address's outbox would stay there.
    cd C:\
    Rename-Item C:\Apps\fieldtime sideshow
    cd C:\Apps\sideshow
+   git remote set-url origin https://github.com/eacartwright/sideshow
    Add-Content .env "PROFILE=veritaz-cw"
    powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -BackupDir \\evnas\Junk\Tech\DBBackups\sideshow
    ```
