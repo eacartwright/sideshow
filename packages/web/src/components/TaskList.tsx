@@ -2,23 +2,27 @@ import { startOfDay, type Id } from "@sideshow/shared";
 import { useState } from "react";
 import { hm, whenLabel } from "../format";
 import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
+import { addDays, DayNav } from "./DayNav";
 import { ProjectList } from "./ProjectList";
 
-export type View = "recent" | "today" | "inbox" | "done" | "projects";
+export type View = "recent" | "day" | "inbox" | "done" | "projects";
 
 export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; onOpenProject: (id: Id) => void }) {
   const m = useM();
   const now = useNow(30_000);
   const [view, setView] = useState<View>("recent");
   const [groupId, setGroupId] = useState<Id | null>(null);
+  // The day the Day view shows; null = today, whatever day that is by now.
+  const [pickedDay, setPickedDay] = useState<number | null>(null);
 
-  const dayStart = startOfDay(now);
+  const day = pickedDay ?? startOfDay(now);
+  const dayEnd = addDays(day, 1);
   const inView = (t: TaskInfo) => {
     switch (view) {
       case "recent":
         return t.task.status === "open" && !t.inbox;
-      case "today":
-        return t.sessions.some((s) => (s.end ?? now) > dayStart);
+      case "day":
+        return t.sessions.some((s) => s.start < dayEnd && (s.end ?? now) > day);
       case "inbox":
         return t.inbox;
       case "done":
@@ -27,7 +31,8 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
         return false;
     }
   };
-  const base = m.recent.filter(inView);
+  // A day's log includes archived tasks; the other views don't.
+  const base = (view === "day" ? m.all : m.recent).filter(inView);
   const list = groupId ? base.filter((t) => t.groupItem?.id === groupId) : base;
   if (view === "inbox") list.sort((a, b) => b.task.createdAt - a.task.createdAt);
 
@@ -37,12 +42,13 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
     if (t.groupItem && !groupsInView.some((g) => g.id === t.groupItem!.id)) groupsInView.push(t.groupItem);
   }
   const inboxCount = m.recent.filter((t) => t.inbox).length;
-  const todayTotal = view === "today" ? list.reduce((sum, t) => sum + taskTotals(t, now).today, 0) : 0;
+  const dayTotal = view === "day" ? list.reduce((sum, t) => sum + taskTotals(t, now, day).onDay, 0) : 0;
+  const archived = view === "done" ? m.all.filter((t) => t.task.status === "archived") : [];
 
   return (
     <section className="list" aria-label="Tasks">
       <div className="tabs" role="tablist">
-        {(["recent", "today", "inbox", "done", "projects"] as View[]).map((v) => (
+        {(["recent", "day", "inbox", "done", "projects"] as View[]).map((v) => (
           <button
             key={v}
             role="tab"
@@ -75,21 +81,40 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
         </div>
       )}
 
-      {view === "today" && list.length > 0 && <div className="muted small total">Total today {hm(todayTotal)}</div>}
+      {view === "day" && (
+        <DayNav day={day} onDay={(d) => setPickedDay(d === startOfDay(now) ? null : d)} now={now}>
+          {list.length > 0 && <span className="muted small">Total {hm(dayTotal)}</span>}
+        </DayNav>
+      )}
 
       <ul className="rows">
         {list.map((t) => (
-          <TaskRow key={t.task.id} info={t} now={now} view={view} onOpen={onOpen} />
+          <TaskRow key={t.task.id} info={t} now={now} view={view} day={day} onOpen={onOpen} />
         ))}
       </ul>
-      {list.length === 0 && view !== "projects" && <p className="empty">{EMPTY[view]}</p>}
+      {list.length === 0 && view !== "projects" && (
+        <p className="empty">{view === "day" && pickedDay !== null ? "No time tracked that day." : EMPTY[view]}</p>
+      )}
+
+      {archived.length > 0 && (
+        <details className="archived">
+          <summary>
+            Archived · {archived.length}
+          </summary>
+          <ul className="rows">
+            {archived.map((t) => (
+              <TaskRow key={t.task.id} info={t} now={now} view={view} onOpen={onOpen} />
+            ))}
+          </ul>
+        </details>
+      )}
     </section>
   );
 }
 
 const EMPTY: Record<View, string> = {
   recent: "Nothing yet. Press ▶ New and start typing.",
-  today: "No time tracked today.",
+  day: "No time tracked today.",
   inbox: "Inbox is empty. Use + Inbox to capture work for later.",
   done: "No finished tasks.",
   projects: "",
@@ -99,12 +124,15 @@ export function TaskRow({
   info,
   now,
   view,
+  day,
   onOpen,
   showProject = true,
 }: {
   info: TaskInfo;
   now: number;
   view: View;
+  /** The day the Day view shows. */
+  day?: number;
   onOpen: (id: Id) => void;
   /** Off on a project's own page, where it would only repeat the page. */
   showProject?: boolean;
@@ -112,13 +140,13 @@ export function TaskRow({
   const m = useM();
   const a = useA();
   const running = m.running.find((s) => s.taskId === info.task.id);
-  const { today, total } = taskTotals(info, now);
+  const { onDay, total } = taskTotals(info, now, day);
   const meta = [
     !running && info.task.pausedAt && "Paused",
     showProject && info.projectPath,
     ...info.fieldTexts,
     view === "inbox" ? `added ${whenLabel(info.task.createdAt, now)}` : whenLabel(info.lastTouched, now),
-    view === "today" ? `${hm(today)} today` : total > 0 && hm(total),
+    view === "day" ? `${hm(onDay)}${day === undefined || day === startOfDay(now) ? " today" : ""}` : total > 0 && hm(total),
   ].filter(Boolean);
 
   return (

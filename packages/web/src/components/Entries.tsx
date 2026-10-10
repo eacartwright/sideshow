@@ -14,6 +14,7 @@ import { useRef, useState } from "react";
 import { copyText } from "../clipboard";
 import { dayLabel, entryDate, entryHours, entryTime, hm, whenLabel } from "../format";
 import { bareText, fieldText, useA, useM, useNow, type Model, type TaskInfo } from "../model";
+import { addDays, DayNav } from "./DayNav";
 import { Dialog } from "./Dialog";
 import { FieldInput, TicketInfo } from "./fields";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
@@ -27,7 +28,6 @@ import { defaultManualSpan, SessionEditor } from "./SessionEditor";
 type Mode = "todo" | "day";
 
 const CONTINUATION = "Continuation of previous work";
-const pad = (n: number) => n.toString().padStart(2, "0");
 
 const TIMES = new Set(["date", "start", "end", "hours"]);
 
@@ -50,12 +50,6 @@ function copyValue(m: Model, d: FieldDef, v: FieldValue | undefined): string {
   if (d.type === "bool") return v ? "Yes" : "";
   return fieldText(d, v, m.view);
 }
-/** Start of the day `n` days from `day` (safe across DST changes). */
-const addDays = (day: Ms, n: number) => startOfDay(day + n * 86_400_000 + 12 * 3_600_000);
-const toInputDate = (t: Ms) => {
-  const d = new Date(t);
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-};
 
 export function Entries({ onClose }: { onClose: () => void }) {
   const m = useM();
@@ -104,31 +98,9 @@ export function Entries({ onClose }: { onClose: () => void }) {
       </div>
 
       {mode === "day" && (
-        <div className="day-nav">
-          <button className="btn icon" onClick={() => setDay(addDays(day, -1))} aria-label="Previous day">
-            ‹
-          </button>
-          <input
-            type="date"
-            className="day-input"
-            value={toInputDate(day)}
-            onChange={(e) => {
-              const [y, mo, d] = e.target.value.split("-").map(Number);
-              if (y && mo && d) setDay(new Date(y, mo - 1, d).getTime());
-            }}
-            aria-label="Day"
-          />
-          <button className="btn icon" onClick={() => setDay(addDays(day, 1))} aria-label="Next day">
-            ›
-          </button>
-          {day !== startOfDay(now) && (
-            <button className="btn" onClick={() => setDay(startOfDay(now))}>
-              Today
-            </button>
-          )}
-          <span className="spacer" />
+        <DayNav day={day} onDay={setDay} now={now}>
           {list.length > 0 && <span className="muted small">{hm(list.reduce((t, s) => t + durationMs(s, now), 0))}</span>}
-        </div>
+        </DayNav>
       )}
 
       {groups.map((g) => (

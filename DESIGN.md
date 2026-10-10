@@ -298,12 +298,18 @@ pressing ▶ New.
   recent-first ("recent for Acme").
 - **Recency is by last session start**, not creation date, so something touched ten minutes ago
   is at the top even if it was created last month.
-- Views: *Recent* (default), *Today*, *By client*, *Inbox*, *Done*.
+- Views: *Recent* (default), *Day* (today by default, or any day, with ‹ › and a date picker; includes archived
+  tasks, since it's a log of the day), *By client*, *Inbox*, *Done* (with an *Archived* section
+  below it, collapsed).
+- **Title**: an untitled task's Title field shows the first line of its notes as real text,
+  tracking the notes until it's edited; editing it sets the title. Clearing it goes back to
+  following the notes.
 
 ### Surfaces
 
 1. **Now stack**: one card per running task (timer, title, client, work type, **note field**,
-   Pause, Stop), newest on top, then one compact card per paused task (title, client, time
+   Pause, Stop; tapping "Started 9:12" opens a start-time control with −5 / +5 min, for "I
+   actually started ten minutes ago"), newest on top, then one compact card per paused task (title, client, time
    paused, today's total, ▶ Resume, ■ Stop). Paused state is synced (`task.pausedAt`), so
    every device shows the same stack. On desktop this becomes a small always-on-top window. On the phone it's
    the top of the main screen.

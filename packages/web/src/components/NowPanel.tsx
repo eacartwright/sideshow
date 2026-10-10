@@ -1,6 +1,8 @@
-import { durationMs, firstLine, type Id, type Session } from "@sideshow/shared";
+import { durationMs, firstLine, startOfDay, type Id, type Session } from "@sideshow/shared";
+import { useState } from "react";
 import { clock, dayLabel, hm, timeOfDay } from "../format";
 import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
+import { at, timeValue } from "./SessionEditor";
 import { DraftInput, DraftTextarea, ProjectPicker, SessionFieldInputs, TaskFieldInputs, TicketInfo } from "./fields";
 
 // The top of the app: one card per running task, most recently started on top,
@@ -131,14 +133,13 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
           ■
         </button>
       </div>
-      <div className="muted small since">
-        Started {timeOfDay(session.start)} · {hm(taskTotals(info, now).today)} on this task today
-      </div>
+      <StartedLine session={session} info={info} now={now} />
       <DraftInput
         className="title-input"
-        value={info.task.title}
+        value={info.titleText}
         resetKey={info.task.id}
-        placeholder={info.titleDerived ? info.title : "Title"}
+        placeholder="Title"
+        title={info.task.title ? undefined : "From the notes until you edit it"}
         aria-label="Task title"
         onValue={(title) => a.updateTask(info.task.id, { title })}
       />
@@ -152,10 +153,54 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
   );
 }
 
+/** "Started 9:12 · …"; tap the time to correct it ("I actually started 10 minutes ago"). */
+function StartedLine({ session, info, now }: { session: Session; info: TaskInfo; now: number }) {
+  const a = useA();
+  const [editing, setEditing] = useState(false);
+  const total = <span>{hm(taskTotals(info, now).onDay)} on this task today</span>;
+  // Earlier is always fine; later only up to now.
+  const setStart = (t: number | null) => {
+    if (t !== null && t <= Date.now()) a.updateSession(session.id, { start: t });
+  };
+  if (!editing) {
+    return (
+      <div className="muted small since">
+        <button className="since-btn" onClick={() => setEditing(true)} title="Change when this started">
+          Started {timeOfDay(session.start)}
+        </button>{" "}
+        · {total}
+      </div>
+    );
+  }
+  return (
+    <div className="since since-edit">
+      <label className="muted small" htmlFor={`start-${session.id}`}>
+        Started
+      </label>
+      <input
+        id={`start-${session.id}`}
+        type="time"
+        className="editor-input"
+        value={timeValue(session.start)}
+        onChange={(e) => setStart(at(startOfDay(session.start), e.target.value))}
+      />
+      <button className="btn" onClick={() => setStart(session.start - 5 * 60_000)}>
+        −5 min
+      </button>
+      <button className="btn" disabled={session.start + 5 * 60_000 > now} onClick={() => setStart(session.start + 5 * 60_000)}>
+        +5 min
+      </button>
+      <button className="btn primary" onClick={() => setEditing(false)}>
+        Done
+      </button>
+    </div>
+  );
+}
+
 function PausedCard({ info, now, onOpen }: { info: TaskInfo; now: number; onOpen: (taskId: Id) => void }) {
   const a = useA();
   const last = info.sessions[info.sessions.length - 1];
-  const meta = [info.groupItem?.name, `paused ${timeOfDay(info.task.pausedAt!)}`, `${hm(taskTotals(info, now).today)} today`].filter(Boolean);
+  const meta = [info.groupItem?.name, `paused ${timeOfDay(info.task.pausedAt!)}`, `${hm(taskTotals(info, now).onDay)} today`].filter(Boolean);
   // An untitled task already shows its notes as the title.
   const preview = last && !info.titleDerived ? firstLine(last.notes) : "";
   return (

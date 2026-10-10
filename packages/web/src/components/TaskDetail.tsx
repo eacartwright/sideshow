@@ -55,8 +55,9 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
       <div className="stack">
         <DraftInput
           className="title-input"
-          value={task.title}
-          placeholder={info.titleDerived ? info.title : "Title"}
+          value={info.titleText}
+          placeholder="Title"
+          title={task.title ? undefined : "From the notes until you edit it"}
           aria-label="Title"
           onValue={(title) => a.updateTask(taskId, { title })}
         />
@@ -96,7 +97,13 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
           )}
           <span className="spacer" />
           {task.status === "open" ? (
-            <button className="btn" onClick={() => a.updateTask(taskId, { status: "done" })}>
+            <button
+              className="btn"
+              onClick={() => {
+                a.updateTask(taskId, { status: "done" });
+                onClose();
+              }}
+            >
               Mark done
             </button>
           ) : (

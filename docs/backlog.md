@@ -15,21 +15,7 @@ Items marked **(?)** need a word from Evan on what was meant before building.
 
 ## Next — small, from daily use
 
-- **Mark done closes Task details.** Today "Mark done" sets the status and leaves the dialog
-  open (`TaskDetail.tsx`).
-- **Titles as real text, not a ghost.** When a task has no title, the first line of the notes
-  shows as placeholder text in the Title field (`titleDerived`). Fill the field with that
-  text instead, so it can be edited directly (Task details and the Now card).
-- **Archived is too hard to find.** The task list has Recent / Today / Inbox / Done and no
-  way to see archived tasks. Add an Archived view, or show them under Done.
-- **Change the start time of a running task from the Now card.** The session editor already
-  handles a running session (start editable, end shows "running"), but only from Task details.
-  Give the running card a direct way to adjust its start ("started 10 min ago" fixes).
-- **Room for vertical scrollbars.** Scrolling panels (desktop) shift or clip content when a
-  scrollbar appears. Reserve the gutter (`scrollbar-gutter: stable`) on the scroll areas.
-- **Any day, not just "Today".** The task list's Today view should be able to show the tasks
-  worked on yesterday, last Sunday, any date: a date picker with ◀ ▶, like By day in Time
-  entries. Overlaps with the Day report (DESIGN.md §7, Surfaces 6) and the M1.5 Day calendar.
+Nothing waiting.
 
 ## Soon — with M5–M8 (projects & profiles, then CW)
 

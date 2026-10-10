@@ -160,6 +160,13 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   **https://sideshow.evans.tools** (Access + icon bypass + tunnel), iPhone re-added. Server log
   confirmed the DB rename, the CW profile and billing filled on 3 sessions.
 
+- Done 2026-10-10 (backlog quick wins): Mark done closes Task details; an untitled task's Title
+  field shows the notes' first line as editable text (`TaskInfo.titleText`); Done has a
+  collapsed Archived section (`model.all` includes archived); the Today tab is now **Day** and picks any day
+  (`DayNav`, shared with Time entries' By day; `taskTotals(info, now, day).onDay`); "Started
+  9:12" on the running card opens a start-time control (time, −5 / +5 min);
+  `scrollbar-gutter: stable` on the page and scroll areas.
+
 ### Where we left off (2026-10-10)
 
 1. **Desktop folder rename** (Evan, between sessions): `C:\Dev\fieldtime` → `C:\Dev\sideshow`.
@@ -170,10 +177,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
    tunnel's public hostnames and from both Access apps, and its DNS record. First check that
    daily `sideshow-*.db` backups are landing in `\\evnas\Junk\Tech\DBBackups\sideshow`; then
    the old `DBBackups\fieldtime` folder can go.
-3. **Quick wins** from docs/backlog.md "Next": Mark done closes Task details; titles as real
-   text instead of a ghost; an Archived view; adjust a running task's start from the Now card;
-   stable scrollbar gutters; any day (not just Today) in the task list.
-4. **Then a milestone** (DESIGN.md §12), Evan to pick: **M6 CW tickets & lists** (live ticket
+3. ~~Quick wins~~ done 2026-10-10 (see Status).
+4. **Next, a milestone** (DESIGN.md §12), Evan to pick: **M6 CW tickets & lists** (live ticket
    search + Track, client ↔ CW company mapping, work-type sync carrying billing defaults) or
    **M1.5 Day calendar** (drag/resize sessions, fill gaps). The compatibility code for the
    rename and for pre-profile ops (`LEGACY_KEYS`, `FIELDTIME_*`, `fieldtime:pending`) can be

@@ -1,6 +1,7 @@
 import {
   displayTitle,
   durationMs,
+  firstLine,
   isInbox,
   lastTouchedAt,
   newId,
@@ -38,6 +39,8 @@ export interface TaskInfo {
   sessions: Session[];
   title: string;
   titleDerived: boolean;
+  /** What the Title field shows: the title, else the notes' first line in full; "" if neither. */
+  titleText: string;
   /** The value of the profile's groupBy field (the client). */
   groupItem: ListItem | undefined;
   /** Task field values as shown ("#106745", "Acme"), in profile order. */
@@ -53,6 +56,8 @@ export interface TaskInfo {
 
 export interface Model extends Snapshot {
   tasks: Map<Id, TaskInfo>;
+  /** Every task, archived too, most recently touched first. */
+  all: TaskInfo[];
   /** Non-archived tasks, most recently touched first. */
   recent: TaskInfo[];
   /** Running sessions, the one most recently started on this device first. */
@@ -141,6 +146,7 @@ function derive(snap: Snapshot): Model {
       sessions,
       title: text,
       titleDerived: derived,
+      titleText: task.title.trim() || firstLine(sessions.find((s) => firstLine(s.notes))?.notes ?? "", Infinity),
       groupItem: groupValue ? v.lists[String(groupValue)] : undefined,
       fieldTexts,
       project: path[path.length - 1],
@@ -153,9 +159,8 @@ function derive(snap: Snapshot): Model {
         .toLowerCase(),
     });
   }
-  const recent = [...tasks.values()]
-    .filter((t) => t.task.status !== "archived")
-    .sort((a, b) => b.lastTouched - a.lastTouched);
+  const all = [...tasks.values()].sort((a, b) => b.lastTouched - a.lastTouched);
+  const recent = all.filter((t) => t.task.status !== "archived");
   const rank = (s: Session) => {
     const i = activation.indexOf(s.taskId);
     return i < 0 ? Infinity : i;
@@ -168,6 +173,7 @@ function derive(snap: Snapshot): Model {
   return {
     ...snap,
     tasks,
+    all,
     recent,
     running,
     paused,
@@ -188,15 +194,16 @@ export function useModel(): Model {
   return useMemo(() => derive(snap), [snap]);
 }
 
-export function taskTotals(info: TaskInfo, now: number) {
-  const dayStart = startOfDay(now);
+/** A task's total time, and its time on `day` (default today). */
+export function taskTotals(info: TaskInfo, now: number, day = startOfDay(now)) {
+  const dayEnd = startOfDay(day + 36 * 3_600_000); // the next day's start, even across DST
   let total = 0;
-  let today = 0;
+  let onDay = 0;
   for (const s of info.sessions) {
     total += durationMs(s, now);
-    today += overlapMs(s, dayStart, dayStart + 86_400_000, now);
+    onDay += overlapMs(s, day, dayEnd, now);
   }
-  return { total, today };
+  return { total, onDay };
 }
 
 /** Re-render every `ms` milliseconds (for live timers). */

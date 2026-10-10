@@ -15,12 +15,12 @@ const dateValue = (t: Ms) => {
   const d = new Date(t);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
-const timeValue = (t: Ms) => {
+export const timeValue = (t: Ms) => {
   const d = new Date(t);
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 };
 /** Local time on the day that starts at `day`. */
-function at(day: Ms, hhmm: string): Ms | null {
+export function at(day: Ms, hhmm: string): Ms | null {
   const [h, m] = hhmm.split(":").map(Number);
   if (h === undefined || m === undefined || Number.isNaN(h) || Number.isNaN(m)) return null;
   const d = new Date(day);

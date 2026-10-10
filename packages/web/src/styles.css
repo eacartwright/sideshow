@@ -50,6 +50,10 @@
 * {
   box-sizing: border-box;
 }
+html {
+  /* Room for the scrollbar even before there is one, so the layout doesn't shift. */
+  scrollbar-gutter: stable;
+}
 html,
 body {
   margin: 0;
@@ -318,6 +322,7 @@ select:focus {
     top: 16px;
     max-height: calc(100vh - 32px);
     overflow-y: auto;
+    scrollbar-gutter: stable;
   }
 }
 
@@ -388,6 +393,33 @@ select:focus {
 }
 .since {
   margin-top: -6px;
+}
+.since-btn {
+  /* Reads as part of the line, but is a full-size tap target. */
+  min-height: var(--tap);
+  margin: -10px 0;
+  padding: 0 4px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.since-btn:hover {
+  color: var(--text);
+}
+.since-edit {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0;
+}
+.since-edit .editor-input {
+  width: auto;
 }
 .timer {
   font-family: var(--mono);
@@ -492,7 +524,8 @@ select:focus {
   color: var(--text);
 }
 
-.earlier summary {
+.earlier summary,
+.archived summary {
   cursor: pointer;
   color: var(--muted);
   font-weight: 600;
@@ -597,6 +630,9 @@ select:focus {
 }
 .total {
   text-align: right;
+}
+.archived {
+  margin-top: 16px;
 }
 .rows {
   list-style: none;
@@ -718,6 +754,7 @@ select:focus {
   max-width: 620px;
   max-height: 84vh;
   overflow: auto;
+  scrollbar-gutter: stable;
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: 14px;
@@ -765,6 +802,7 @@ select:focus {
   margin: 0;
   padding: 0;
   overflow: auto;
+  scrollbar-gutter: stable;
   display: grid;
   gap: 4px;
 }
@@ -823,6 +861,7 @@ select:focus {
   padding: 0;
   max-height: 240px;
   overflow: auto;
+  scrollbar-gutter: stable;
 }
 
 .stack {
