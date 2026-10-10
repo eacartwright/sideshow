@@ -139,7 +139,7 @@ Done 2026-10-06 unless marked.
 - Record anything that differed from this runbook back in this file (from NOSTROMO; the mini PC's
   clone only pulls).
 
-## 7. Rename fieldtime → sideshow (one time, 2026-10)
+## 7. Rename fieldtime → sideshow (one time; done 2026-10-10 except step 7)
 
 Ships with M5 (projects and profiles), so this is also that update. The code copes with every
 half-done state: the server reads `FIELDTIME_*` settings and renames `data\fieldtime.db` to
@@ -182,5 +182,6 @@ origin, so changes still waiting in the old address's outbox would stay there.
    icon paths → 200.
 6. **[Evan] Devices.** iPhone: delete the old home-screen icon, open https://sideshow.evans.tools
    in Safari, sign in, Share → Add to Home Screen. Desktop: bookmark the new address.
-7. **Later (a week or so):** remove `fieldtime.evans.tools` from the tunnel and both Access
-   apps, and its DNS record.
+7. **Later (around 2026-10-17):** remove `fieldtime.evans.tools` from the tunnel and both Access
+   apps, and its DNS record. Check daily `sideshow-*.db` files are arriving in
+   `DBBackups\sideshow`, then delete the old `DBBackups\fieldtime` folder.

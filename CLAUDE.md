@@ -150,22 +150,41 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   `data/sideshow.db`, `SIDESHOW_*` settings, task `sideshow`). Compatibility kept on purpose:
   `FIELDTIME_*` settings still read, `data/fieldtime.db` renamed on first start, `fieldtime-*`
   backups still pruned, `fieldtime:pending` outbox carried over, install.ps1 removes the old task.
-  Not yet done: the mini PC, hostname and Cloudflare (docs/deploy-evans-tools.md §7), GitHub repo
-  name, and this desktop's `C:\Dev\fieldtime` folder.
+  GitHub repo renamed to `eacartwright/sideshow` the same day.
 - Done 2026-10-10 (M5 complete): **Billing** session field (Billable / Do Not Bill / No Charge,
   CW's names) with a default per work type in the profile. The reducer applies a chosen list
   item's `defaults` (unless the same change sets that field); the server fills missing defaults
   once when the profile's defaults change. Migrations 7–8 checked on the mini PC's 2026-10-10
   backup (v6): counts equal, every client / ticket / work type value carried over, billing filled.
-- Next: push and **deploy** (docs/deploy-evans-tools.md §7: rename + M5), then **M1.5 Day
-  calendar**.
+- Deployed 2026-10-10 (runbook §7): mini PC at `C:\Apps\sideshow`, task `sideshow`, live at
+  **https://sideshow.evans.tools** (Access + icon bypass + tunnel), iPhone re-added. Server log
+  confirmed the DB rename, the CW profile and billing filled on 3 sessions.
+
+### Where we left off (2026-10-10)
+
+1. **Desktop folder rename** (Evan, between sessions): `C:\Dev\fieldtime` → `C:\Dev\sideshow`.
+   Claude's per-project memory moves with the path: it was copied to
+   `%USERPROFILE%\.claude\projects\C--Dev-sideshow\memory\` ahead of time. After the rename,
+   delete `node_modules` and run `npm ci` if anything complains about paths.
+2. **Cleanup, around 2026-10-17** (Evan, Cloudflare): remove `fieldtime.evans.tools` from the
+   tunnel's public hostnames and from both Access apps, and its DNS record. First check that
+   daily `sideshow-*.db` backups are landing in `\\evnas\Junk\Tech\DBBackups\sideshow`; then
+   the old `DBBackups\fieldtime` folder can go.
+3. **Quick wins** from docs/backlog.md "Next": Mark done closes Task details; titles as real
+   text instead of a ghost; an Archived view; adjust a running task's start from the Now card;
+   stable scrollbar gutters; any day (not just Today) in the task list.
+4. **Then a milestone** (DESIGN.md §12), Evan to pick: **M6 CW tickets & lists** (live ticket
+   search + Track, client ↔ CW company mapping, work-type sync carrying billing defaults) or
+   **M1.5 Day calendar** (drag/resize sessions, fill gaps). The compatibility code for the
+   rename and for pre-profile ops (`LEGACY_KEYS`, `FIELDTIME_*`, `fieldtime:pending`) can be
+   removed once nothing old is left anywhere, say after M6.
 
 ## Working with Evan
 
 - Commit and push only when asked.
 - Prefers the Claude desktop app / claude.ai over the terminal. Give GUI steps, not shell
   commands, where possible.
-- Develops on **NOSTROMO** (the desktop, `C:\Dev\fieldtime`: the folder kept its old name) since 2026-10-06; DEVvm (a Win 11 VM)
+- Develops on **NOSTROMO** (the desktop, `C:\Dev\sideshow`; `C:\Dev\fieldtime` until 2026-10-10) since 2026-10-06; DEVvm (a Win 11 VM)
   before that. Tests and browser checks are headless (vitest; Playwright + Edge), so they never
   take the screen. The VM is only worth it again for real-window work like M3 (Tauri).
 - Uses two Windows PCs and an iPhone 13; the mini PC (Intel N97, Win 11) hosts the real app at

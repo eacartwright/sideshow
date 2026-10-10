@@ -10,7 +10,7 @@ dev servers, the scratch DB and every Claude Code conversation live there. The l
 iPhone are windows onto it. Nothing gets copied between machines.
 
 Why: a Claude Code conversation is stored on the machine that ran it
-(`%USERPROFILE%\.claude\projects\C--Dev-fieldtime\`). It can't follow you to another PC, and
+(`%USERPROFILE%\.claude\projects\C--Dev-sideshow\`). It can't follow you to another PC, and
 syncing those files with git or Syncthing is fragile. Claude also has to sit next to the running
 app to start it, test it and read its logs. So keep one host and reach it from everywhere else.
 
@@ -55,10 +55,10 @@ app to start it, test it and read its logs. So keep one host and reach it from e
 
 ### 3. The code
 - [ ] Clone the repo to **`C:\Dev\sideshow`**. Using the same path as the other PCs keeps Claude's
-      project folder name (`C--Dev-fieldtime`) the same.
+      project folder name (`C--Dev-sideshow`) the same.
 - [ ] `npm install`, then `npm test` and `npm run typecheck` to confirm it works.
 - [ ] Copy Claude's memory once from the current PC:
-      `%USERPROFILE%\.claude\projects\C--Dev-fieldtime\memory\` → the same path on the mini PC.
+      `%USERPROFILE%\.claude\projects\C--Dev-sideshow\memory\` → the same path on the mini PC.
       Old conversations don't need to come along. CLAUDE.md, DESIGN.md and memory carry the
       context, and a fresh session per task works well.
 - [ ] Vite only answers hostnames it knows. To load the dev server by Tailscale name, add
