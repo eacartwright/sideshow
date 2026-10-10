@@ -196,8 +196,8 @@ folder, settings in its `.env`, then its own Access app (3b) **before** its tunn
 ## History
 
 - 2026-10-06: deployed as **fieldtime** at fieldtime.evans.tools.
-- 2026-10-10: renamed to **sideshow** (folder, task, address, backups) together with the M5
-  update. The step-by-step is in git history: `docs/deploy-evans-tools.md` §7, up to commit
+- 2026-10-10: renamed to **sideshow** (folder, task, address, backups) together with the
+  projects & profiles update (M2). The step-by-step is in git history: `docs/deploy-evans-tools.md` §7, up to commit
   `3988c25`. Only the Cloudflare clean-up under Open items is left.
 - Until 2026-10-10 this runbook was three files: `deploy-evans-tools.md` (this one),
   `home-hosting.md` (the rationale) and `mini-pc-setup.md` (an abandoned plan to develop on the

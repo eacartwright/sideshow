@@ -113,15 +113,15 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 ## Status (2026-10-10)
 
 - **Live** at https://sideshow.evans.tools on the mini PC; hosting, updates and restores are in
-  [docs/runbook.md](docs/runbook.md). Done: M1 core loop, M5 projects & profiles, M6's ticket
+  [docs/runbook.md](docs/runbook.md). Done: M1 core app, M2 projects & profiles, M4's ticket
   lookup, the backlog quick wins. Each milestone's status: DESIGN.md §12. History: `git log`.
-- **Next: M1.5, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Build
+- **Next: M3, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Build
   order: (1) the full-width page and entries table, with the `B | NB | NC` billing control,
   replacing the Time entries dialog; (2) the calendar, read-only, linked to the table; (3) drag
   to move and resize; (4) drag across empty space to add time. Custom component, no library.
 - **Evan, around 2026-10-17:** the Cloudflare clean-up under Open items in the runbook.
 - Requests and ideas: [docs/backlog.md](docs/backlog.md).
-- Compatibility code that can go once nothing old is left anywhere (say after M6): the reducer's
+- Compatibility code that can go once nothing old is left anywhere (say after M4): the reducer's
   `upgradeOp` / `LEGACY_KEYS`, reading `FIELDTIME_*` settings, renaming `data/fieldtime.db`,
   pruning `fieldtime-*` backups, carrying over the `fieldtime:pending` outbox, and install.ps1
   removing the old `fieldtime` task.
@@ -133,7 +133,7 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   commands, where possible.
 - Develops on **NOSTROMO** (the desktop, `C:\Dev\sideshow`; `C:\Dev\fieldtime` until 2026-10-10) since 2026-10-06; DEVvm (a Win 11 VM)
   before that. Tests and browser checks are headless (vitest; Playwright + Edge), so they never
-  take the screen. The VM is only worth it again for real-window work like M3 (Tauri).
+  take the screen. The VM is only worth it again for real-window work like M9 (Tauri).
 - Uses two Windows PCs and an iPhone 13; the mini PC (Intel N97, Win 11) hosts the real app at
   `C:\Apps\sideshow`, port 8081 (8080 is Caddy's), backups to the NAS. See
   [docs/runbook.md](docs/runbook.md).

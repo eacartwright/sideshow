@@ -13,7 +13,7 @@ serves two goals:
    or right after, should take as little effort as possible.
 
 Everything else is secondary. The app is also the **inbox** for work I haven't started yet, and
-(later) a quick **scratchpad** per client.
+(later) quick **client notes**.
 
 Longer term it's a **whole work-task system**: keeping track of tasks and projects, scheduling
 them, not losing any, and tracking the time spent on them. It's task-oriented, not
@@ -119,7 +119,7 @@ its entry format without writing code.
   §5). Another job might group by department, or not at all.
 - **List item `defaults`**: choosing an item sets the fields its defaults name (a work type sets
   Billing), unless the same change sets them itself; Billing can still be changed afterwards.
-  The profile supplies them until an integration does (M6). When the profile's defaults
+  The profile supplies them until an integration does (M4). When the profile's defaults
   change, records that use the item but lack the field get it once (server startup).
   The real profile is `packages/server/profiles/veritaz-cw.json`; this example is trimmed.
 - **`entryFormat`** drives the Time entries sheet: which fields are shown and copied, and how
@@ -163,7 +163,7 @@ ordinary project, and every view, timer and report treats it the same.
 |---|---|---|---|
 | **Session notes** | Session | What I did in *this* stretch of time. Becomes the time entry note (raw → AI cleanup → push). **The main one.** | "- rebooted FW, - firmware 7.2.3, - called ISP" |
 | **Task description** | Task | Optional context about the work as a whole. | "Replace firewall at main office; ISP contact is…" |
-| **Client scratchpad** | Client | Quick jottings that aren't tasks *yet*. Turned into tasks afterwards. (Later milestone.) | "FD1 printer not working. Wifi slow." |
+| **Client notes** | Client | Quick jottings that aren't tasks *yet*. Turned into tasks afterwards. (Later milestone.) | "FD1 printer not working. Wifi slow." |
 
 ### Task
 A piece of work. At this job it's often a CW ticket or project ticket, but the core only knows
@@ -220,24 +220,24 @@ Derived: **duration** = end − start − deduct.
   selected. Merging keeps the earliest start and the latest end, and joins the notes (empty
   "continuation" notes are skipped). Merges are same-day only, since each CW entry is for one day.
 
-### Client scratchpad (later milestone)
-One markdown scratchpad per client, one tap from anywhere that client appears. It's for the
+### Client notes (M8)
+One markdown page of notes per client, one tap from anywhere that client appears. It's for the
 "they mentioned ABC and DEF on the call" moment, where you jot it down now and turn it into
 tasks after the call (or after the next interruption). Each line gets a **→ task** action that
 creates an inbox task under that client from the line's text. The editor renders rich text but
-stores plain markdown. *Maybe:* mirror scratchpads into the Obsidian Work vault.
+stores plain markdown. *Maybe:* mirror client notes into the Obsidian Work vault.
 
 Until then, the Inbox covers the same need: quickly add unstarted tasks under the client.
 
 The **Client page** shows everything for that client in one place: open tasks, inbox items,
-recent sessions (and later the scratchpad). This is the screen for "I'm at XYZ, open the app,
+recent sessions (and later its client notes). This is the screen for "I'm at XYZ, open the app,
 select XYZ." In general terms it's the page for one value of a profile's `groupBy` field (§4);
-with no such field there's no Client page. The scratchpad may hang off a project instead, or as
-well; decide at M10.
+with no such field there's no Client page. Client notes may hang off a project instead, or as
+well; decide at M8.
 
 ### Work type list (CW profile)
 
-Synced from CW at M6; until then, seeded from the profile:
+Synced from CW at M4; until then, seeded from the profile:
 
 Remote - Business Hours · Onsite - Business Hours · In-house - Business Hours · Office ·
 Internal Meeting · Internal Technical · Communications · Project Coordination ·
@@ -339,7 +339,7 @@ pressing ▶ New.
    aren't replaced by CW versions.
 5. **Task detail**: title, project, profile fields (client, ticket #…), description, and
    sessions grouped by day with daily subtotals and each session's notes.
-6. **Day page** (M1.5, next; replaces the Time entries dialog and the planned Day report): one
+6. **Day page** (M3, next; replaces the Time entries dialog and the planned Day report): one
    full-width page for seeing a day, fixing it, and entering it into CW. See below.
 7. **Time entries** (built, Alt+E / **Entries**; becomes the Day page's table): what to type into
    CW, grouped by task, one card per session, click a field to copy it, **Mark entered**
@@ -348,7 +348,7 @@ pressing ▶ New.
    entered if every part was. Times are plain `8:00 AM`, dates `MM/DD/YYYY`. It's a 620 px dialog
    of tall stacked cards, so a full day means a lot of scrolling; the Day page fixes that.
 
-### Day page (M1.5)
+### Day page (M3)
 
 Built for the desktop (§2, principle 7). Opened with **Entries** / Alt+E, full width:
 
@@ -472,7 +472,7 @@ global hotkeys and a tray icon. A browser tab also works as a fallback.
 - **Clients hold a local copy + an outbox.** Every action is written locally first, with its real
   timestamp, then sent when reachable. This is designed in from M1.
 - **Conflicts**: single user, so rare. Ops are applied in timestamp order, and the most recent
-  edit to each field wins. Long text (session notes, scratchpads) is the exception: if the same text was edited on two
+  edit to each field wins. Long text (session notes, client notes) is the exception: if the same text was edited on two
   devices while offline, keep both versions and flag it rather than silently dropping one.
 
 ### Stack
@@ -481,7 +481,7 @@ global hotkeys and a tray icon. A browser tab also works as a fallback.
 |---|---|---|
 | Language | **TypeScript everywhere** | The UI must be web tech (iPhone). One language means the data model is defined once and shared by client, server, outbox and integrations. |
 | UI | React + Vite | Familiar from v1, with the largest ecosystem. Styling from design tokens. |
-| Scratchpad editor | Markdown-first editor (e.g. Milkdown or CodeMirror 6 live preview) | Rich editing with plain markdown stored. Picked when that milestone comes up. |
+| Client notes editor | Markdown-first editor (e.g. Milkdown or CodeMirror 6 live preview) | Rich editing with plain markdown stored. Picked when that milestone comes up. |
 | Desktop | Tauri | Always-on-top, global hotkeys, tray. Same UI code. |
 | Server | Node + Hono | Small, typed, easy to run as a Windows service. |
 | DB | SQLite via Node's built-in `node:sqlite`, plain SQL (no native build step) | Four small tables don't need an ORM. Numbered migrations in `server/src/db.ts`. |
@@ -542,7 +542,7 @@ its coordination ticket is then two clicks.
   and map each local client to one CW company **once**.
 - **Ticket # workflow** (works today): find the ticket in CW manually, paste its number into the
   task → sideshow fetches the summary + company, and from then on **pushes each of that task's
-  sessions as its own time entry on that ticket**. From M6, searching CW and choosing **Track**
+  sessions as its own time entry on that ticket**. From M4, searching CW and choosing **Track**
   replaces the manual search; pasting a number still works.
 - **Creating a ticket from a task** (planned): the **Ticket Owner** defaults to me (probably; not
   final), shown as a chip with an **×**. Removing it leaves the ticket unassigned so it lands on
@@ -573,22 +573,23 @@ always kept.
 
 ## 12. Milestones
 
-Status as of 2026-10-10. **M1.5 is next.** M4 was moved to the end (2026-10-10): the outbox and
-the "N unsent" indicator already cover everyday use.
+Renumbered 2026-10-10 into the order they'll be built (the old numbers, such as M1.5 and M5,
+appear in commits and notes from before then). **M3 is next**, then CW read and write as soon
+as possible.
 
 | # | Goal | Status | Done when… |
 |---|---|---|---|
-| **M1** | Core loop | **Done**, except three pieces that moved: the Day report → M1.5's Day page; the Client page → the sidebar (M7); plain-text export → later | Server on mini PC + web UI on iPhone and desktop browser. ▶ New / ▶ Continue / alongside / Stop, stacked running cards with notes, blip discard, resume-within-gap, session merge. Switcher with recent-first search + client filter. Inbox. Time picker, manual sessions, deduct. Client and work type lists. Task detail by day. Outbox in place. |
-| **M1.5** | Day page & calendar | **Next** | The Day page (§7): calendar and entries table side by side, drag to move/resize, drag across empty space to add time, visible gaps, segmented billing control. |
-| **M2** | Hands-free capture | Not started | Shortcuts endpoints → Back Tap, Control Center, Siri note. |
-| **M3** | Desktop presence | Not started | Tauri: always-on-top Now bar, global hotkeys (▶ New, Switcher, Stop), tray. |
-| **M5** | Projects & profiles (core) | **Done** 2026-10-10 | Projects (any depth) with tasks under them, and a Projects view. The profile engine (§4): field types, the `fields` blob, one active profile, `entryFormat` driving Time entries. Client, work type and ticket # moved out of core columns into the CW profile (a migration), with no change in what I see. With no profile, the app is a plain task and time tracker. Billing field with defaults per work type. |
-| **M6** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
-| **M7** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |
-| **M8** | CW write | Not started | Push sessions as time entries (with billing) from the Day page. |
-| **M9** | AI cleanup | Not started | Clean-up button with template. |
-| **M10** | Scratchpad | Not started | Markdown scratchpad per client (or project), line → inbox task. |
-| **M4** | Bad-signal hardening | Not started; low priority | Airplane-mode test on iPhone, no lost ops. (The "pending sync" indicator is done.) |
+| **M1** | Core app | **Done**, except three pieces that moved: the Day report → M3's Day page; the Client page → with the sidebar (M6); plain-text export → later | Server on mini PC + web UI on iPhone and desktop browser. ▶ New / ▶ Continue / alongside / Stop, stacked running cards with notes, blip discard, resume-within-gap, session merge. Switcher with recent-first search + client filter. Inbox. Time picker, manual sessions, deduct. Client and work type lists. Task detail by day. Outbox in place. |
+| **M2** | Projects & profiles | **Done** 2026-10-10 | Projects (any depth) with tasks under them, and a Projects view. The profile engine (§4): field types, the `fields` blob, one active profile, `entryFormat` driving Time entries. Client, work type and ticket # moved out of core columns into the CW profile (a migration), with no change in what I see. With no profile, the app is a plain task and time tracker. Billing field with defaults per work type. |
+| **M3** | Day page & calendar | **Next** | The Day page (§7): calendar and entries table side by side, drag to move/resize, drag across empty space to add time, visible gaps, segmented billing control. |
+| **M4** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
+| **M5** | CW write | Not started | Push sessions as time entries (with billing) from the Day page. |
+| **M6** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |
+| **M7** | AI note cleanup | Not started | Clean-up button with template. |
+| **M8** | Client notes | Not started | Markdown notes per client (or project), line → inbox task (§5, Client notes). |
+| **M9** | Desktop app | Not started | Tauri: always-on-top Now bar, global hotkeys (▶ New, Switcher, Stop), tray. |
+| **M10** | Hands-free capture | Not started | Shortcuts endpoints → Back Tap, Control Center, Siri note. |
+| **M11** | Bad-signal hardening | Not started; only if still needed | Airplane-mode test on iPhone, no lost ops. (The "pending sync" indicator is done.) |
 | later | Nice-to-haves | — | Plain-text export, AI-generated task titles from notes (like chat titles), natural-language quick capture, Obsidian mirroring, Google Calendar/Maps, native iOS app. |
 
 ## 13. Open questions
@@ -599,13 +600,13 @@ None blocking M1. Decisions made along the way:
   optional context.
 - ▶ New starts untitled. The first line of the notes stands in as the title until it's named.
 - One session = one CW time entry.
-- Scratchpad is deferred to M10. Inbox tasks cover that need until then.
+- Client notes (once called the scratchpad) are M8. Inbox tasks cover that need until then.
 - 2026-10-10, three layers (§4): **core** (task-oriented, not ticket- or MSP-oriented),
   **profile** (an inclusion list of fields: omitted means absent) and **integration** (API
   code). Ticket #, client, assignee, work type and billing are all profile fields, not core.
   Billing has three values at this job, named as in CW: Billable, Do Not Bill, No Charge (shows on
   the invoice). Each work type carries a default (Remote/Onsite/In-house Business Hours: Billable;
-  every other, including Travel: Do Not Bill), set by the profile until M6 syncs work types.
+  every other, including Travel: Do Not Bill), set by the profile until M4 syncs work types.
   There is no charge-to field.
 - 2026-10-10: **one profile at a time**. Switching keeps the values, hidden.
 - 2026-10-10: **projects are core**, nest to any depth, and can hold both my own groupings and
