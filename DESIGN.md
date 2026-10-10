@@ -13,7 +13,7 @@ serves two goals:
    or right after, should take as little effort as possible.
 
 Everything else is secondary. The app is also the **inbox** for work I haven't started yet, and
-(later) quick **client notes**.
+(later) quick **Notes**.
 
 Longer term it's a **whole work-task system**: keeping track of tasks and projects, scheduling
 them, not losing any, and tracking the time spent on them. It's task-oriented, not
@@ -163,7 +163,7 @@ ordinary project, and every view, timer and report treats it the same.
 |---|---|---|---|
 | **Session notes** | Session | What I did in *this* stretch of time. Becomes the time entry note (raw → AI cleanup → push). **The main one.** | "- rebooted FW, - firmware 7.2.3, - called ISP" |
 | **Task description** | Task | Optional context about the work as a whole. | "Replace firewall at main office; ISP contact is…" |
-| **Client notes** | Client | Quick jottings that aren't tasks *yet*. Turned into tasks afterwards. (Later milestone.) | "FD1 printer not working. Wifi slow." |
+| **Notes** | Itself, a project, or (with CW) a client | Quick jottings that aren't tasks *yet*. Turned into tasks afterwards. (M8.) | "FD1 printer not working. Wifi slow." |
 
 ### Task
 A piece of work. At this job it's often a CW ticket or project ticket, but the core only knows
@@ -220,20 +220,24 @@ Derived: **duration** = end − start − deduct.
   selected. Merging keeps the earliest start and the latest end, and joins the notes (empty
   "continuation" notes are skipped). Merges are same-day only, since each CW entry is for one day.
 
-### Client notes (M8)
-One markdown page of notes per client, one tap from anywhere that client appears. It's for the
-"they mentioned ABC and DEF on the call" moment, where you jot it down now and turn it into
-tasks after the call (or after the next interruption). Each line gets a **→ task** action that
-creates an inbox task under that client from the line's text. The editor renders rich text but
-stores plain markdown. *Maybe:* mirror client notes into the Obsidian Work vault.
+### Notes (M8)
+Quick markdown pages of jottings that aren't tasks *yet*: the "they mentioned ABC and DEF on the
+call" moment, where you write it down now and turn it into tasks after the call (or after the
+next interruption). Each line gets a **→ task** action that creates an inbox task from the
+line's text. The editor renders rich text but stores plain markdown. *Maybe:* mirror Notes into
+the Obsidian Work vault.
 
-Until then, the Inbox covers the same need: quickly add unstarted tasks under the client.
+Notes are **core**: a note stands alone or sits on a project. With the CW profile and
+integration, a note can also be **tied to a client** (the profile's `groupBy` field, so through
+the client mapping its CW company): it shows on that client's page, is one tap from anywhere
+the client appears, and its → task lines land under that client.
+
+Until M8, the Inbox covers the same need: quickly add unstarted tasks under the client.
 
 The **Client page** shows everything for that client in one place: open tasks, inbox items,
-recent sessions (and later its client notes). This is the screen for "I'm at XYZ, open the app,
+recent sessions (and later the Notes tied to it). This is the screen for "I'm at XYZ, open the app,
 select XYZ." In general terms it's the page for one value of a profile's `groupBy` field (§4);
-with no such field there's no Client page. Client notes may hang off a project instead, or as
-well; decide at M8.
+with no such field there's no Client page.
 
 ### Work type list (CW profile)
 
@@ -472,7 +476,7 @@ global hotkeys and a tray icon. A browser tab also works as a fallback.
 - **Clients hold a local copy + an outbox.** Every action is written locally first, with its real
   timestamp, then sent when reachable. This is designed in from M1.
 - **Conflicts**: single user, so rare. Ops are applied in timestamp order, and the most recent
-  edit to each field wins. Long text (session notes, client notes) is the exception: if the same text was edited on two
+  edit to each field wins. Long text (session notes, Notes) is the exception: if the same text was edited on two
   devices while offline, keep both versions and flag it rather than silently dropping one.
 
 ### Stack
@@ -481,7 +485,7 @@ global hotkeys and a tray icon. A browser tab also works as a fallback.
 |---|---|---|
 | Language | **TypeScript everywhere** | The UI must be web tech (iPhone). One language means the data model is defined once and shared by client, server, outbox and integrations. |
 | UI | React + Vite | Familiar from v1, with the largest ecosystem. Styling from design tokens. |
-| Client notes editor | Markdown-first editor (e.g. Milkdown or CodeMirror 6 live preview) | Rich editing with plain markdown stored. Picked when that milestone comes up. |
+| Notes editor | Markdown-first editor (e.g. Milkdown or CodeMirror 6 live preview) | Rich editing with plain markdown stored. Picked when that milestone comes up. |
 | Desktop | Tauri | Always-on-top, global hotkeys, tray. Same UI code. |
 | Server | Node + Hono | Small, typed, easy to run as a Windows service. |
 | DB | SQLite via Node's built-in `node:sqlite`, plain SQL (no native build step) | Four small tables don't need an ORM. Numbered migrations in `server/src/db.ts`. |
@@ -586,7 +590,7 @@ as possible.
 | **M5** | CW write | Not started | Push sessions as time entries (with billing) from the Day page. |
 | **M6** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |
 | **M7** | AI note cleanup | Not started | Clean-up button with template. |
-| **M8** | Client notes | Not started | Markdown notes per client (or project), line → inbox task (§5, Client notes). |
+| **M8** | Notes | Not started | Markdown Notes, standalone or on a project, tied to a client with CW; line → inbox task (§5, Notes). |
 | **M9** | Desktop app | Not started | Tauri: always-on-top Now bar, global hotkeys (▶ New, Switcher, Stop), tray. |
 | **M10** | Hands-free capture | Not started | Shortcuts endpoints → Back Tap, Control Center, Siri note. |
 | **M11** | Bad-signal hardening | Not started; only if still needed | Airplane-mode test on iPhone, no lost ops. (The "pending sync" indicator is done.) |
@@ -600,7 +604,7 @@ None blocking M1. Decisions made along the way:
   optional context.
 - ▶ New starts untitled. The first line of the notes stands in as the title until it's named.
 - One session = one CW time entry.
-- Client notes (once called the scratchpad) are M8. Inbox tasks cover that need until then.
+- Notes (once called the client scratchpad) are M8. Inbox tasks cover that need until then.
 - 2026-10-10, three layers (§4): **core** (task-oriented, not ticket- or MSP-oriented),
   **profile** (an inclusion list of fields: omitted means absent) and **integration** (API
   code). Ticket #, client, assignee, work type and billing are all profile fields, not core.
