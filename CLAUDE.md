@@ -37,7 +37,10 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   Ids on this instance: boards Tier 1 = 1, Internal = 30; Evan = member 192 (`ecartwright`). Page with `orderBy=id asc` (name ordering repeats records).
   CW is optional: the server enables it only when `CW_SITE` is set and the profile has a
   `connectwise` section (`config.cw` in `/api/state`; the UI hides CW features otherwise). `npm run dev` loads the root `.env`. Endpoint so far:
-  `GET /api/cw/tickets/:id` → `{summary, company, closed}`.
+  `GET /api/cw/tickets/:id` → `{summary, company, closed}`. Ticket lookup: entering a ticket #
+  fetches it once the number settles and records it with the `task.refInfo` op, which is ignored
+  if the ref changed since, fills the title only if untitled and the client only if unset
+  (matched by exact name). Changing the ref clears `refInfo`.
 - **Profiles** (DESIGN.md §4): job fields are declared in `packages/server/profiles/<name>.json`,
   chosen with `PROFILE` in `.env` (no PROFILE = no job fields; stored values stay, hidden). Types
   and validation in `shared/src/profile.ts`; the server loads it at startup (`server/src/profile.ts`,
@@ -45,7 +48,10 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   Values live in `task.fields` / `session.fields` (`Fields`, unset = absent); list items (clients,
   work types) are `state.lists` (`ListItem`, `list` says which). UI renders fields generically
   (`FieldInput`, `TaskFieldInputs`, `SessionFieldInputs` in `fields.tsx`); Time entries follows
-  `entryFormat`. A new field is a profile edit, not a code change.
+  `entryFormat`. A new field is a profile edit, not a code change. A list item can carry
+  `defaults` (a work type's billing): the reducer applies them when the item is chosen, unless
+  the same change sets that field, and the server fills missing defaults once when the
+  profile's defaults change.
 - `packages/web` — React + Vite. `sync.ts`: view = server state + pending ops replayed through the
   same reducer; pending ops persist in localStorage before sending (the outbox).
 
@@ -62,6 +68,7 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 ## Rules the reducer enforces (see DESIGN.md §5–6)
 
 - Each task has at most one open session; several tasks may run at once.
+- Projects nest to any depth (`parentId`); the reducer refuses cycles and unknown parents.
 - `task.start` mode: `switch` (default) stops others at the same instant and marks them
   **paused** (`task.pausedAt`, they stay on the Now stack); `alongside` doesn't.
 - `timer.pause` stops a session and marks its task paused. `timer.stop` (with `sessionId` and/or
@@ -103,86 +110,21 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   8787 (admin: `net stop winnat`, `netsh int ipv4 add excludedportrange protocol=tcp startport=8787
   numberofports=1`, `net start winnat`). Don't just pick another 8xxx port; it can be grabbed too.
 
-## Status
+## Status (2026-10-10)
 
-- Done: M1 core loop — ▶ New / continue / alongside / stop, stacked running cards, switcher
-  (Ctrl+K), inbox, task detail with merge, live sync, outbox.
-- Done: **Pause** (prominent; keeps tasks on the Now stack as paused cards) vs **Stop** (takes
-  them off).
-- Done: **Editing** — one `SessionEditor` (date, start/end, deduct, work type, notes, snap 15,
-  delete+undo) in Task details and Time entries; + Add time; Merge… mode in both.
-- Done: **Time entries** sheet (Alt+E): per-session CW fields, click-to-copy, To enter / By day,
-  Mark entered (`session.enteredAt`).
-- Deploy kit done and rehearsed on DEVvm: daily backups, `/api/health`, cache headers, PNG
-  icons, "Signed out" detection, `scripts/install.ps1` / `update.ps1` / `run.cmd`.
-- Started M5 groundwork: CW client + dev CLI (ported from the Python `psainteract` prototype, whose
-  company/ticket reads worked against the live instance). Note writes verified 2026-10-06
-  on test ticket #106745 (`npm run cw -- note`, Internal, no notifications).
-- Done 2026-10-06: live on the mini PC (as fieldtime.evans.tools; **https://sideshow.evans.tools** after the rename) behind Cloudflare
-  Access ([docs/deploy-evans-tools.md](docs/deploy-evans-tools.md); iPhone home-screen app and
-  reboot test done; CW lookup on).
-- Done (M5): **ticket lookup** — entering a ticket # (Task details, Time entries) fetches it from
-  CW once the number settles; `TicketInfo` shows summary · company with ↻. The result is the
-  `task.refInfo` op: ignored if the ref changed since, fills the title only if untitled and the
-  client only if unset (matched by exact name). Changing the ref clears `refInfo`.
-- Requested changes and ideas: [docs/backlog.md](docs/backlog.md) (Inbox, then Next / Soon / Later).
-- 2026-10-10: design reworked into **core / profile / integration** (DESIGN.md §4, §10) with
-  core **projects** (any depth) and CW items tracked only when chosen. Milestones renumbered:
-  M5 Projects & profiles, M6 CW tickets & lists, M7 CW projects, M8 CW write, M9 AI, M10
-  scratchpad. The ticket lookup above counts toward M6.
-- M5 plan (agreed 2026-10-10), three steps: (1) projects, (2) profile engine + migrating
-  client / work type / ticket # into the CW profile (`fields` blob, `list_items` keeping ids,
-  reducer translates old op shapes still queued on devices; profile = repo JSON chosen by
-  `PROFILE` in `.env`), (3) generic `FieldInput`, `entryFormat`-driven Time entries, Billing
-  field. Work types carry a **billing default** (code ready for it; Evan supplies the values).
-- Done (M5 step 1): **projects** — `Project` (any depth, `parentId`; the reducer refuses
-  cycles and unknown parents), `task.projectId`, ops `project.create` / `project.update`,
-  migration 7. UI: Projects tab (tree) → project page (crumbs, parent picker, subprojects,
-  tasks / inbox / done, ▶ New here, inline add); `ProjectPicker` on the Now card, Task details
-  and + Inbox; project path in rows and switcher search. Task details opened from a project
-  page returns to it.
-- Done (M5 step 2, most of step 3): **profiles** — migration 8 moved client / ticket # / work
-  type into `fields` and `list_items` (ids kept; old columns unused); `profiles/veritaz-cw.json`;
-  generic field UI everywhere (Now card and + Inbox now have Ticket # too); Time entries from
-  `entryFormat`; old queued ops upgraded by the reducer; pre-migration DB copy. Checked on a
-  seeded v7 copy with the CW profile and with none.
-- Done 2026-10-10: **renamed to sideshow** in code, scripts and docs (packages `@sideshow/*`,
-  `data/sideshow.db`, `SIDESHOW_*` settings, task `sideshow`). Compatibility kept on purpose:
-  `FIELDTIME_*` settings still read, `data/fieldtime.db` renamed on first start, `fieldtime-*`
-  backups still pruned, `fieldtime:pending` outbox carried over, install.ps1 removes the old task.
-  GitHub repo renamed to `eacartwright/sideshow` the same day.
-- Done 2026-10-10 (M5 complete): **Billing** session field (Billable / Do Not Bill / No Charge,
-  CW's names) with a default per work type in the profile. The reducer applies a chosen list
-  item's `defaults` (unless the same change sets that field); the server fills missing defaults
-  once when the profile's defaults change. Migrations 7–8 checked on the mini PC's 2026-10-10
-  backup (v6): counts equal, every client / ticket / work type value carried over, billing filled.
-- Deployed 2026-10-10 (runbook §7): mini PC at `C:\Apps\sideshow`, task `sideshow`, live at
-  **https://sideshow.evans.tools** (Access + icon bypass + tunnel), iPhone re-added. Server log
-  confirmed the DB rename, the CW profile and billing filled on 3 sessions.
-
-- Done 2026-10-10 (backlog quick wins): Mark done closes Task details; an untitled task's Title
-  field shows the notes' first line as editable text (`TaskInfo.titleText`); Done has a
-  collapsed Archived section (`model.all` includes archived); the Today tab is now **Day** and picks any day
-  (`DayNav`, shared with Time entries' By day; `taskTotals(info, now, day).onDay`); "Started
-  9:12" on the running card opens a start-time control (time, −5 / +5 min);
-  `scrollbar-gutter: stable` on the page and scroll areas.
-
-### Where we left off (2026-10-10)
-
-1. **Desktop folder rename** (Evan, between sessions): `C:\Dev\fieldtime` → `C:\Dev\sideshow`.
-   Claude's per-project memory moves with the path: it was copied to
-   `%USERPROFILE%\.claude\projects\C--Dev-sideshow\memory\` ahead of time. After the rename,
-   delete `node_modules` and run `npm ci` if anything complains about paths.
-2. **Cleanup, around 2026-10-17** (Evan, Cloudflare): remove `fieldtime.evans.tools` from the
-   tunnel's public hostnames and from both Access apps, and its DNS record. First check that
-   daily `sideshow-*.db` backups are landing in `\\evnas\Junk\Tech\DBBackups\sideshow`; then
-   the old `DBBackups\fieldtime` folder can go.
-3. ~~Quick wins~~ done 2026-10-10 (see Status).
-4. **Next, a milestone** (DESIGN.md §12), Evan to pick: **M6 CW tickets & lists** (live ticket
-   search + Track, client ↔ CW company mapping, work-type sync carrying billing defaults) or
-   **M1.5 Day calendar** (drag/resize sessions, fill gaps). The compatibility code for the
-   rename and for pre-profile ops (`LEGACY_KEYS`, `FIELDTIME_*`, `fieldtime:pending`) can be
-   removed once nothing old is left anywhere, say after M6.
+- **Live** at https://sideshow.evans.tools on the mini PC; hosting, updates and restores are in
+  [docs/runbook.md](docs/runbook.md). Done: M1 core loop, M5 projects & profiles, M6's ticket
+  lookup, the backlog quick wins. Each milestone's status: DESIGN.md §12. History: `git log`.
+- **Next: M1.5, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Build
+  order: (1) the full-width page and entries table, with the `B | NB | NC` billing control,
+  replacing the Time entries dialog; (2) the calendar, read-only, linked to the table; (3) drag
+  to move and resize; (4) drag across empty space to add time. Custom component, no library.
+- **Evan, around 2026-10-17:** the Cloudflare clean-up under Open items in the runbook.
+- Requests and ideas: [docs/backlog.md](docs/backlog.md).
+- Compatibility code that can go once nothing old is left anywhere (say after M6): the reducer's
+  `upgradeOp` / `LEGACY_KEYS`, reading `FIELDTIME_*` settings, renaming `data/fieldtime.db`,
+  pruning `fieldtime-*` backups, carrying over the `fieldtime:pending` outbox, and install.ps1
+  removing the old `fieldtime` task.
 
 ## Working with Evan
 
@@ -194,4 +136,4 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   take the screen. The VM is only worth it again for real-window work like M3 (Tauri).
 - Uses two Windows PCs and an iPhone 13; the mini PC (Intel N97, Win 11) hosts the real app at
   `C:\Apps\sideshow`, port 8081 (8080 is Caddy's), backups to the NAS. See
-  [docs/deploy-evans-tools.md](docs/deploy-evans-tools.md).
+  [docs/runbook.md](docs/runbook.md).

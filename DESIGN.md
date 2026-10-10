@@ -58,6 +58,11 @@ ticket up front, then re-typing times and running notes through AI by hand after
 6. **The core stays generic, and profiles and integrations are optional.** Remove the CW
    integration and the app still fully works; remove the profile too and it's still a complete
    task and time tracker.
+7. **Desktop for working the day, phone for capture.** About 90% of use is at a desktop or
+   laptop. The phone is for starting, pausing and stopping, notes and quick fields. Desktop
+   views use the full width (tables, the calendar, the keyboard) and are never pared down to fit
+   the phone. Every feature should still *work* on the phone where it reasonably can, but where
+   the two conflict, the layouts diverge by screen width instead of the desktop compromising.
 
 ## 3. Non-goals
 
@@ -269,7 +274,7 @@ kept three copies of "what's running," and they drifted apart. Here there is onl
 5. **Juggling? Start it alongside.** Waiting on a reboot while helping a coworker: both run, as
    stacked cards, with the most recently started on top.
 6. **Fill in the rest whenever.** Title, client and work type can be added during the work, or
-   later from the Day report.
+   later from the Day page.
 
 ### The verbs
 
@@ -334,58 +339,66 @@ pressing ▶ New.
    aren't replaced by CW versions.
 5. **Task detail**: title, project, profile fields (client, ticket #…), description, and
    sessions grouped by day with daily subtotals and each session's notes.
-6. **Day report**: the screen used when entering time. For a date (or a week), each task with
-   its sessions and a per-task total for that day. Each session is one line and becomes one CW
-   time entry:
+6. **Day page** (M1.5, next; replaces the Time entries dialog and the planned Day report): one
+   full-width page for seeing a day, fixing it, and entering it into CW. See below.
+7. **Time entries** (built, Alt+E / **Entries**; becomes the Day page's table): what to type into
+   CW, grouped by task, one card per session, click a field to copy it, **Mark entered**
+   (`session.enteredAt`, undoable), **To enter** (every unentered session, across days) and
+   **By day**. An entered session is never reopened by resume-within-gap, and a merge only stays
+   entered if every part was. Times are plain `8:00 AM`, dates `MM/DD/YYYY`. It's a 620 px dialog
+   of tall stacked cards, so a full day means a lot of scrolling; the Day page fixes that.
 
-   ```
-   MON SEP 28                                     total 7:45
-     #50 Acme – firewall replacement               3:00
-        8:00–10:00   Remote - Business Hours   "swapped config…"
-        1:30– 2:30   Remote - Business Hours   (continuation)
-     Weekly recurring internal                     0:15
-        8:00– 8:15   Communications            "calendar, email…"
-   TUE SEP 29
-     #50 Acme – firewall replacement               1:00
-        2:00– 3:00   Onsite - Business Hours   "…"
-   ```
-   Gaps between sessions are shown.
-7. **Time entries** (built, Alt+E / **Entries**): what to type into CW, **grouped by task**,
-   because entries go in ticket by ticket, not chronologically. Each task is a collapsed row
-   (title, #ticket, client, entry count, total, ⚠ what's missing); tapping it shows Ticket # and
-   Company once, then one block per session (= one CW entry): Date, Start, End, Hours (decimal,
-   after deduct), Work Type, Notes. **Clicking a field copies it** ("Copied ✓"). Missing ticket /
-   client / work type are filled in right there. **Mark all N entered** per task. **To enter** lists every session not
-   yet marked entered, across days (running ones last, can't be marked); **By day** shows a
-   chosen day's sessions. **Mark entered** sets `session.enteredAt` (undoable). An entered
-   session is never reopened by resume-within-gap, and a merge only stays entered if every
-   part was. Times are plain `8:00 AM`, dates `MM/DD/YYYY`.
-8. **Day calendar** (planned): the same day drawn like Google/Outlook calendar or CW Time
-   Sheets. See below.
+### Day page (M1.5)
 
-### Day calendar (planned)
+Built for the desktop (§2, principle 7). Opened with **Entries** / Alt+E, full width:
 
-A vertical timeline of one day, with each session drawn as a block. It's for *seeing* the day:
-spotting a gap and thinking "oh right, that's when I helped Sam with the switch," then filling it
-in on the spot.
+```
+Day  ‹ Fri 10/09/2026 ›  Today                         [ Day | To enter ]    7h 45m
+┌─ calendar ───────────────┬─ entries ─────────────────────────────────────────────────────┐
+│ 8 ┌──────────────────┐   │ #106745 · Acme · firewall replacement       3:00  ✓ Mark all  │
+│   │ #106745 Acme     │   │   8:00 AM–10:00 AM  2.00  Remote - BH  [B|NB|NC]  swapped… ✓ │
+│ 9 │ firewall         │   │   1:30 PM– 2:30 PM  1.00  Remote - BH  [B|NB|NC]  (contin.) ✓ │
+│10 └──────────────────┘   │ Weekly internal                             0:15              │
+│   ░░░░░░ gap ░░░░░░░░░   │   8:00 AM– 8:15 AM  0.25  Comms        [B|NB|NC]  calendar… ✓ │
+│11 ┌───────┐┌───────┐     │                                                               │
+│   │ Mtg   ││ Sam   │     │                                                               │
+└──────────────────────────┴───────────────────────────────────────────────────────────────┘
+```
 
-- **Blocks**: one per session, labeled with the task title, client and work type. Overlapping
-  (concurrent) sessions sit side by side in columns, as calendars do with overlapping meetings.
-  The running session grows live.
-- **Drag to move, drag the edges to resize.** Times snap to the snap setting (5/15 min). This
-  becomes the fastest way to fix times, often faster than typing them.
-- **Gaps are visible.** Unaccounted stretches within the workday are shaded. Tapping or dragging
-  across a gap opens the switcher to pick an existing task or type a new one, and creates a
-  session exactly covering that span.
-- **Tap a block** to open its session (notes, work type) or the task. Select several of the same
-  task to merge.
-- **Phone**: the same view in one narrow column. Long-press to drag, tap a gap to fill it.
-- **Later**: a week view (days side by side), matching CW's weekly Time Sheet.
+**Header:** the day picker (‹ date › Today, as in the task list's Day view), the day's total, and
+**Day | To enter**. To enter is the table alone, full width, across days, with a Date column.
 
-Needs from the core: a `session.create` op (manual session with start/end), and editing
-start/end, which the editing half of M1 adds anyway. The calendar is a natural home for that
-editing, so it may replace much of the form-based time picker. Implementation choice at build
-time: a custom timeline (full control, small) or FullCalendar's time-grid (MIT, has drag/resize).
+**Calendar** (left, a custom component styled from the app's tokens):
+- A vertical timeline of the day, opening on the workday (about 7 AM–7 PM) and scrolling to the
+  rest; a line marks now.
+- **Blocks**, one per session, labeled with the task title, ticket #, client and work type.
+  Concurrent sessions sit side by side in columns, like overlapping meetings. The running one
+  grows live. Entered sessions are drawn quieter.
+- **Drag a block to move it; drag its top or bottom edge to resize.** Times snap to 15 min
+  (hold Alt for 1 min). A running block's start can move; its end is "now".
+- **Drag across empty space to add time:** the switcher opens over the span; pick a task, or type
+  a title for a new one, and a session covering exactly that span is created. Esc cancels.
+- **Gaps** between the day's first and last session are shaded, so missing time stands out.
+- **Click a block** to select it: its table row highlights and scrolls into view (and the
+  reverse). Double-click opens Task details.
+
+**Table** (right):
+- Grouped by task, because entries go into CW ticket by ticket. A group's header row has the
+  title, Ticket # and Client (click to copy), the total, **✓ Mark all entered**, **+ Add time**
+  and **Merge…**.
+- One row per session (= one CW entry): Start, End, Hours, Work type, Billing, Notes (first line;
+  click to expand), ✓ Mark entered. Click a value to copy it. Work type and billing are set
+  right in the row; ✎ opens the session editor under the row.
+- **Billing** is a segmented control, `B | NB | NC`: the profile gives a choice field short
+  labels and `"input": "segmented"`; the full names show as tooltips.
+- What's missing (ticket, client, work type) is flagged in the row, as today.
+
+**Phone:** the table as stacked rows with the calendar below, long-press to drag. It has to
+work, but the phone isn't what this page is designed for.
+
+**Build order:** (1) the page and table, with the segmented billing control, replacing the
+dialog; (2) the calendar, read-only, linked to the table; (3) drag to move and resize; (4) drag
+across empty space to add time.
 
 ### Time entry (editing sessions)
 
@@ -449,12 +462,12 @@ global hotkeys and a tray icon. A browser tab also works as a fallback.
 
 - **Server**: runs on the always-on mini PC (the N97 is far more than enough). It owns the data,
   enforces the invariant, and holds all external credentials.
-- **Database**: **SQLite**, one file. Daily backup (`VACUUM INTO`, 30 kept) to OneDrive, done by
+- **Database**: **SQLite**, one file. Daily backup (`VACUUM INTO`, 30 kept) to the NAS, done by
   the server itself.
 - **Reachability**: public at `https://sideshow.<domain>` through a **Cloudflare Tunnel**, with
   **Cloudflare Access** as the login (only my email). There's no port forward, so it works from
   any network, including the work PC, with nothing installed there. Tailscale remains the private
-  path for development and admin. See [docs/home-hosting.md](docs/home-hosting.md). A simple
+  path for development and admin. See [docs/runbook.md](docs/runbook.md). A simple
   API token can still protect the endpoints on the home LAN later.
 - **Clients hold a local copy + an outbox.** Every action is written locally first, with its real
   timestamp, then sent when reachable. This is designed in from M1.
@@ -560,20 +573,23 @@ always kept.
 
 ## 12. Milestones
 
-| # | Goal | Done when… |
-|---|---|---|
-| **M1** | Core loop | Server on mini PC + web UI on iPhone and desktop browser. ▶ New / ▶ Continue / alongside / Stop, stacked running cards with notes, blip discard, resume-within-gap, session merge. Switcher with recent-first search + client filter. Inbox. Time picker, manual sessions, deduct. Groups + categories as local lists (labels "Client"/"Work Type"). Task detail by day, Day report, Client page. Plain-text export. Outbox in place. |
-| **M1.5** | Day calendar | Day timeline with drag/resize, visible gaps, tap-a-gap to fill it. Candidate to carry most of M1's time editing. |
-| **M2** | Hands-free capture | Shortcuts endpoints → Back Tap, Control Center, Siri note. |
-| **M3** | Desktop presence | Tauri: always-on-top Now bar, global hotkeys (▶ New, Switcher, Stop), tray. |
-| **M4** | Bad-signal hardening | Airplane-mode test on iPhone, no lost ops, "pending sync" indicator. |
-| **M5** | Projects & profiles (core) | Projects (any depth) with tasks under them, and a Projects view. The profile engine (§4): field types, the `fields` blob, one active profile, `entryFormat` driving Time entries. Today's client, work type and ticket # move out of core columns into the CW profile (a migration), with no change in what I see. With no profile, the app is a plain task and time tracker. |
-| **M6** | CW tickets & lists | Ticket lookup (done before M5, moves onto the `ticket` field). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
-| **M7** | CW projects | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views. |
-| **M8** | CW write | Push sessions as time entries (with billing) from Time entries / the Day report. |
-| **M9** | AI cleanup | Clean-up button with template. |
-| **M10** | Scratchpad | Markdown scratchpad per client (or project), line → inbox task. |
-| later | Nice-to-haves | AI-generated task titles from notes (like chat titles), natural-language quick capture, Obsidian mirroring, Google Calendar/Maps, native iOS app. |
+Status as of 2026-10-10. **M1.5 is next.** M4 was moved to the end (2026-10-10): the outbox and
+the "N unsent" indicator already cover everyday use.
+
+| # | Goal | Status | Done when… |
+|---|---|---|---|
+| **M1** | Core loop | **Done**, except three pieces that moved: the Day report → M1.5's Day page; the Client page → the sidebar (M7); plain-text export → later | Server on mini PC + web UI on iPhone and desktop browser. ▶ New / ▶ Continue / alongside / Stop, stacked running cards with notes, blip discard, resume-within-gap, session merge. Switcher with recent-first search + client filter. Inbox. Time picker, manual sessions, deduct. Client and work type lists. Task detail by day. Outbox in place. |
+| **M1.5** | Day page & calendar | **Next** | The Day page (§7): calendar and entries table side by side, drag to move/resize, drag across empty space to add time, visible gaps, segmented billing control. |
+| **M2** | Hands-free capture | Not started | Shortcuts endpoints → Back Tap, Control Center, Siri note. |
+| **M3** | Desktop presence | Not started | Tauri: always-on-top Now bar, global hotkeys (▶ New, Switcher, Stop), tray. |
+| **M5** | Projects & profiles (core) | **Done** 2026-10-10 | Projects (any depth) with tasks under them, and a Projects view. The profile engine (§4): field types, the `fields` blob, one active profile, `entryFormat` driving Time entries. Client, work type and ticket # moved out of core columns into the CW profile (a migration), with no change in what I see. With no profile, the app is a plain task and time tracker. Billing field with defaults per work type. |
+| **M6** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
+| **M7** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |
+| **M8** | CW write | Not started | Push sessions as time entries (with billing) from the Day page. |
+| **M9** | AI cleanup | Not started | Clean-up button with template. |
+| **M10** | Scratchpad | Not started | Markdown scratchpad per client (or project), line → inbox task. |
+| **M4** | Bad-signal hardening | Not started; low priority | Airplane-mode test on iPhone, no lost ops. (The "pending sync" indicator is done.) |
+| later | Nice-to-haves | — | Plain-text export, AI-generated task titles from notes (like chat titles), natural-language quick capture, Obsidian mirroring, Google Calendar/Maps, native iOS app. |
 
 ## 13. Open questions
 

@@ -29,7 +29,7 @@ The server also writes a daily copy to `data/backups/` (or `SIDESHOW_BACKUP_DIR`
 ## Deploy
 
 The always-on copy runs on a home mini PC behind Cloudflare Tunnel + Access; see
-[docs/home-hosting.md](docs/home-hosting.md). In short, on that PC (admin PowerShell, in
+[docs/runbook.md](docs/runbook.md). In short, on that PC (admin PowerShell, in
 `C:\Apps\sideshow`): `scripts\install.ps1` once, then `scripts\update.ps1` after each push to `main`.
 
 ## Using it
@@ -66,7 +66,7 @@ packages/
             integrations/connectwise: CW API client + `npm run cw` dev CLI (creds in .env)
   web/      React + Vite UI, local copy + outbox so nothing waits on the network
 scripts/    install.ps1 / update.ps1 / run.cmd for the always-on server
-docs/       hosting and machine setup
+docs/       runbook (hosting the real app) and backlog
 ```
 
 ```sh
