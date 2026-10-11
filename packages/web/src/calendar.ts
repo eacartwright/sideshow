@@ -53,3 +53,35 @@ export function findGaps(spans: { start: Ms; end: Ms }[]): { start: Ms; end: Ms 
   }
   return gaps;
 }
+
+export type DragMode = "move" | "start" | "end";
+
+/**
+ * Where a dragged session lands. `delta` is how far the pointer moved, in ms. The moved edge
+ * (or, for a move, the start) snaps to `step` from midnight; the session stays at least one
+ * step long and within the day; a running session's start can't pass now.
+ */
+export function dragTimes(o: {
+  mode: DragMode;
+  start: Ms;
+  end: Ms;
+  delta: number;
+  step: number;
+  day: Ms;
+  dayEnd: Ms;
+  now: Ms;
+  running: boolean;
+}): { start: Ms; end: Ms } {
+  const snap = (t: Ms) => o.day + Math.round((t - o.day) / o.step) * o.step;
+  const clamp = (t: Ms, lo: Ms, hi: Ms) => Math.min(Math.max(t, lo), hi);
+  if (o.mode === "move") {
+    const length = o.end - o.start;
+    const start = clamp(snap(o.start + o.delta), o.day, o.dayEnd - length);
+    return { start, end: start + length };
+  }
+  if (o.mode === "start") {
+    const latest = o.running ? Math.min(o.end, o.now) : o.end - o.step;
+    return { start: clamp(snap(o.start + o.delta), o.day, latest), end: o.end };
+  }
+  return { start: o.start, end: clamp(snap(o.end + o.delta), o.start + o.step, o.dayEnd) };
+}

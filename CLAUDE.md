@@ -121,9 +121,11 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - **Now: M3, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Step 1
   done: `DayPage.tsx` (a page in `App`'s `page` state, not an overlay) with the entries table
   (one `<tbody>` per task; columns from `entryFormat`) and the segmented choice input
-  (`"input": "segmented"`, `short` labels). Next: (2) the calendar, read-only, linked to the
-  table; (3) drag to move and resize; (4) drag across empty space to add time. Custom
-  component, no library.
+  (`"input": "segmented"`, `short` labels). Step 2 done: `DayCalendar.tsx` beside the table in
+  Day mode (layout in `calendar.ts`: overlap columns, gaps; selection shared with the table).
+  Step 3 done: drag to move/resize (mouse and pen; the math is `dragTimes` in `calendar.ts`,
+  tested). Next: (4) drag across empty space to add time, then long-press drag on touch.
+  Custom component, no library.
 - **Evan, around 2026-10-17:** the Cloudflare clean-up under Open items in the runbook.
 - Requests and ideas: [docs/backlog.md](docs/backlog.md).
 - Compatibility code that can go once nothing old is left anywhere (say after M4): the reducer's

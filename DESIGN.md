@@ -343,7 +343,8 @@ pressing ▶ New.
    aren't replaced by CW versions.
 5. **Task detail**: title, project, profile fields (client, ticket #…), description, and
    sessions grouped by day with daily subtotals and each session's notes.
-6. **Day page** (M3; the table is built, the calendar is next; replaced the Time entries dialog
+6. **Day page** (M3; the table and the calendar with drag to move/resize are built; drag to add
+   time is next; replaced the Time entries dialog
    and the planned Day report): one full-width page for seeing a day, fixing it, and entering it
    into CW. See below. **Mark entered** sets `session.enteredAt` (undoable). An entered session
    is never reopened by resume-within-gap, and a merge only stays entered if every part was.
@@ -399,8 +400,12 @@ work, but the phone isn't what this page is designed for.
 
 **Build order:** (1) the page and table, with the segmented billing control, replacing the
 dialog (**done** 2026-10-10: a page, not a dialog, so Task details and the switcher open over it;
-Esc or ← Now goes back; ▶ New returns to Now); (2) the calendar, read-only, linked to the table; (3) drag to move and resize; (4) drag
-across empty space to add time.
+Esc or ← Now goes back; ▶ New returns to Now); (2) the calendar, read-only, linked to the table
+(**done** 2026-10-10: `DayCalendar.tsx`, 64 px an hour, gaps of 5 min or more shaded, a line
+at now; layout in `calendar.ts`, tested); (3) drag to move and resize (**done** 2026-10-10,
+mouse and pen: a press becomes a drag after 4 px, so a click still selects; Esc cancels; the
+drop shows a toast with Undo, which also restores "entered"; a session that crosses midnight
+isn't draggable; touch only selects for now); (4) drag across empty space to add time.
 
 ### Time entry (editing sessions)
 

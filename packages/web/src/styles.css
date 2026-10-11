@@ -1588,6 +1588,43 @@ select:focus {
 .cal-block:hover {
   border-color: var(--block-edge);
 }
+.cal-block.movable {
+  cursor: grab;
+}
+.cal-handle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: ns-resize;
+}
+.cal-handle.top {
+  top: -1px;
+}
+.cal-handle.bottom {
+  bottom: -1px;
+}
+/* While dragging: the block on top, one cursor everywhere, no stray text selection. */
+.cal.dragging {
+  user-select: none;
+}
+.cal.dragging * {
+  cursor: grabbing !important;
+}
+.cal.dragging.drag-start *,
+.cal.dragging.drag-end * {
+  cursor: ns-resize !important;
+}
+.cal-block.live {
+  z-index: 4;
+  opacity: 0.92;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
+}
+.cal-drag-time {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 .cal-block.tight {
   flex-direction: row;
   align-items: center;
