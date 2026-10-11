@@ -135,7 +135,18 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - **M4 CW write built** (2026-10-10, DESIGN.md §10 "Pushing time entries"; M4 and M5 swapped):
   push from the Day page through `PushDialog`, Notes to / Email per entry, Update after edits,
   ticket links, entries deleted in CW go back to To enter. First live push done 2026-10-10 (test
-  ticket #106745). **Next: M5 CW tickets & lists.**
+  ticket #106745). Day page table layout settled the same night (DESIGN.md §7).
+- **Pick up here (2026-10-11).** Day page improvements from the first real day (Oct 7 on the
+  live site), Evan to choose the order; suggested 1 and 2 first:
+  1. Overlapping sessions: ⚠ on rows and calendar blocks, warn in the push preview, one-click
+     trim (the earlier one ends where the next starts). The day total counts overlaps twice.
+  2. Work type / billing for a whole task from its header row (fills sessions missing them),
+     and for ticked rows from the push bar.
+  3. Rows that can't be pushed: a short "needs …" note instead of dimmed Push… / ✓ / ✎.
+  4. Tiny entries (< ~5 min): suggest merge or delete. Ask Evan whether CW wants rounding.
+  5. Denser rows (padding, not smaller fonts; Evan doesn't want CW-style 8–10pt cramming).
+  Also offered: a DEV badge on the dev server (Evan mixed up localhost and the live site).
+  Then M5 CW tickets & lists.
 - **Evan, around 2026-10-17:** the Cloudflare clean-up under Open items in the runbook.
 - Requests and ideas: [docs/backlog.md](docs/backlog.md).
 - Compatibility code that can go once nothing old is left anywhere (say after M5): the reducer's

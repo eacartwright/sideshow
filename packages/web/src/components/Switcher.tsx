@@ -134,7 +134,7 @@ function ResultRow({ info, now, running }: { info: TaskInfo; now: number; runnin
   ].filter(Boolean);
   return (
     <span className="result">
-      <span className={`row-title ${info.titleDerived ? "derived" : ""}`}>{info.title}</span>
+      <span className="row-title">{info.title}</span>
       <span className="row-meta">{meta.join(" · ")}</span>
     </span>
   );

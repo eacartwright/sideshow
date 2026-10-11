@@ -209,7 +209,7 @@ function PausedCard({ info, now, onOpen }: { info: TaskInfo; now: number; onOpen
         ❚❚
       </span>
       <button className="paused-main" onClick={() => onOpen(info.task.id)} title="Open details">
-        <span className={`row-title ${info.titleDerived ? "derived" : ""}`}>{info.title}</span>
+        <span className="row-title">{info.title}</span>
         <span className="row-meta">{meta.join(" · ")}</span>
         {preview && <span className="row-meta">{preview}</span>}
       </button>

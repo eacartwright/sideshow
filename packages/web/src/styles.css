@@ -678,9 +678,6 @@ select:focus {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.row-title.derived {
-  font-style: italic;
-}
 .row-meta {
   font-size: 0.85rem;
   color: var(--muted);
@@ -1711,9 +1708,6 @@ select:focus {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.cal-title.derived {
-  font-style: italic;
 }
 .cal-meta {
   color: var(--muted);

@@ -262,7 +262,7 @@ export function DayCalendar({
                   {timeOfDay(drag.to.start)}–{running ? "now" : timeOfDay(drag.to.end)} · {hm(drag.to.end - drag.to.start)}
                 </span>
               )}
-              <span className={`cal-title ${info?.titleDerived ? "derived" : ""}`}>{info?.title}</span>
+              <span className="cal-title">{info?.title}</span>
               {height >= 44 && label && <span className="cal-meta">{label}</span>}
               {height >= 60 && (
                 <span className="cal-meta">

@@ -339,7 +339,7 @@ function EntryGroup({
         <td colSpan={titleSpan} className="group-main">
           <div className="group-head-inner">
             <button className="group-title" onClick={() => onOpenTask(info.task.id)} title={`${info.title}\nOpen task details`}>
-              <span className={`row-title ${info.titleDerived ? "derived" : ""}`}>{info.title}</span>
+              <span className="row-title">{info.title}</span>
             </button>
             <span className="group-info">
               <TicketInfo

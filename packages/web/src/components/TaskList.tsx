@@ -152,7 +152,7 @@ export function TaskRow({
   return (
     <li className={`row ${running ? "row-running" : ""}`}>
       <button className="row-main" onClick={() => onOpen(info.task.id)}>
-        <span className={`row-title ${info.titleDerived ? "derived" : ""}`}>{info.title}</span>
+        <span className="row-title">{info.title}</span>
         <span className="row-meta">{meta.join(" · ")}</span>
       </button>
       {running ? (

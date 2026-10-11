@@ -41,7 +41,7 @@ export function ProjectList({ onOpenProject }: { onOpenProject: (id: Id) => void
           return (
             <li key={project.id} className="row" style={{ marginLeft: depth * 16 }}>
               <button className="row-main" onClick={() => onOpenProject(project.id)}>
-                <span className={`row-title ${project.title ? "" : "derived"}`}>{project.title || "Untitled project"}</span>
+                <span className="row-title">{project.title || "Untitled project"}</span>
                 {meta.length > 0 && <span className="row-meta">{meta.join(" · ")}</span>}
               </button>
             </li>
