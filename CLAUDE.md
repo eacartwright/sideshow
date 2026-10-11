@@ -1,7 +1,7 @@
 # sideshow — notes for Claude
 
-A personal work log for an MSP tech: frictionless start/stop of tasks plus quick notes, on
-Windows desktops and an iPhone. **[DESIGN.md](DESIGN.md) is the spec**; read the relevant section
+A personal work log: frictionless start/stop and note-taking for whatever you're working on,
+on desktop and phone. **[DESIGN.md](DESIGN.md) is the spec**; read the relevant section
 before changing behavior, and update it when a decision changes. v1 (April 2026, React/Supabase)
 was removed 2026-10-06; it's in git history as `v1/` up to commit `85996a4`.
 
@@ -93,6 +93,9 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 ## UI conventions
 
 - All colors are tokens in `web/src/styles.css` (light + dark). No inline styles for color.
+  Dark tokens are keyed on `html[data-theme="dark"]`, which `theme.ts` sets from the per-device
+  Colors setting (System / Light / Dark, in localStorage); an inline script in `index.html`
+  sets it before the first paint. Never use a `prefers-color-scheme` query in CSS directly.
 - Tap targets ≥ 44px; inputs 16px (prevents iOS zoom). Focus states always visible.
 - The top running card's notes `<textarea>` must stay mounted (cards are keyed by position) and
   be focused synchronously in the tap handler — that's what raises the iPhone keyboard.
@@ -115,10 +118,12 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - **Live** at https://sideshow.evans.tools on the mini PC; hosting, updates and restores are in
   [docs/runbook.md](docs/runbook.md). Done: M1 core app, M2 projects & profiles, M4's ticket
   lookup, the backlog quick wins. Each milestone's status: DESIGN.md §12. History: `git log`.
-- **Next: M3, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Build
-  order: (1) the full-width page and entries table, with the `B | NB | NC` billing control,
-  replacing the Time entries dialog; (2) the calendar, read-only, linked to the table; (3) drag
-  to move and resize; (4) drag across empty space to add time. Custom component, no library.
+- **Now: M3, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Step 1
+  done: `DayPage.tsx` (a page in `App`'s `page` state, not an overlay) with the entries table
+  (one `<tbody>` per task; columns from `entryFormat`) and the segmented choice input
+  (`"input": "segmented"`, `short` labels). Next: (2) the calendar, read-only, linked to the
+  table; (3) drag to move and resize; (4) drag across empty space to add time. Custom
+  component, no library.
 - **Evan, around 2026-10-17:** the Cloudflare clean-up under Open items in the runbook.
 - Requests and ideas: [docs/backlog.md](docs/backlog.md).
 - Compatibility code that can go once nothing old is left anywhere (say after M4): the reducer's

@@ -24,27 +24,26 @@
   --mono: ui-monospace, "Cascadia Mono", "SF Mono", Consolas, monospace;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --bg: #0e1116;
-    --surface: #161a21;
-    --surface-2: #1f242d;
-    --border: #353d4a;
-    --border-strong: #6b7584;
-    --text: #f3f5f8;
-    --muted: #b1b9c5;
-    --primary: #6ea0ff;
-    --primary-hover: #8cb4ff;
-    --on-primary: #08101f;
-    --running: #4bd585;
-    --running-bg: #10281a;
-    --paused: #ffb454;
-    --paused-bg: #2a1f0d;
-    --on-paused: #1a1000;
-    --warn: #ffb454;
-    --focus: #8fb6ff;
-  }
+/* Dark: chosen in Settings, or following the system (theme.ts sets data-theme either way). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1116;
+  --surface: #161a21;
+  --surface-2: #1f242d;
+  --border: #353d4a;
+  --border-strong: #6b7584;
+  --text: #f3f5f8;
+  --muted: #b1b9c5;
+  --primary: #6ea0ff;
+  --primary-hover: #8cb4ff;
+  --on-primary: #08101f;
+  --running: #4bd585;
+  --running-bg: #10281a;
+  --paused: #ffb454;
+  --paused-bg: #2a1f0d;
+  --on-paused: #1a1000;
+  --warn: #ffb454;
+  --focus: #8fb6ff;
 }
 
 * {
@@ -226,6 +225,7 @@ select:focus {
   padding-top: calc(12px + env(safe-area-inset-top, 0px));
 }
 .app-header h1 {
+  font-family: var(--font-brand, var(--font));
   font-size: 1.15rem;
   font-weight: 800;
   letter-spacing: -0.01em;
@@ -949,163 +949,10 @@ select:focus {
   border: 1.5px solid var(--border-strong);
   background: var(--surface);
 }
-.entry-task {
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-.entry-task.open {
-  border-color: var(--border-strong);
-}
-.entry-task.entered .entry-task-text {
-  opacity: 0.6;
-}
-.entry-task-head {
-  width: 100%;
-  min-height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 0;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-.entry-task-head:hover {
-  background: var(--surface-2);
-}
-.entry-task-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.chevron {
-  flex: none;
-  color: var(--muted);
-  transition: transform 0.15s;
-}
-.entry-task.open .chevron {
-  transform: rotate(90deg);
-}
-.entry-task-body {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
-  padding: 0 10px 10px;
-}
-.entry-times {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 4px;
-}
-@media (max-width: 599px) {
-  .entry-times {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-/* Label over value; the Copy hint floats in the corner so the value gets the full width. */
-.copy-field.stacked {
-  position: relative;
-  grid-template-columns: minmax(0, 1fr);
-  row-gap: 0;
-}
-.copy-field.stacked .copy-hint {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-}
-.entry {
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 10px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 8px;
-}
-.entry.entered {
-  background: var(--surface-2);
-}
-.entry.entered .entry-fields {
-  opacity: 0.6;
-}
-.entry-fields {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 4px;
-}
-.copy-field {
-  display: grid;
-  grid-template-columns: 6.5rem minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  min-height: var(--tap);
-  padding: 6px 10px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  text-align: left;
-  cursor: pointer;
-}
-button.copy-field:hover {
-  border-color: var(--primary);
-}
-.copy-field.missing {
-  cursor: default;
-  border-style: dashed;
-  background: transparent;
-}
 .copy-label {
   font-size: 0.8rem;
   font-weight: 600;
   color: var(--muted);
-}
-.copy-value {
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.copy-field.multi {
-  align-items: start;
-}
-.copy-field.multi .copy-value {
-  font-weight: 400;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.copy-hint {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: var(--primary);
-}
-.copy-hint.warn {
-  color: var(--warn);
-}
-.copy-field.copied {
-  border-color: var(--running);
-  background: var(--running-bg);
-}
-.copy-field.copied .copy-hint {
-  color: var(--running);
-}
-@media (hover: hover) {
-  button.copy-field .copy-hint {
-    visibility: hidden;
-  }
-  button.copy-field:hover .copy-hint,
-  button.copy-field:focus-visible .copy-hint,
-  button.copy-field.copied .copy-hint {
-    visibility: visible;
-  }
-}
-.entry-foot {
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
 }
 .entered-label {
   color: var(--running);
@@ -1130,6 +977,21 @@ button.copy-field:hover {
 .setting-label {
   font-weight: 700;
 }
+.settings-group {
+  margin: 12px 0 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.setting .segmented {
+  width: fit-content;
+}
+.setting .seg {
+  min-height: var(--tap);
+  padding: 0 16px;
+}
 .setting-select {
   min-height: var(--tap);
   width: fit-content;
@@ -1144,9 +1006,6 @@ button.copy-field:hover {
   grid-template-columns: minmax(0, 1fr);
   gap: 8px;
   padding: 8px 0 4px;
-}
-.entry.editing {
-  border-color: var(--primary);
 }
 .editor-grid {
   display: grid;
@@ -1181,40 +1040,6 @@ button.copy-field:hover {
 .btn.danger {
   color: var(--warn);
   border-color: var(--warn);
-}
-
-/* ---- merge picker (time entries) ---- */
-.merge-pick {
-  display: grid;
-  gap: 6px;
-}
-.merge-pick p {
-  margin: 0;
-}
-.merge-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: var(--tap);
-  padding: 6px 10px;
-  border: 1.5px solid var(--border);
-  border-radius: 8px;
-  cursor: pointer;
-}
-.merge-row.on {
-  border-color: var(--primary);
-  background: var(--surface-2);
-}
-.merge-row input {
-  width: 22px;
-  height: 22px;
-  flex: none;
-  accent-color: var(--primary);
-}
-.merge-row-text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
 }
 
 /* ---- toast ---- */
@@ -1282,4 +1107,384 @@ button.copy-field:hover {
   border-bottom: 1.5px solid var(--border);
   padding-bottom: 4px;
   margin: 0;
+}
+
+/* ---- Day page (time entries) ---- */
+/* Desktop-first (DESIGN.md §2, principle 7): the full width, one line per entry. */
+@media (min-width: 900px) {
+  .app-header.wide {
+    max-width: none;
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+.btn-on {
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--bg);
+}
+.page-wide {
+  padding: 0 16px calc(96px + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 900px) {
+  .page-wide {
+    padding: 0 24px 32px;
+  }
+}
+.day-page {
+  display: grid;
+  gap: 12px;
+}
+.day-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+.day-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+.day-head .tabs {
+  width: auto;
+}
+.day-head .day-nav {
+  flex: 1;
+  min-width: min(100%, 420px);
+}
+.day-total {
+  white-space: nowrap;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.entries-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  font-variant-numeric: tabular-nums;
+}
+.entries-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1.5px solid var(--border);
+}
+.entries-table th:first-child {
+  border-top-left-radius: var(--radius);
+}
+.entries-table th:last-child {
+  border-top-right-radius: var(--radius);
+}
+.entries-table td {
+  padding: 3px 6px;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border);
+}
+.entries-table tbody:last-child tr:last-child td {
+  border-bottom: 0;
+}
+.col-date,
+.col-start,
+.col-end,
+.col-hours {
+  width: 1%;
+  white-space: nowrap;
+}
+.col-field {
+  width: 1%;
+  white-space: nowrap;
+}
+.col-notes {
+  min-width: 16rem;
+}
+.col-actions {
+  width: 1%;
+  white-space: nowrap;
+}
+
+/* A task's header row: title, task fields (click to copy), totals, actions. */
+.group-head td {
+  padding: 8px 10px 6px;
+  background: var(--bg);
+  border-top: 1.5px solid var(--border-strong);
+}
+.entry-group:first-of-type .group-head td {
+  border-top: 0;
+}
+.group-head-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+.group-title {
+  min-height: 36px;
+  max-width: 28rem;
+  padding: 0 6px;
+  margin-left: -6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+.group-title:hover {
+  background: var(--surface-2);
+}
+.group-title .row-title {
+  font-size: 1.05rem;
+}
+.group-total {
+  color: var(--text);
+  font-size: 1rem;
+}
+.entry-group.all-entered .group-title,
+.entry-group.all-entered .copy-chip {
+  opacity: 0.6;
+}
+.group-foot td {
+  padding: 6px 10px;
+  background: var(--bg);
+}
+.group-missing .ref-input,
+.group-missing .select {
+  min-height: 36px;
+}
+
+.session-row:hover td {
+  background: var(--surface-2);
+}
+.session-row.entered td:not(.col-actions) {
+  opacity: 0.55;
+}
+.session-row.editing td,
+.session-row.picked td {
+  background: var(--surface-2);
+}
+.session-row.editing td:first-child,
+.session-row.picked td:first-child {
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.col-field.missing .select {
+  border-color: var(--warn);
+}
+.editor-row td {
+  padding: 4px 12px 12px;
+  background: var(--surface-2);
+}
+.row-tools {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.pick input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--primary);
+  vertical-align: middle;
+}
+
+/* Click to copy. The value is the button; "Copied ✓" flashes over it. */
+.copy {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 2px 6px;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  background: none;
+  font-weight: 600;
+  text-align: left;
+  cursor: copy;
+}
+.copy:hover {
+  border-color: var(--primary);
+}
+.copy.multi {
+  display: flex;
+  width: 100%;
+  font-weight: 400;
+}
+.copy.multi .copy-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+.copy.muted {
+  color: var(--muted);
+  font-style: italic;
+}
+.copy-ok:empty {
+  display: none;
+}
+.copy-ok {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--running);
+  color: var(--surface);
+  font-size: 0.75rem;
+  font-weight: 700;
+  font-style: normal;
+  white-space: nowrap;
+}
+.copy.copied {
+  border-color: var(--running);
+}
+.copy-chip {
+  border-color: var(--border);
+  background: var(--surface);
+  min-height: 36px;
+}
+.copy-chip-label {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+.entered-btn {
+  min-height: 34px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--running);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.entered-btn:hover {
+  background: var(--running-bg);
+}
+
+/* Small buttons, for dense rows. With a mouse they can be shorter than a finger needs. */
+.btn.sm {
+  padding: 0 12px;
+}
+.btn.sm.icon {
+  padding: 0;
+}
+@media (pointer: fine) {
+  .btn.sm {
+    min-height: 34px;
+  }
+  .btn.sm.icon {
+    width: 34px;
+  }
+  .entries-table .select {
+    min-height: 34px;
+  }
+}
+
+/* Segmented choice: B | NB | NC. */
+.session-editor .segmented {
+  justify-self: start;
+}
+.segmented {
+  display: inline-flex;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.segmented.unset {
+  border-style: dashed;
+  border-color: var(--warn);
+}
+.seg {
+  min-width: 40px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-left: 1.5px solid var(--border);
+  background: none;
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+.seg:first-child {
+  border-left: 0;
+}
+.seg:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+.seg.seg-on {
+  background: var(--text);
+  color: var(--bg);
+}
+@media (pointer: fine) {
+  .entries-table .seg {
+    min-height: 32px;
+  }
+}
+
+/* Phone and narrow windows: each entry wraps into a small card with labels. */
+@media (max-width: 899px) {
+  .entries-table,
+  .entries-table tbody,
+  .entries-table tr,
+  .entries-table td {
+    display: block;
+  }
+  .entries-table thead {
+    display: none;
+  }
+  .entries-table .session-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 4px;
+    padding: 6px 4px;
+    border-bottom: 1px solid var(--border);
+  }
+  .entries-table .session-row td {
+    border: 0;
+    width: auto;
+  }
+  .entries-table .session-row td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding-left: 6px;
+  }
+  .entries-table .col-notes {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .entries-table .col-actions {
+    margin-left: auto;
+  }
 }

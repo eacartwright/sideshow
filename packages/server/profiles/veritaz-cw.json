@@ -4,7 +4,7 @@
     { "key": "client", "label": "Client", "on": "task", "type": "list", "list": "clients", "input": "search", "groupBy": true },
     { "key": "ticket", "label": "Ticket #", "on": "task", "type": "text", "prefix": "#" },
     { "key": "workType", "label": "Work Type", "on": "session", "type": "list", "list": "workTypes" },
-    { "key": "billing", "label": "Billing", "on": "session", "type": "choice", "options": ["Billable", "Do Not Bill", "No Charge"] }
+    { "key": "billing", "label": "Billing", "on": "session", "type": "choice", "options": ["Billable", "Do Not Bill", "No Charge"], "input": "segmented", "short": ["B", "NB", "NC"] }
   ],
   "lists": {
     "workTypes": [

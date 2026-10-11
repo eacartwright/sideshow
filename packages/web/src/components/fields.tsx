@@ -214,6 +214,28 @@ function SelectField({
   );
 }
 
+/** A choice field as a row of buttons, `B | NB | NC`; the full option names are the tooltips. */
+function Segmented({ def, value, onChange }: { def: FieldDef; value: string | null; onChange: (v: string) => void }) {
+  const options = def.options ?? [];
+  return (
+    <span className={`segmented ${value ? "" : "unset"}`} role="group" aria-label={def.label}>
+      {options.map((o, i) => (
+        <button
+          key={o}
+          type="button"
+          className={`seg ${value === o ? "seg-on" : ""}`}
+          aria-pressed={value === o}
+          title={`${def.label}: ${o}`}
+          aria-label={o}
+          onClick={() => value !== o && onChange(o)}
+        >
+          {def.short?.[i] ?? o}
+        </button>
+      ))}
+    </span>
+  );
+}
+
 /** Edit one profile field, in whatever form its type calls for. */
 export function FieldInput({
   def,
@@ -240,6 +262,7 @@ export function FieldInput({
         />
       );
     case "choice":
+      if (def.input === "segmented") return <Segmented def={def} value={value ? String(value) : null} onChange={onChange} />;
       return (
         <SelectField
           label={def.label}

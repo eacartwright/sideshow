@@ -1,6 +1,6 @@
 import type { Id } from "@sideshow/shared";
 import { useEffect, useRef, useState } from "react";
-import { Entries } from "./components/Entries";
+import { DayPage } from "./components/DayPage";
 import { InboxAdd } from "./components/InboxAdd";
 import { NowPanel } from "./components/NowPanel";
 import { ProjectDetail } from "./components/ProjectDetail";
@@ -14,7 +14,6 @@ import { dismissToast, useToast } from "./toast";
 type Overlay =
   | { kind: "switcher"; alongside?: boolean }
   | { kind: "inbox" }
-  | { kind: "entries" }
   | { kind: "settings" }
   | { kind: "project"; projectId: Id }
   /** `back`: where closing returns to (the project page it was opened from). */
@@ -29,6 +28,9 @@ export function App() {
   const actions = useActionsFactory();
   const [overlay, setOverlay] = useState<Overlay>(null);
   const close = () => setOverlay(null);
+  // Which page fills the screen: Now (the stack and the task list) or the Day page.
+  const [page, setPage] = useState<"now" | "day">("now");
+  const focusNotesOnNow = useRef(false);
   const modelRef = useRef(model);
   modelRef.current = model;
   const lastNewTap = useRef(-Infinity);
@@ -42,11 +44,13 @@ export function App() {
       } else if (e.key === "/" && !isTyping(e.target) && !overlay) {
         e.preventDefault();
         setOverlay({ kind: "switcher" });
+      } else if (e.key === "Escape" && !overlay && pageRef.current === "day" && !isTyping(e.target)) {
+        setPage("now");
       } else if (e.altKey && !e.ctrlKey && !e.metaKey) {
         const act: Record<string, () => void> = {
           KeyN: () => {
             setOverlay(null);
-            actions.startNew("", e.shiftKey);
+            startNew(e.shiftKey);
           },
           KeyP: () => {
             // Alt+P pauses the top card; Alt+Shift+P pauses everything.
@@ -55,7 +59,7 @@ export function App() {
             else if (top) actions.pause(top.id);
           },
           KeyI: () => setOverlay({ kind: "inbox" }),
-          KeyE: () => setOverlay({ kind: "entries" }),
+          KeyE: () => setPage((p) => (p === "day" ? "now" : "day")),
         };
         const fn = act[e.code];
         if (fn) {
@@ -68,10 +72,29 @@ export function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [actions, overlay]);
 
+  // ▶ New from the Day page goes back to Now. The notes field isn't mounted until then, so
+  // it's focused once Now is back (on the iPhone that can't raise the keyboard, but the Day
+  // page is a desktop page).
+  const pageRef = useRef(page);
+  pageRef.current = page;
+  function startNew(alongside: boolean) {
+    if (pageRef.current === "day") {
+      focusNotesOnNow.current = true;
+      setPage("now");
+    }
+    actions.startNew("", alongside);
+  }
+  useEffect(() => {
+    if (page === "now" && focusNotesOnNow.current) {
+      focusNotesOnNow.current = false;
+      actions.notesRef.current?.focus();
+    }
+  }, [page, actions]);
+
   return (
     <ModelContext.Provider value={model}>
       <ActionsContext.Provider value={actions}>
-        <header className="app-header">
+        <header className={`app-header ${page === "day" ? "wide" : ""}`}>
           <h1>sideshow</h1>
           <SyncBadge model={model} />
           <nav className="actionbar" aria-label="Actions">
@@ -84,7 +107,7 @@ export function App() {
                 // A double tap shouldn't create two tasks.
                 if (e.timeStamp - lastNewTap.current < 700) return;
                 lastNewTap.current = e.timeStamp;
-                actions.startNew("", e.shiftKey);
+                startNew(e.shiftKey);
               }}
               title="Start a new task (Alt+N; Shift to run alongside)"
             >
@@ -93,7 +116,12 @@ export function App() {
             <button className="btn" onClick={() => setOverlay({ kind: "inbox" })} title="Add to inbox (Alt+I)">
               + Inbox
             </button>
-            <button className="btn" onClick={() => setOverlay({ kind: "entries" })} title="Time entries to copy into another system (Alt+E)">
+            <button
+              className={`btn ${page === "day" ? "btn-on" : ""}`}
+              aria-pressed={page === "day"}
+              onClick={() => setPage(page === "day" ? "now" : "day")}
+              title="Time entries: the day's sessions, ready to enter (Alt+E)"
+            >
               Entries
             </button>
           </nav>
@@ -106,20 +134,25 @@ export function App() {
           </button>
         </header>
 
-        <main className="layout">
-          <NowPanel
-            onAlongside={() => setOverlay({ kind: "switcher", alongside: true })}
-            onOpen={(taskId) => setOverlay({ kind: "detail", taskId })}
-          />
-          <TaskList
-            onOpen={(taskId) => setOverlay({ kind: "detail", taskId })}
-            onOpenProject={(projectId) => setOverlay({ kind: "project", projectId })}
-          />
-        </main>
+        {page === "day" ? (
+          <main className="page-wide">
+            <DayPage onClose={() => setPage("now")} onOpenTask={(taskId) => setOverlay({ kind: "detail", taskId })} />
+          </main>
+        ) : (
+          <main className="layout">
+            <NowPanel
+              onAlongside={() => setOverlay({ kind: "switcher", alongside: true })}
+              onOpen={(taskId) => setOverlay({ kind: "detail", taskId })}
+            />
+            <TaskList
+              onOpen={(taskId) => setOverlay({ kind: "detail", taskId })}
+              onOpenProject={(projectId) => setOverlay({ kind: "project", projectId })}
+            />
+          </main>
+        )}
 
         {overlay?.kind === "switcher" && <Switcher alongside={overlay.alongside} onClose={close} />}
         {overlay?.kind === "inbox" && <InboxAdd onClose={close} />}
-        {overlay?.kind === "entries" && <Entries onClose={close} />}
         {overlay?.kind === "settings" && <SettingsDialog onClose={close} />}
         <ToastBar />
         {overlay?.kind === "project" && (

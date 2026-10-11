@@ -343,14 +343,11 @@ pressing ▶ New.
    aren't replaced by CW versions.
 5. **Task detail**: title, project, profile fields (client, ticket #…), description, and
    sessions grouped by day with daily subtotals and each session's notes.
-6. **Day page** (M3, next; replaces the Time entries dialog and the planned Day report): one
-   full-width page for seeing a day, fixing it, and entering it into CW. See below.
-7. **Time entries** (built, Alt+E / **Entries**; becomes the Day page's table): what to type into
-   CW, grouped by task, one card per session, click a field to copy it, **Mark entered**
-   (`session.enteredAt`, undoable), **To enter** (every unentered session, across days) and
-   **By day**. An entered session is never reopened by resume-within-gap, and a merge only stays
-   entered if every part was. Times are plain `8:00 AM`, dates `MM/DD/YYYY`. It's a 620 px dialog
-   of tall stacked cards, so a full day means a lot of scrolling; the Day page fixes that.
+6. **Day page** (M3; the table is built, the calendar is next; replaced the Time entries dialog
+   and the planned Day report): one full-width page for seeing a day, fixing it, and entering it
+   into CW. See below. **Mark entered** sets `session.enteredAt` (undoable). An entered session
+   is never reopened by resume-within-gap, and a merge only stays entered if every part was.
+   Times are plain `8:00 AM`, dates `MM/DD/YYYY`.
 
 ### Day page (M3)
 
@@ -401,7 +398,8 @@ Day  ‹ Fri 10/09/2026 ›  Today                         [ Day | To enter ]   
 work, but the phone isn't what this page is designed for.
 
 **Build order:** (1) the page and table, with the segmented billing control, replacing the
-dialog; (2) the calendar, read-only, linked to the table; (3) drag to move and resize; (4) drag
+dialog (**done** 2026-10-10: a page, not a dialog, so Task details and the switcher open over it;
+Esc or ← Now goes back; ▶ New returns to Now); (2) the calendar, read-only, linked to the table; (3) drag to move and resize; (4) drag
 across empty space to add time.
 
 ### Time entry (editing sessions)
@@ -425,7 +423,8 @@ toast). Changes save as you go. Recorded timer times are stored exactly until ed
 - High contrast, readable at arm's length and in sunlight.
 - Obvious focus states. It should always be clear which field or button is active.
 - Large tap targets (≥ 44 pt). The primary action on each screen is unmistakable.
-- Light and dark themes from one set of design tokens.
+- Light and dark themes from one set of design tokens. Settings → Colors picks System, Light
+  or Dark per device (not synced).
 
 ### Safety nets
 - A running timer past a threshold (e.g. 3h, or past end of workday) triggers a nudge: "Still

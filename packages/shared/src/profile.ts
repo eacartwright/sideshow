@@ -14,10 +14,15 @@ export interface FieldDef {
   type: FieldType;
   /** `list`: which list its items come from (ListItem.list). */
   list?: string;
-  /** `list`: "search" for a find-or-add box (long lists), "select" for a dropdown (the default). */
-  input?: "select" | "search";
+  /**
+   * How it's edited. `list`: "search" for a find-or-add box (long lists), "select" for a
+   * dropdown (the default). `choice`: "select" (the default) or "segmented", a row of buttons.
+   */
+  input?: "select" | "search" | "segmented";
   /** `choice`: the fixed options. */
   options?: string[];
+  /** `choice`: a short label per option, in the same order ("B" for Billable), for compact controls. */
+  short?: string[];
   /** A `list` field that gets its own filter chips (and later a sidebar view and page). */
   groupBy?: boolean;
   /** Put in front of the value when shown ("#" for a ticket number). */
@@ -75,6 +80,9 @@ export function profileProblems(p: Profile): string[] {
     if (!["text", "choice", "list", "bool"].includes(f.type)) out.push(`${at}: unknown type "${f.type}"`);
     if (f.type === "list" && !f.list) out.push(`${at}: a list field needs "list"`);
     if (f.type === "choice" && !f.options?.length) out.push(`${at}: a choice field needs "options"`);
+    if (f.input === "search" && f.type !== "list") out.push(`${at}: "input": "search" is for list fields`);
+    if (f.input === "segmented" && f.type !== "choice") out.push(`${at}: "input": "segmented" is for choice fields`);
+    if (f.short && f.short.length !== f.options?.length) out.push(`${at}: "short" needs one label per option`);
   }
   for (const [list, entries] of Object.entries(p.lists ?? {})) {
     for (const e of entries) {

@@ -8,6 +8,11 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 
 ## Inbox
 
+- **Pick fonts, then remove the font tester.** Settings has a temporary Header font / App font
+  pair of dropdowns (`web/src/fonts.ts`, loads Google Fonts on demand, per device). Once Evan
+  picks, load just those fonts (self-host or one `<link>` in index.html), set `--font` /
+  `--font-brand` in styles.css, and delete `fonts.ts`, `FontSetting` and `startFonts()`.
+
 - **Edit the profile in the app (later).** Fields, lists and the entry format from Settings,
   instead of editing the profile JSON in the repo.
 

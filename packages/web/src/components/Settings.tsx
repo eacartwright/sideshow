@@ -1,9 +1,19 @@
 import { DEFAULT_SETTINGS } from "@sideshow/shared";
+import { useState } from "react";
 import { useA, useM } from "../model";
+import { FONTS, fontChoice, loaded, setFont, type FontSlot } from "../fonts";
+import { setThemePref, themePref, type ThemePref } from "../theme";
 import { Dialog } from "./Dialog";
 
-// The reducer's tunable rules. They're synced (every device and the server must
-// apply the same thresholds), so a change here applies everywhere.
+// Two kinds of settings. Appearance belongs to this device (localStorage). The reducer's
+// tunable rules are synced (every device and the server must apply the same thresholds),
+// so a change to them applies everywhere.
+
+const THEMES: { value: ThemePref; label: string }[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
 
 const BLIP_OPTIONS = [0, 10, 30, 60, 120];
 const GAP_OPTIONS = [0, 2, 5, 10, 15, 30, 60];
@@ -15,7 +25,12 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
 
   return (
     <Dialog title="Settings" onClose={onClose} className="settings">
-      <p className="muted small">These rules apply on every device.</p>
+      <h3 className="settings-group">On this device</h3>
+      <ThemeSetting />
+      <FontSetting slot="header" label="Header font (testing)" />
+      <FontSetting slot="app" label="App font (testing)" />
+
+      <h3 className="settings-group">On every device</h3>
 
       <Setting
         label="Discard accidental starts"
@@ -43,6 +58,74 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
         session already marked entered is never reopened.
       </Setting>
     </Dialog>
+  );
+}
+
+function ThemeSetting() {
+  const [pref, setPref] = useState(themePref);
+  return (
+    <section className="setting">
+      <span className="setting-label" id="theme-label">
+        Colors
+      </span>
+      <span className="segmented" role="group" aria-labelledby="theme-label">
+        {THEMES.map((t) => (
+          <button
+            key={t.value}
+            type="button"
+            className={`seg ${pref === t.value ? "seg-on" : ""}`}
+            aria-pressed={pref === t.value}
+            onClick={() => {
+              setPref(t.value);
+              setThemePref(t.value);
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </span>
+      <p className="muted small setting-help">System follows this device's light or dark mode, and switches when it does.</p>
+    </section>
+  );
+}
+
+/** TEMPORARY: try Google Fonts (fonts.ts). Arrow keys in the dropdown apply each one live. */
+function FontSetting({ slot, label }: { slot: FontSlot; label: string }) {
+  const [family, setFamily] = useState(() => fontChoice(slot));
+  const [missing, setMissing] = useState(false);
+  const id = `font-${slot}`;
+  return (
+    <section className="setting">
+      <label htmlFor={id} className="setting-label">
+        {label}
+      </label>
+      <select
+        id={id}
+        className="select setting-select"
+        value={family}
+        onChange={async (e) => {
+          const f = e.target.value;
+          setFamily(f);
+          setMissing(false);
+          const ok = await setFont(slot, f);
+          if (fontChoice(slot) === f) setMissing(!ok);
+        }}
+      >
+        <option value="">{slot === "app" ? "System font (default)" : "Same as the app (default)"}</option>
+        {FONTS.map((f) => (
+          <option key={f} value={f}>
+            {f}
+            {loaded.get(f) === false ? " (not on Google Fonts)" : ""}
+          </option>
+        ))}
+      </select>
+      {missing && <p className="warn small setting-help">Google Fonts doesn't have “{family}”; showing the system font.</p>}
+      {slot === "app" && (
+        <p className="muted small setting-help">
+          Temporary, for picking fonts: applies to this device only. Focus a list and use the arrow keys to flip through them.
+        </p>
+      )}
+    </section>
   );
 }
 
