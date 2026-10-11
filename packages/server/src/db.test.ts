@@ -63,3 +63,21 @@ describe("migration 8: profile fields", () => {
     db.close();
   });
 });
+
+describe("migration 9: integration data", () => {
+  it("saves and loads a session's ext; older sessions get an empty one", () => {
+    const file = tempDb();
+    const old = openDb(file, 8);
+    old.exec(`
+      INSERT INTO tasks (id, title, fields, description, status, created_at, updated_at, rev) VALUES ('t1', 'A', '{}', '', 'open', 1, 1, 1);
+      INSERT INTO sessions (id, task_id, start, "end", deduct_min, notes, fields, updated_at, rev) VALUES ('s1', 't1', 10, 20, 0, '', '{}', 20, 1);
+    `);
+    old.close();
+    const db = openDb(file);
+    expect(loadState(db).sessions.s1!.ext).toEqual({});
+    const s1 = { ...loadState(db).sessions.s1!, ext: { cw: { entryId: 501, email: true } } };
+    saveChanges(db, { lists: [], projects: [], tasks: [], sessions: [s1] });
+    expect(loadState(db).sessions.s1!.ext).toEqual({ cw: { entryId: 501, email: true } });
+    db.close();
+  });
+});

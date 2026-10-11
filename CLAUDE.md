@@ -37,9 +37,11 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   Ids on this instance: boards Tier 1 = 1, Internal = 30; Evan = member 192 (`ecartwright`). Page with `orderBy=id asc` (name ordering repeats records).
   CW is optional: the server enables it only when `CW_SITE` is set and the profile has a
   `connectwise` section (`config.cw` in `/api/state`; the UI hides CW features otherwise). `npm run dev` loads the root `.env`. Endpoint so far:
-  `GET /api/cw/tickets/:id` → `{summary, company, closed}`. Ticket lookup: entering a ticket #
+  `GET /api/cw/tickets/:id` → `{summary, company, closed}`; `POST /api/cw/push {sessionIds}` →
+  per-session results (`integrations/connectwise/push.ts`; needs `CW_MEMBER` in `.env`, else
+  `config.cwPush` is false and the UI shows Mark entered only). Ticket lookup: entering a ticket #
   fetches it once the number settles and records it with the `task.refInfo` op, which is ignored
-  if the ref changed since, fills the title only if untitled and the client only if unset
+  if the ref changed since, replaces the title with the ticket's summary and fills the client only if unset
   (matched by exact name). Changing the ref clears `refInfo`.
 - **Profiles** (DESIGN.md §4): job fields are declared in `packages/server/profiles/<name>.json`,
   chosen with `PROFILE` in `.env` (no PROFILE = no job fields; stored values stay, hidden). Types
@@ -88,6 +90,10 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   Each field comes from the earliest part that has it.
 - Session fields carry over to a task's new session (each from the latest earlier session that
   has it). A fields patch merges key by key; null, "" or false clears a key.
+- `session.ext` is integration data (CW: `entryId`, `ticket`, `pushedAt`, `email`): merged per
+  integration key by key (null removes), **never** carried over, and changing it doesn't count
+  as editing an entered session. A push records its result with a server-made `session.update`
+  (`ext` + `enteredAt`).
 - Start/stop use timeline semantics, so ops arriving late from an offline phone land correctly.
 
 ## UI conventions
@@ -126,10 +132,15 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   Step 3 done: drag to move/resize (mouse and pen; the math is `dragTimes` in `calendar.ts`,
   tested). Step 4 done: drag across empty space → `Switcher` with a `span` → `session.create`
   (or `createTaskWithSession`). M3 is done on the desktop; touch dragging is in the backlog.
-- **Next: M4, CW tickets & lists** (DESIGN.md §12), then M5 CW write.
+- **M4 CW write built** (2026-10-10, DESIGN.md §10 "Pushing time entries"; M4 and M5 swapped):
+  push from the Day page through `PushDialog`, Notes to / Email per entry, Update after edits,
+  ticket links, entries deleted in CW go back to To enter. First live push done 2026-10-10 (test
+  ticket #106745). **Open: the entries table layout**: a temporary Slots | Columns switch on the
+  Day page while Evan picks (or neither); then remove the switch and the losing layout, and drop
+  the CW summary slot (the title is the summary now). Then M5 CW tickets & lists.
 - **Evan, around 2026-10-17:** the Cloudflare clean-up under Open items in the runbook.
 - Requests and ideas: [docs/backlog.md](docs/backlog.md).
-- Compatibility code that can go once nothing old is left anywhere (say after M4): the reducer's
+- Compatibility code that can go once nothing old is left anywhere (say after M5): the reducer's
   `upgradeOp` / `LEGACY_KEYS`, reading `FIELDTIME_*` settings, renaming `data/fieldtime.db`,
   pruning `fieldtime-*` backups, carrying over the `fieldtime:pending` outbox, and install.ps1
   removing the old `fieldtime` task.

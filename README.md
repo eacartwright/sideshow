@@ -57,6 +57,11 @@ The always-on copy runs on a home mini PC behind Cloudflare Tunnel + Access; see
   one row per session, grouped by ticket, with Date, Start, End, Hours, Work Type, Billing
   (B | NB | NC) and Notes; click a value to copy it. **Mark entered** once it's in CW; "To enter"
   shows what's left. Esc goes back.
+- With ConnectWise set up (`CW_*` and `CW_MEMBER` in `.env`), **Push…** sends an entry to its
+  ticket as a CW time entry: per row, per ticket (**Push all**), or tick rows and push those.
+  A preview shows what will go first. **Notes to** (Internal | Discussion, Internal by default)
+  and **✉ Email** (off by default) are set per entry. Edit a pushed entry and **Update…** fixes
+  the same CW entry. The ticket # (↗) opens the ticket in CW.
 - On the calendar (mouse): drag a block to move it, drag its top or bottom edge to resize it
   (15-minute steps, Alt for 1 minute, Esc cancels, Undo in the toast), and drag across empty
   space to add time to a task or a new one. Gaps are shaded.

@@ -4,7 +4,8 @@
     { "key": "client", "label": "Client", "on": "task", "type": "list", "list": "clients", "input": "search", "groupBy": true },
     { "key": "ticket", "label": "Ticket #", "on": "task", "type": "text", "prefix": "#" },
     { "key": "workType", "label": "Work Type", "on": "session", "type": "list", "list": "workTypes" },
-    { "key": "billing", "label": "Billing", "on": "session", "type": "choice", "options": ["Billable", "Do Not Bill", "No Charge"], "input": "segmented", "short": ["B", "NB", "NC"] }
+    { "key": "billing", "label": "Billing", "on": "session", "type": "choice", "options": ["Billable", "Do Not Bill", "No Charge"], "input": "segmented", "short": ["B", "NB", "NC"] },
+    { "key": "noteTo", "label": "Notes to", "on": "session", "type": "choice", "options": ["Internal", "Discussion"], "input": "segmented", "default": "Internal" }
   ],
   "lists": {
     "workTypes": [
@@ -27,7 +28,7 @@
     "date": "MM/DD/YYYY",
     "time": "h:mm A",
     "hours": "decimal",
-    "fields": ["ticket", "client", "date", "start", "end", "hours", "workType", "billing", "notes"]
+    "fields": ["ticket", "client", "date", "start", "end", "hours", "workType", "billing", "noteTo", "notes"]
   },
-  "connectwise": { "ticketField": "ticket", "clientField": "client" }
+  "connectwise": { "ticketField": "ticket", "clientField": "client", "workTypeField": "workType", "billingField": "billing", "noteToField": "noteTo" }
 }

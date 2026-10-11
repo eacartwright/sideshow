@@ -1,4 +1,4 @@
-import type { Fields, FieldsPatch, Id, ListItem, Ms, Project, RefInfo, Session, Settings, Task } from "./types";
+import type { ExtPatch, Fields, FieldsPatch, Id, ListItem, Ms, Project, RefInfo, Session, Settings, Task } from "./types";
 
 // Every change to the data is an op. Clients apply ops locally right away and
 // queue them for the server, which applies the same ops with the same reducer.
@@ -60,7 +60,11 @@ export type RefLookup = Omit<RefInfo, "field" | "ref">;
 /** `fields` is merged into the task's fields, key by key. */
 export type TaskPatch = Partial<Pick<Task, "title" | "projectId" | "description" | "status">> & { fields?: FieldsPatch };
 export type ProjectPatch = Partial<Pick<Project, "title" | "parentId" | "description" | "status">>;
-export type SessionPatch = Partial<Pick<Session, "notes" | "start" | "end" | "deductMin" | "enteredAt">> & { fields?: FieldsPatch };
+export type SessionPatch = Partial<Pick<Session, "notes" | "start" | "end" | "deductMin" | "enteredAt">> & {
+  fields?: FieldsPatch;
+  /** Integration data; changing it doesn't count as editing the entry. */
+  ext?: ExtPatch;
+};
 
 /**
  * Op types the server accepts. "group.*" and the older shapes of some ops (groupId, ref,

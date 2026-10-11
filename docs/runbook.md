@@ -74,7 +74,8 @@ and the site goes down (happened 2026-10-10). To fix it, run `install.ps1` again
 - `PROFILE=veritaz-cw`: the job fields (client, ticket #, work type, billing). Without it they're
   hidden, not lost. The log says which profile loaded.
 - `CW_*`: ConnectWise credentials, copied from the desktop's `.env`. Without them the ticket
-  lookup is off.
+  lookup is off. `CW_MEMBER` (e.g. `ecartwright`) is whose time pushed entries are; without it
+  the Push buttons don't appear.
 
 Restart after changing `.env`: `Stop-ScheduledTask sideshow; Start-ScheduledTask sideshow`.
 

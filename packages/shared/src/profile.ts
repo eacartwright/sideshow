@@ -1,4 +1,4 @@
-import type { Fields } from "./types";
+import type { Fields, FieldValue } from "./types";
 
 // A profile declares the extra fields a job needs (DESIGN.md §4). A field the profile
 // doesn't list doesn't exist. One profile is active at a time; the server loads it from
@@ -27,6 +27,8 @@ export interface FieldDef {
   groupBy?: boolean;
   /** Put in front of the value when shown ("#" for a ticket number). */
   prefix?: string;
+  /** The value when none is set: shown as chosen, and used as such ("Internal" for where notes go). */
+  default?: FieldValue;
 }
 
 /** A list entry in the profile: a name, optionally with the values it fills in when chosen. */
@@ -52,7 +54,16 @@ export interface Profile {
   lists?: Record<string, ProfileListEntry[]>;
   entryFormat?: EntryFormat;
   /** The ConnectWise integration: which fields it reads and fills. */
-  connectwise?: { ticketField: string; clientField?: string };
+  connectwise?: {
+    ticketField: string;
+    clientField?: string;
+    /** For pushing time entries (session fields). Work type items match CW work types by name. */
+    workTypeField?: string;
+    /** Values are CW's billing names: Billable, Do Not Bill, No Charge. */
+    billingField?: string;
+    /** Values: Internal or Discussion (where the entry's notes show on the ticket). */
+    noteToField?: string;
+  };
 }
 
 export const NO_PROFILE: Profile = { name: "None", fields: [] };
@@ -83,6 +94,8 @@ export function profileProblems(p: Profile): string[] {
     if (f.input === "search" && f.type !== "list") out.push(`${at}: "input": "search" is for list fields`);
     if (f.input === "segmented" && f.type !== "choice") out.push(`${at}: "input": "segmented" is for choice fields`);
     if (f.short && f.short.length !== f.options?.length) out.push(`${at}: "short" needs one label per option`);
+    if (f.default !== undefined && f.type === "choice" && !f.options?.includes(String(f.default)))
+      out.push(`${at}: default "${f.default}" isn't one of its options`);
   }
   for (const [list, entries] of Object.entries(p.lists ?? {})) {
     for (const e of entries) {
@@ -99,7 +112,9 @@ export function profileProblems(p: Profile): string[] {
   }
   const cw = p.connectwise;
   if (cw && !keys.has(cw.ticketField)) out.push(`connectwise.ticketField "${cw.ticketField}" isn't a field`);
-  if (cw?.clientField && !keys.has(cw.clientField)) out.push(`connectwise.clientField "${cw.clientField}" isn't a field`);
+  for (const k of ["clientField", "workTypeField", "billingField", "noteToField"] as const) {
+    if (cw?.[k] && !keys.has(cw[k])) out.push(`connectwise.${k} "${cw[k]}" isn't a field`);
+  }
   return out;
 }
 

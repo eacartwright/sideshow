@@ -262,6 +262,8 @@ export function FieldInput({
         />
       );
     case "choice":
+      // An unset choice with a default ("Internal") shows the default as chosen.
+      value ??= def.default;
       if (def.input === "segmented") return <Segmented def={def} value={value ? String(value) : null} onChange={onChange} />;
       return (
         <SelectField
@@ -378,11 +380,27 @@ export function ProjectPicker({
   );
 }
 
+/** The CW web page of a task's ticket, if CW is on and the task has a ticket number. */
+export function ticketUrl(m: { config: { cwTicketUrl?: string | null }; profile: { connectwise?: { ticketField: string } } }, task: Task): string | null {
+  const field = m.profile.connectwise?.ticketField;
+  const n = field ? ticketNumber(String(task.fields[field] ?? "")) : "";
+  return n && m.config.cwTicketUrl ? m.config.cwTicketUrl.replace("{id}", n) : null;
+}
+
 /**
  * The CW ticket behind a task's ticket field: summary and company, looked up once the number
  * has settled (and again with ↻). Shows nothing without a ticket number or without CW.
  */
-export function TicketInfo({ task }: { task: Task }) {
+export function TicketInfo({
+  task,
+  compact = false,
+  onRefresh,
+}: {
+  task: Task;
+  compact?: boolean;
+  /** Also run on ↻ (the Day page checks its pushed entries). */
+  onRefresh?: () => void;
+}) {
   const m = useM();
   const a = useA();
   const field = m.profile.connectwise?.ticketField;
@@ -418,15 +436,59 @@ export function TicketInfo({ task }: { task: Task }) {
     );
   }
   if (!info) return null;
-  return (
-    <p className="ticket small">
-      <span className="ticket-text">
-        <span className="ticket-summary">{info.summary}</span>
-        <span className="muted">
-          {[info.company, info.closed && "closed"].filter(Boolean).join(" · ")}
-        </span>
+  // The CW company next to the task's client: hidden when they match (the Client chip says it),
+  // offered as the client when none is set, and pointed out when they differ.
+  const clientKey = m.profile.connectwise?.clientField;
+  const clientDef = m.profile.fields.find((f) => f.key === clientKey);
+  const clientId = clientKey ? task.fields[clientKey] : undefined;
+  const clientName = clientId ? m.view.lists[String(clientId)]?.name : undefined;
+  const same = (x: string | undefined) => !!x && x.trim().toLowerCase() === info.company.trim().toLowerCase();
+  const setClient = () => {
+    if (!clientDef?.list || !clientKey) return;
+    const existing = (m.lists.get(clientDef.list) ?? []).find((x) => same(x.name));
+    a.setTaskField(task.id, clientKey, existing ? existing.id : a.createListItem(clientDef.list, info.company));
+  };
+  const company =
+    !info.company || same(clientName) ? null : clientName ? (
+      <span className="muted" title={`The ticket's company in ConnectWise differs from this task's ${clientDef?.label.toLowerCase() ?? "client"}`}>
+        CW: {info.company}
       </span>
-      <button className="btn subtle ticket-refresh" onClick={() => void lookup()} title="Refresh from ConnectWise" aria-label="Refresh ticket from ConnectWise">
+    ) : (
+      <>
+        <span className="muted">{info.company}</span>
+        {clientDef?.list && (
+          <button className="btn subtle ticket-set-client" onClick={setClient} title={`Use the ticket's company as this task's ${clientDef.label.toLowerCase()}`}>
+            Set as {clientDef.label.toLowerCase()}
+          </button>
+        )}
+      </>
+    );
+  return (
+    <p className={`ticket small ${compact ? "compact" : ""}`}>
+      <span className="ticket-text">
+        {ticketUrl(m, task) ? (
+          <a className="ticket-summary ticket-link" href={ticketUrl(m, task)!} target="_blank" rel="noreferrer" title="Open the ticket in ConnectWise">
+            {info.summary} ↗
+          </a>
+        ) : (
+          <span className="ticket-summary">{info.summary}</span>
+        )}
+        {(company || info.closed) && (
+          <span className="ticket-company">
+            {company}
+            {info.closed && <span className="warn">closed</span>}
+          </span>
+        )}
+      </span>
+      <button
+        className="btn subtle ticket-refresh"
+        onClick={() => {
+          void lookup();
+          onRefresh?.();
+        }}
+        title="Refresh from ConnectWise"
+        aria-label="Refresh ticket from ConnectWise"
+      >
         ↻
       </button>
     </p>

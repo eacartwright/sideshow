@@ -1,6 +1,6 @@
 import { ticketNumber } from "./derive";
 import type { Op, OpEnvelope } from "./ops";
-import { settingsOf, type Changes, type Fields, type FieldsPatch, type Id, type Ms, type Session, type State } from "./types";
+import { settingsOf, type Changes, type Ext, type ExtPatch, type Fields, type FieldsPatch, type Id, type Ms, type Session, type State } from "./types";
 
 // The single reducer used by both client (optimistic) and server (authoritative).
 // It mutates `state` in place and records which entities it touched.
@@ -79,6 +79,22 @@ function inheritedFields(state: State, taskId: Id, before: Ms): Fields {
 }
 
 const unset = (v: unknown) => v === null || v === undefined || v === "" || v === false;
+
+/** Merge integration data key by key (null removes a key; an integration with no keys left goes). */
+function patchExt(ext: Ext | undefined, patch: ExtPatch): Ext {
+  const out: Ext = structuredClone(ext ?? {});
+  for (const [name, keys] of Object.entries(patch)) {
+    if (!keys || typeof keys !== "object") continue;
+    const into = { ...out[name] };
+    for (const [k, v] of Object.entries(keys)) {
+      if (v === null || v === undefined) delete into[k];
+      else if (["string", "number", "boolean"].includes(typeof v)) into[k] = v;
+    }
+    if (Object.keys(into).length) out[name] = into;
+    else delete out[name];
+  }
+  return out;
+}
 
 /** Fields with the unset ones dropped. */
 function cleanFields(fields: FieldsPatch | undefined): Fields {
@@ -377,8 +393,9 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
       // A lookup that finishes after the field was changed (here or on another device) is stale.
       if (!task || !n || ticketNumber(String(task.fields[op.field] ?? "")) !== n) break;
       task.refInfo = { ...op.info, field: op.field, ref: n };
-      // Fill only what's still empty, so a title or client set meanwhile is never replaced.
-      if (!task.title.trim()) task.title = op.info.summary;
+      // A linked ticket names the task: its summary replaces the title. Other fields (the
+      // client) are only filled while empty, so one set meanwhile is never replaced.
+      if (op.info.summary.trim()) task.title = op.info.summary.trim();
       for (const [k, v] of Object.entries(op.fill ?? {})) if (!(k in task.fields) && !unset(v)) task.fields[k] = v;
       task.updatedAt = at;
       t.tasks.add(task.id);
@@ -388,7 +405,7 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
     case "session.update": {
       const s = state.sessions[op.sessionId];
       if (!s || s.deleted) break;
-      const { fields, ...patch } = op.patch;
+      const { fields, ext, ...patch } = op.patch;
       // Editing what was already entered elsewhere puts it back on the to-enter list, flagged.
       const content = ["start", "end", "notes", "deductMin"] as const;
       const changed =
@@ -404,6 +421,7 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
         delete patch.end;
       }
       if (fields) setFields(state, s.fields, fields);
+      if (ext) s.ext = patchExt(s.ext, ext);
       Object.assign(s, patch, { updatedAt: at });
       if (s.end !== null && s.end < s.start) s.end = s.start;
       t.sessions.add(s.id);

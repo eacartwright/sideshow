@@ -35,6 +35,8 @@ export interface CwCompany {
 export interface CwTicket {
   id: number;
   summary: string;
+  /** ServiceTicket, ProjectTicket or ProjectIssue. */
+  recordType?: string;
   company?: CwRef;
   board?: CwRef;
   status?: CwRef;
@@ -58,6 +60,34 @@ export interface CwTicketNote {
   internalAnalysisFlag?: boolean;
   detailDescriptionFlag?: boolean;
   resolutionFlag?: boolean;
+}
+
+/** A time entry as sent to CW (POST /time/entries). Times are UTC ISO, to the minute. */
+export interface CwTimeEntryInput {
+  chargeToId: number;
+  chargeToType: "ServiceTicket" | "ProjectTicket";
+  member: { identifier: string };
+  timeStart: string;
+  timeEnd: string;
+  hoursDeduct: number;
+  workType: { id: number };
+  billableOption: "Billable" | "DoNotBill" | "NoCharge";
+  notes: string;
+  addToDetailDescriptionFlag: boolean;
+  addToInternalAnalysisFlag: boolean;
+  addToResolutionFlag: boolean;
+  emailResourceFlag: boolean;
+  emailContactFlag: boolean;
+  emailCcFlag: boolean;
+}
+
+export interface CwTimeEntry {
+  id: number;
+  chargeToId: number;
+  chargeToType: string;
+  timeStart: string;
+  timeEnd: string;
+  actualHours?: number;
 }
 
 type Params = Record<string, string | number | undefined>;
@@ -127,6 +157,12 @@ export class ConnectWiseClient {
 
   private post<T>(path: string, body: unknown) {
     return this.request<T>("POST", path, undefined, body);
+  }
+
+  /** CW's PATCH takes a JSON Patch list: [{ op: "replace", path, value }]. */
+  private patch<T>(path: string, values: Record<string, unknown>) {
+    const ops = Object.entries(values).map(([k, value]) => ({ op: "replace", path: k, value }));
+    return this.request<T>("PATCH", path, undefined, ops);
   }
 
   /**
@@ -233,6 +269,58 @@ export class ConnectWiseClient {
       automaticEmailResourceFlag: emails,
       automaticEmailCcFlag: emails,
     });
+  }
+
+  /**
+   * Whether a ticket number is a service or a project ticket (time entries need to know).
+   * /service/tickets also returns project tickets, with recordType saying which; the project
+   * endpoint is the fallback for instances where it doesn't.
+   */
+  async ticketKind(id: number): Promise<"ServiceTicket" | "ProjectTicket"> {
+    try {
+      const t = await this.getTicket(id);
+      return t.recordType === "ProjectTicket" || t.recordType === "ProjectIssue" ? "ProjectTicket" : "ServiceTicket";
+    } catch (err) {
+      if (!(err instanceof CwError) || err.status !== 404) throw err;
+      await this.get<CwTicket>(`/project/tickets/${id}`);
+      return "ProjectTicket";
+    }
+  }
+
+  // ---- Time entries ----
+
+  /** Adds the entry to the ticket (and the member's timesheet). Email flags decide who CW notifies. */
+  createTimeEntry(entry: CwTimeEntryInput) {
+    return this.post<CwTimeEntry>("/time/entries", entry);
+  }
+
+  /** Changes an entry made earlier. Leaves its email flags alone, so fixing an entry never re-sends mail. */
+  updateTimeEntry(
+    id: number,
+    entry: Partial<Pick<CwTimeEntryInput, "chargeToId" | "chargeToType">> &
+      Omit<CwTimeEntryInput, "emailResourceFlag" | "emailContactFlag" | "emailCcFlag" | "member" | "chargeToId" | "chargeToType">,
+  ) {
+    return this.patch<CwTimeEntry>(`/time/entries/${id}`, entry);
+  }
+
+  /** Which of these time entry ids still exist in CW. */
+  async existingTimeEntryIds(ids: number[]): Promise<Set<number>> {
+    const out = new Set<number>();
+    for (let i = 0; i < ids.length; i += 100) {
+      const chunk = ids.slice(i, i + 100);
+      const found = await this.get<{ id: number }[]>("/time/entries", {
+        conditions: `id in (${chunk.join(",")})`,
+        fields: "id",
+        pageSize: 1000,
+      });
+      for (const e of found) out.add(e.id);
+    }
+    return out;
+  }
+
+  /** Active work types, e.g. "Remote - Business Hours" → id 3. */
+  getWorkTypes() {
+    return this.getAll<CwRef & { inactiveFlag?: boolean }>("/time/workTypes", "inactiveFlag=false");
   }
 
   // ---- Lookups (ids vary per instance) ----

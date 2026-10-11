@@ -461,11 +461,11 @@ describe("ticket lookup", () => {
     expect(s.tasks.A!.fields).toEqual({ ticket: "#123 ", client: "acme" });
   });
 
-  it("never replaces a title or client set meanwhile", () => {
+  it("replaces the title with the ticket's summary, but never a client set meanwhile", () => {
     const s = withTask("My title");
     run(s, T0, { type: "task.update", taskId: "A", patch: { fields: { client: "other" } } });
     lookup(s, "123");
-    expect(s.tasks.A).toMatchObject({ title: "My title", fields: { client: "other" } });
+    expect(s.tasks.A).toMatchObject({ title: "Printer offline", fields: { client: "other" } });
   });
 
   it("ignores a lookup for a ticket # that has since changed", () => {
@@ -696,5 +696,44 @@ describe("list item defaults", () => {
     run(s, T0 + H, { type: "session.update", sessionId: id, patch: { enteredAt: T0 + H } });
     run(s, T0 + 2 * H, { type: "session.update", sessionId: id, patch: { fields: { workType: "remote" } } });
     expect(s.sessions[id]).toMatchObject({ enteredAt: T0 + H, changedSinceEntered: false });
+  });
+});
+
+describe("integration data (ext)", () => {
+  const pushed = (s: State, at: number, id: string, entryId: number) =>
+    run(s, at, { type: "session.update", sessionId: id, patch: { ext: { cw: { entryId, pushedAt: at } }, enteredAt: at } });
+
+  it("merges per integration, key by key; null removes a key", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    stop(s, T0 + H);
+    const id = `A@${T0}`;
+    run(s, T0 + H, { type: "session.update", sessionId: id, patch: { ext: { cw: { email: true } } } });
+    pushed(s, T0 + 2 * H, id, 501);
+    expect(s.sessions[id]!.ext).toEqual({ cw: { email: true, entryId: 501, pushedAt: T0 + 2 * H } });
+    run(s, T0 + 3 * H, { type: "session.update", sessionId: id, patch: { ext: { cw: { email: null } } } });
+    expect(s.sessions[id]!.ext).toEqual({ cw: { entryId: 501, pushedAt: T0 + 2 * H } });
+  });
+
+  it("changing it doesn't count as editing an entered session", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    stop(s, T0 + H);
+    const id = `A@${T0}`;
+    pushed(s, T0 + 2 * H, id, 501);
+    run(s, T0 + 3 * H, { type: "session.update", sessionId: id, patch: { ext: { cw: { email: true } } } });
+    expect(s.sessions[id]).toMatchObject({ enteredAt: T0 + 2 * H, changedSinceEntered: false });
+    // Editing the times after a push flags it, and keeps the CW id for the update.
+    run(s, T0 + 4 * H, { type: "session.update", sessionId: id, patch: { end: T0 + 30 * M } });
+    expect(s.sessions[id]).toMatchObject({ enteredAt: null, changedSinceEntered: true, ext: { cw: { entryId: 501 } } });
+  });
+
+  it("isn't copied to the task's next session (unlike fields)", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    run(s, T0 + M, { type: "session.update", sessionId: `A@${T0}`, patch: { ext: { cw: { email: true } } } });
+    stop(s, T0 + H);
+    cont(s, T0 + 2 * H, "A");
+    expect(s.sessions[`A@${T0 + 2 * H}`]!.ext).toBeUndefined();
   });
 });

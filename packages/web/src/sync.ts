@@ -21,6 +21,10 @@ export interface Config {
   profile: Profile;
   /** The server has ConnectWise set up (ticket lookup). Missing in configs cached before it existed. */
   cw?: boolean;
+  /** Time entries can be pushed to CW (CW_MEMBER is set). */
+  cwPush?: boolean;
+  /** A ticket's page in CW, with {id} for the number. */
+  cwTicketUrl?: string | null;
 }
 
 /** "signedout": the login in front of the server (Cloudflare Access) has expired. */
@@ -222,6 +226,23 @@ class Sync {
       if (this.connection !== "signedout") this.setConnection("offline");
       void this.fetchState();
     };
+  }
+
+  /**
+   * Send everything queued now, debounced edits included, and resolve true once the server has
+   * it all (false if offline or it takes too long). Used before asking the server to act on the
+   * state, e.g. pushing time entries, so it acts on what the user sees.
+   */
+  async sendNow(timeoutMs = 10_000): Promise<boolean> {
+    clearTimeout(this.flushTimer);
+    this.flushTimer = undefined;
+    const until = Date.now() + timeoutMs;
+    while (this.pending.length) {
+      if (Date.now() > until || this.connection === "offline" || this.connection === "signedout") return false;
+      void this.flush();
+      await new Promise((r) => setTimeout(r, 100));
+    }
+    return true;
   }
 
   private scheduleFlush(delay: number) {

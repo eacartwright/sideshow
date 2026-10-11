@@ -519,12 +519,15 @@ select:focus {
   gap: 8px;
   flex-wrap: wrap;
 }
+/* A quiet action. Solid: a dashed outline means a field that isn't set yet (+ Client, an empty
+   work type), and an action can't be "set". */
 .btn.subtle {
-  border-style: dashed;
+  border-color: var(--border);
   color: var(--muted);
   background: transparent;
 }
 .btn.subtle:hover {
+  border-color: var(--border-strong);
   color: var(--text);
 }
 
@@ -903,6 +906,17 @@ select:focus {
 .ticket-summary {
   overflow-wrap: anywhere;
 }
+.ticket-company {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+}
+.btn.ticket-set-client {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 0.8rem;
+}
 .ticket-refresh {
   flex: none;
   min-width: var(--tap);
@@ -1221,7 +1235,45 @@ select:focus {
   white-space: nowrap;
 }
 .col-notes {
-  min-width: 16rem;
+  min-width: 12rem;
+}
+/* One day: every row has the same date, and it's in the header already. */
+.entries-table.one-day .col-date {
+  display: none;
+}
+.entries-table .col-field .select {
+  max-width: 13rem;
+  text-overflow: ellipsis;
+}
+/* Narrower windows: a tighter table, and if it still doesn't fit, it scrolls sideways in its
+   own box rather than the whole page. */
+@media (max-width: 1759px) {
+  .table-wrap {
+    overflow-x: auto;
+    min-width: 0;
+  }
+  .day-split {
+    grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) !important;
+  }
+  .entries-table td {
+    padding: 3px 3px;
+  }
+  .entries-table th {
+    padding: 8px 6px;
+  }
+  .entries-table .col-field .select {
+    max-width: 11rem;
+  }
+  .entries-table .seg {
+    min-width: 34px;
+    padding: 0 7px;
+  }
+  .entries-table .email-toggle {
+    padding: 0 7px;
+  }
+  .entries-table .col-notes {
+    min-width: 11rem;
+  }
 }
 .col-actions {
   width: 1%;
@@ -1517,7 +1569,7 @@ select:focus {
 }
 @media (min-width: 900px) {
   .day-split {
-    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
     align-items: start;
   }
   .day-split .cal {
@@ -1695,4 +1747,220 @@ select:focus {
   height: 8px;
   border-radius: 50%;
   background: var(--warn);
+}
+
+/* ---- pushing to ConnectWise ---- */
+.push-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px 4px 14px;
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius);
+  background: var(--block-bg);
+}
+.col-pick {
+  width: 1%;
+  padding-left: 10px !important;
+  padding-right: 4px !important;
+  text-align: center;
+}
+.col-pick input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--primary);
+  vertical-align: middle;
+  cursor: pointer;
+}
+.col-pick input:disabled {
+  cursor: not-allowed;
+}
+.col-email {
+  width: 1%;
+  white-space: nowrap;
+}
+/* Off is quiet; On is loud, because it emails the client. */
+.email-toggle {
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.email-toggle:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.email-toggle.on {
+  border-color: var(--warn);
+  background: var(--paused-bg);
+  color: var(--warn);
+}
+.email-toggle:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.ticket-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+a.ticket-open {
+  text-decoration: none;
+  color: var(--primary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+a.ticket-link {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--border-strong);
+  text-underline-offset: 3px;
+}
+a.ticket-link:hover {
+  color: var(--primary);
+  text-decoration-color: var(--primary);
+}
+.nowrap {
+  white-space: nowrap;
+}
+.dialog.push-dialog {
+  max-width: min(1200px, 96vw);
+}
+.push-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.push-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--muted);
+  padding: 6px 8px;
+  border-bottom: 1.5px solid var(--border);
+}
+.push-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.push-table tr.blocked td {
+  color: var(--muted);
+}
+.push-notes {
+  min-width: 12rem;
+  overflow-wrap: anywhere;
+}
+.push-email {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+/* ---- Entries: group header layouts (TEMPORARY A/B, see DayPage.tsx) ---- */
+.layout-pick .seg {
+  min-height: 32px;
+  font-size: 0.8rem;
+}
+/* Slots: the same fixed-width slots in every group's header, so they line up like columns. */
+.group-head-inner.slots {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+}
+.group-head-inner.slots > *,
+.slot {
+  min-width: 0;
+}
+.slot {
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.slot .copy-chip,
+.slot .group-missing,
+.slot .group-missing > *,
+.slot .ref-input {
+  max-width: 100%;
+  min-width: 0;
+}
+.slot .copy-chip .copy-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-head-inner .group-title {
+  max-width: 100%;
+  min-width: 0;
+}
+.group-head-inner .group-title .row-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+.group-head-inner.slim .group-end {
+  margin-left: auto;
+}
+/* The CW ticket line on one row, cut with an ellipsis. */
+.ticket.compact {
+  min-width: 0;
+  width: 100%;
+}
+.ticket.compact .ticket-text {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.ticket.compact .ticket-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.ticket.compact .ticket-company {
+  flex-wrap: nowrap;
+  flex: none;
+}
+.ticket.compact .ticket-refresh {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0 6px;
+}
+/* Columns: the task's fields as table columns on the group's first row. */
+.entries-table .col-task {
+  width: 1%;
+  max-width: 13rem;
+  white-space: nowrap;
+}
+.entries-table td.col-task .copy {
+  max-width: 13rem;
+}
+.entries-table td.col-task .copy-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.entries-table .col-task .ref-input {
+  width: 8rem;
+}
+.group-head-inner.slim {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.group-head-inner.slim .slot-info {
+  flex: 1;
 }

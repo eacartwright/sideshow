@@ -26,13 +26,12 @@ Items marked **(?)** need a word from Evan on what was meant before building.
 
 ## Soon — with the CW milestones (M4–M6)
 
-- **"WRIT" quick button (M4).** One tap to put a task on the catch-all ticket(s) instead of
+- **"WRIT" quick button (M5).** One tap to put a task on the catch-all ticket(s) instead of
   looking up a ticket number. Needs the catch-all ticket number(s) stored in Settings.
-- **Travel quick buttons (M4).** One tap to add a travel session / set the travel work type.
+- **Travel quick buttons (M5).** One tap to add a travel session / set the travel work type.
   Pin down: does it add a separate session, and with which work type(s) and default length?
-- **Bulk push (M5).** Push all of a task's (or a day's) unentered sessions to CW at once from
-  Time entries, rather than one by one.
-- **Ticket search window (M4, larger).** A dense results window for finding the right ticket:
+
+- **Ticket search window (M5, larger).** A dense results window for finding the right ticket:
   search all open tickets at minimum, and closed ones too, since the work may belong to a
   closed ticket. Results offer **Track** (DESIGN.md §10, Tracked vs. findable). Ties in with
   §10 "suggest likely existing tickets". On desktop this may mean a more information-dense
@@ -44,6 +43,9 @@ Items marked **(?)** need a word from Evan on what was meant before building.
   Tickets, CW Projects). DESIGN.md §7, Surfaces 4.
 
 ## Later
+
+- **Calendar beyond one day.** Work week and month views of the Day page's calendar, like
+  Outlook / CW's weekly Time Sheet (DESIGN.md §7, Day calendar "Later").
 
 - **Native apps (M9 and "later").** What it would take to make proper Android, iOS and
   Windows apps, with native gestures such as swipe-out menus. Windows is M9 (Tauri); write up

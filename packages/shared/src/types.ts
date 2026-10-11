@@ -17,6 +17,16 @@ export type Fields = Record<string, FieldValue>;
 /** A change to some fields: null (or "") clears one. */
 export type FieldsPatch = Record<string, FieldValue | null>;
 
+/**
+ * What an integration keeps on a session, under its own key ("cw"): the id of the entry it
+ * made in the other system, and per-entry push options (CW: email on/off). Unlike fields, it's
+ * never copied to a task's next session, so an option like "email the client" can't carry over.
+ */
+export type ExtValue = string | number | boolean;
+export type Ext = Record<string, Record<string, ExtValue>>;
+/** Merged key by key, per integration; null removes a key. */
+export type ExtPatch = Record<string, Record<string, ExtValue | null>>;
+
 /** An item in one of the profile's lists: a client, a work type… */
 export interface ListItem {
   id: Id;
@@ -90,6 +100,8 @@ export interface Session {
   deductMin: number;
   notes: string;
   fields: Fields;
+  /** Integration data (see Ext). Absent on sessions from before it existed. */
+  ext?: Ext;
   /** When it was marked as entered into the external system (e.g. a CW time entry). */
   enteredAt?: Ms | null;
   /** Edited after it was marked entered, so the external entry needs fixing too. Cleared when re-marked. */

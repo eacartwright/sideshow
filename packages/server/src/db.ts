@@ -109,6 +109,8 @@ const MIGRATIONS: string[] = [
     WHERE ref_info IS NOT NULL;
   UPDATE sessions SET fields = json_set(fields, '$.workType', category_id) WHERE category_id IS NOT NULL AND category_id <> '';
   `,
+  // Integration data per session (JSON: Ext), e.g. the CW time entry it was pushed as.
+  `ALTER TABLE sessions ADD COLUMN ext TEXT NOT NULL DEFAULT '{}';`,
 ];
 
 export type DB = DatabaseSync;
@@ -212,6 +214,7 @@ export function loadState(db: DB): State {
       deductMin: r.deduct_min,
       notes: r.notes,
       fields: json(r.fields, {}),
+      ext: json(r.ext, {}),
       enteredAt: r.entered_at,
       changedSinceEntered: !!r.changed_since_entered,
       deleted: !!r.deleted,
@@ -229,8 +232,8 @@ export function saveChanges(db: DB, c: Changes) {
     VALUES (@id, @title, @projectId, @fields, @refInfo, @description, @status, @pausedAt, @createdAt, @updatedAt, @rev)`);
   const p = db.prepare(`INSERT OR REPLACE INTO projects (id, title, parent_id, description, status, created_at, updated_at, rev)
     VALUES (@id, @title, @parentId, @description, @status, @createdAt, @updatedAt, @rev)`);
-  const s = db.prepare(`INSERT OR REPLACE INTO sessions (id, task_id, start, "end", deduct_min, notes, fields, entered_at, changed_since_entered, deleted, updated_at, rev)
-    VALUES (@id, @taskId, @start, @end, @deductMin, @notes, @fields, @enteredAt, @changedSinceEntered, @deleted, @updatedAt, @rev)`);
+  const s = db.prepare(`INSERT OR REPLACE INTO sessions (id, task_id, start, "end", deduct_min, notes, fields, ext, entered_at, changed_since_entered, deleted, updated_at, rev)
+    VALUES (@id, @taskId, @start, @end, @deductMin, @notes, @fields, @ext, @enteredAt, @changedSinceEntered, @deleted, @updatedAt, @rev)`);
   for (const x of c.lists) {
     l.run({
       ...x,
@@ -257,6 +260,7 @@ export function saveChanges(db: DB, c: Changes) {
     s.run({
       ...x,
       fields: JSON.stringify(x.fields ?? {}),
+      ext: JSON.stringify(x.ext ?? {}),
       enteredAt: x.enteredAt ?? null,
       changedSinceEntered: x.changedSinceEntered ? 1 : 0,
       deleted: x.deleted ? 1 : 0,

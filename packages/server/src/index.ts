@@ -9,6 +9,7 @@ import { OP_TYPES, type OpEnvelope } from "@sideshow/shared";
 import { startBackups } from "./backup";
 import { openDb } from "./db";
 import { ConnectWiseClient, CwError, configFromEnv } from "./integrations/connectwise/client";
+import { checkPushed, pushSessions } from "./integrations/connectwise/push";
 import { defaultsBackfill, loadProfile, profileListChanges } from "./profile";
 import { Store } from "./store";
 
@@ -55,6 +56,18 @@ const cw = (() => {
     return null;
   }
 })();
+// Pushing time entries also needs whose time it is (a CW member identifier, e.g. ecartwright).
+const CW_MEMBER = process.env.CW_MEMBER?.trim() || null;
+if (cw && profile.connectwise && !CW_MEMBER) console.log("ConnectWise push is off: set CW_MEMBER in .env");
+/**
+ * A ticket's page in CW, with {id} for the number: the form of CW's own "Share" link, on the API
+ * host without its "api-" prefix (api-na.myconnectwise.net → na.myconnectwise.net). Signed out,
+ * CW sends it through its login and back. CW_TICKET_URL overrides.
+ */
+const CW_TICKET_URL = !cw
+  ? null
+  : (process.env.CW_TICKET_URL ??
+    `https://${process.env.CW_SITE!.replace(/^api-/, "")}/v4_6_release/services/system_io/Service/fv_sr100_request.rails?service_recid={id}&companyName=${encodeURIComponent(process.env.CW_COMPANY_ID ?? "")}`);
 
 function isOpEnvelope(x: any): x is OpEnvelope {
   return (
@@ -70,7 +83,12 @@ app.get("/api/state", (c) =>
   c.json({
     rev: store.rev,
     state: store.state,
-    config: { profile, cw: cw !== null && !!profile.connectwise },
+    config: {
+      profile,
+      cw: cw !== null && !!profile.connectwise,
+      cwPush: cw !== null && !!profile.connectwise && !!CW_MEMBER,
+      cwTicketUrl: profile.connectwise ? CW_TICKET_URL : null,
+    },
   }),
 );
 
@@ -85,6 +103,37 @@ app.get("/api/cw/tickets/:id", async (c) => {
     if (err instanceof CwError && err.status === 404) return c.json({ error: `No ticket #${id}` }, 404);
     console.error(err);
     return c.json({ error: "ConnectWise lookup failed" }, 502);
+  }
+});
+
+// Push sessions to CW as time entries. The client sends its queued ops first, so the server's
+// state is what the user sees. Results come back per session; successes are also recorded on
+// the sessions (an op, so every device sees them).
+app.post("/api/cw/push", async (c) => {
+  if (!cw || !profile.connectwise || !CW_MEMBER) return c.json({ error: "ConnectWise push isn't set up on this server" }, 503);
+  const body = await c.req.json().catch(() => null);
+  const ids: unknown[] = Array.isArray(body?.sessionIds) ? body.sessionIds : [];
+  if (!ids.length || ids.some((x) => typeof x !== "string")) return c.json({ error: "sessionIds needed" }, 400);
+  try {
+    const results = await pushSessions(cw, store, profile, CW_MEMBER, ids as string[]);
+    return c.json({ results });
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: "Couldn't reach ConnectWise" }, 502);
+  }
+});
+
+// Which pushed sessions' CW entries have been deleted in CW; those go back to To enter.
+app.post("/api/cw/check", async (c) => {
+  if (!cw || !profile.connectwise) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  const body = await c.req.json().catch(() => null);
+  const ids: unknown[] = Array.isArray(body?.sessionIds) ? body.sessionIds : [];
+  if (ids.some((x) => typeof x !== "string")) return c.json({ error: "sessionIds needed" }, 400);
+  try {
+    return c.json({ removed: await checkPushed(cw, store, ids as string[]) });
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: "Couldn't reach ConnectWise" }, 502);
   }
 });
 

@@ -74,6 +74,15 @@ export interface Model extends Snapshot {
   settings: Settings;
 }
 
+/** What happened to one session in a push to ConnectWise (the server's PushResult). */
+export interface PushResult {
+  sessionId: Id;
+  ok: boolean;
+  action?: "created" | "updated";
+  entryId?: number;
+  error?: string;
+}
+
 export interface ProjectInfo {
   project: Project;
   depth: number;
@@ -233,6 +242,10 @@ export interface Actions {
   setTaskField(taskId: Id, key: string, value: FieldValue | null): void;
   /** Fetch the CW ticket behind the task's ticket field and record it. Resolves to an error message, or null. */
   lookupTicket(taskId: Id): Promise<string | null>;
+  /** Ask CW which of these pushed sessions' entries were deleted there (they go back to To enter). Resolves to how many, or null if CW couldn't be asked. */
+  checkCw(sessionIds: Id[]): Promise<number | null>;
+  /** Push sessions to CW as time entries: each one's result, or why the whole push failed. */
+  pushToCw(sessionIds: Id[]): Promise<{ results: PushResult[] } | { error: string }>;
   updateSession(sessionId: Id, patch: SessionPatch): void;
   setSessionField(sessionId: Id, key: string, value: FieldValue | null): void;
   mergeSessions(sessionIds: Id[]): void;
@@ -335,6 +348,43 @@ export function useActionsFactory(): Actions {
           if (status === "404") return `No ticket #${n}`;
           if (status === "503") return "ConnectWise isn't set up on the server";
           return "Couldn't look it up";
+        }
+      },
+      async checkCw(sessionIds) {
+        try {
+          const res = await api("/api/cw/check", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ sessionIds }),
+          });
+          const { removed } = (await res.json()) as { removed: Id[] };
+          if (removed.length) {
+            showToast(
+              removed.length === 1
+                ? "1 entry was deleted in ConnectWise: it's back on To enter"
+                : `${removed.length} entries were deleted in ConnectWise: they're back on To enter`,
+            );
+          }
+          return removed.length;
+        } catch {
+          return null;
+        }
+      },
+      async pushToCw(sessionIds) {
+        // The server pushes what it has: first make sure it has every edit made here.
+        if (!(await sync.sendNow())) return { error: "Couldn't send your latest changes to the server first. Check the connection and try again." };
+        try {
+          const res = await api("/api/cw/push", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ sessionIds }),
+          });
+          return (await res.json()) as { results: PushResult[] };
+        } catch (err) {
+          if (err instanceof SignedOut) return { error: "Signed out: reload to sign in, then push again." };
+          const status = (err as Error).message;
+          if (status === "503") return { error: "Pushing isn't set up on the server (CW_MEMBER in .env)." };
+          return { error: "Couldn't reach ConnectWise. Nothing was pushed; try again." };
         }
       },
       updateSession(sessionId, patch) {

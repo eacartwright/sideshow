@@ -119,7 +119,7 @@ its entry format without writing code.
   §5). Another job might group by department, or not at all.
 - **List item `defaults`**: choosing an item sets the fields its defaults name (a work type sets
   Billing), unless the same change sets them itself; Billing can still be changed afterwards.
-  The profile supplies them until an integration does (M4). When the profile's defaults
+  The profile supplies them until an integration does (M5). When the profile's defaults
   change, records that use the item but lack the field get it once (server startup).
   The real profile is `packages/server/profiles/veritaz-cw.json`; this example is trimmed.
 - **`entryFormat`** drives the Time entries sheet: which fields are shown and copied, and how
@@ -241,7 +241,7 @@ with no such field there's no Client page.
 
 ### Work type list (CW profile)
 
-Synced from CW at M4; until then, seeded from the profile:
+Synced from CW at M5; until then, seeded from the profile:
 
 Remote - Business Hours · Onsite - Business Hours · In-house - Business Hours · Office ·
 Internal Meeting · Internal Technical · Communications · Project Coordination ·
@@ -551,8 +551,9 @@ its coordination ticket is then two clicks.
 - **Client mapping**: CW has duplicates (active / lead / former…). Filter to active client types
   and map each local client to one CW company **once**.
 - **Ticket # workflow** (works today): find the ticket in CW manually, paste its number into the
-  task → sideshow fetches the summary + company, and from then on **pushes each of that task's
-  sessions as its own time entry on that ticket**. From M4, searching CW and choosing **Track**
+  task → sideshow fetches the summary + company (the summary becomes the task's title,
+  replacing whatever it was), and from then on **pushes each of that task's
+  sessions as its own time entry on that ticket**. From M5, searching CW and choosing **Track**
   replaces the manual search; pasting a number still works.
 - **Creating a ticket from a task** (planned): the **Ticket Owner** defaults to me (probably; not
   final), shown as a chip with an **×**. Removing it leaves the ticket unassigned so it lands on
@@ -572,7 +573,38 @@ its coordination ticket is then two clicks.
   28 Lead…). CW's company search shows ~385, a filter not yet identified. Suspicion: many
   "Customer" records are leftovers (e.g. Veritas 19593 with identifier `0` beside the real Client
   record), possibly from the Autotask migration. Client mapping has to cope with this.
-- **Later / maybe**: suggest likely existing tickets for a client.
+- **Pushing time entries** (M4, built 2026-10-10). From the Day page: a row's **Push…**, a
+  ticket group's **Push all N…**, or tick rows and **Push N selected…**. Every push goes through
+  a preview (ticket, date, times, hours, work type, billing, where the notes go, who gets
+  emailed, what can't go yet and why), then shows each entry's result. Per entry:
+  - **Notes to** `Internal | Discussion` (a profile field, `noteTo`, default Internal; carries
+    over to the task's next session like other fields).
+  - **Email** off/on (on = CW emails the ticket's contact, CCs and resources). Off by default and
+    **never carried over**: it lives in the session's integration data (`ext.cw.email`), not in
+    its fields. It can't be changed once pushed; CW only emails when an entry is first added.
+  - The entry is made as `CW_MEMBER` (`.env`, e.g. `ecartwright`), with UTC times to the
+    minute, `hoursDeduct` from Deduct, work type by name → CW id, billing → `Billable` /
+    `DoNotBill` / `NoCharge`, empty notes → "Continuation of previous work". The ticket's kind
+    (service or project) is looked up first.
+  - A pushed session records `ext.cw.entryId` (and the ticket) and is marked entered. Editing it
+    afterwards flags it as usual; its button becomes **Update…**, which PATCHes that same CW
+    entry (no email flags; the ticket only if it changed). If the entry was deleted in CW, the
+    push makes a new one.
+  - The client sends its queued edits before asking the server to push (`sync.sendNow`), so CW
+    gets what's on screen.
+  - **Deleted in CW**: opening the Day page (or changing its day or tab, or a group's ↻) asks CW
+    whether the pushed entries on screen still exist (`POST /api/cw/check`, one request). Any
+    that don't go back to To enter with "⚠ Deleted in CW" (`ext.cw.removedAt`) and a toast;
+    pushing again makes a new entry. Changes made to an entry inside CW aren't read back yet.
+  - Not handled yet: deleting or merging pushed sessions in sideshow leaves their CW entries as
+    they are.
+- **Ticket link**: the ticket # (Day page) and the ticket summary (Task details) open the ticket
+  in CW, in the form of CW's own Share link:
+  `https://na.myconnectwise.net/v4_6_release/services/system_io/Service/fv_sr100_request.rails?service_recid={id}&companyName={CW_COMPANY_ID}`
+  (the API host without `api-`; `CW_TICKET_URL` overrides). Tried first and failed on this
+  instance: `fv_sr100_request.rpp?srRecID=` (500) and `router/openrecord.rpp` (doesn't open).
+- **Later / maybe**: suggest likely existing tickets for a client. Read other people's ticket
+  updates back into the app.
 
 ## 11. AI note cleanup
 
@@ -584,16 +616,16 @@ always kept.
 ## 12. Milestones
 
 Renumbered 2026-10-10 into the order they'll be built (the old numbers, such as M1.5 and M5,
-appear in commits and notes from before then). **M4 is next**: CW read and write as soon as
-possible.
+appear in commits and notes from before then). M4 and M5 swapped the same day: pushing time
+entries comes first. **M4 is built and pushed live (test ticket #106745); next is M5.**
 
 | # | Goal | Status | Done when… |
 |---|---|---|---|
 | **M1** | Core app | **Done**, except three pieces that moved: the Day report → M3's Day page; the Client page → with the sidebar (M6); plain-text export → later | Server on mini PC + web UI on iPhone and desktop browser. ▶ New / ▶ Continue / alongside / Stop, stacked running cards with notes, blip discard, resume-within-gap, session merge. Switcher with recent-first search + client filter. Inbox. Time picker, manual sessions, deduct. Client and work type lists. Task detail by day. Outbox in place. |
 | **M2** | Projects & profiles | **Done** 2026-10-10 | Projects (any depth) with tasks under them, and a Projects view. The profile engine (§4): field types, the `fields` blob, one active profile, `entryFormat` driving Time entries. Client, work type and ticket # moved out of core columns into the CW profile (a migration), with no change in what I see. With no profile, the app is a plain task and time tracker. Billing field with defaults per work type. |
 | **M3** | Day page & calendar | **Done** 2026-10-10 on the desktop; touch dragging is in the backlog | The Day page (§7): calendar and entries table side by side, drag to move/resize, drag across empty space to add time, visible gaps, segmented billing control. |
-| **M4** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
-| **M5** | CW write | Not started | Push sessions as time entries (with billing) from the Day page. |
+| **M4** | CW write | **Done** 2026-10-10 (table layout still being picked) | Push sessions as time entries from the Day page (one, a ticket's, or ticked ones) through a preview; notes Internal / Discussion; email per entry, off by default; edits update the same CW entry; ticket # links to CW (§10). |
+| **M5** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
 | **M6** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |
 | **M7** | AI note cleanup | Not started | Clean-up button with template. |
 | **M8** | Notes | Not started | Markdown Notes, standalone or on a project, tied to a client with CW; line → inbox task (§5, Notes). |
@@ -616,7 +648,7 @@ None blocking M1. Decisions made along the way:
   code). Ticket #, client, assignee, work type and billing are all profile fields, not core.
   Billing has three values at this job, named as in CW: Billable, Do Not Bill, No Charge (shows on
   the invoice). Each work type carries a default (Remote/Onsite/In-house Business Hours: Billable;
-  every other, including Travel: Do Not Bill), set by the profile until M4 syncs work types.
+  every other, including Travel: Do Not Bill), set by the profile until M5 syncs work types.
   There is no charge-to field.
 - 2026-10-10: **one profile at a time**. Switching keeps the values, hidden.
 - 2026-10-10: **projects are core**, nest to any depth, and can hold both my own groupings and
