@@ -118,14 +118,15 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - **Live** at https://sideshow.evans.tools on the mini PC; hosting, updates and restores are in
   [docs/runbook.md](docs/runbook.md). Done: M1 core app, M2 projects & profiles, M4's ticket
   lookup, the backlog quick wins. Each milestone's status: DESIGN.md §12. History: `git log`.
-- **Now: M3, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Step 1
+- **Done: M3, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Step 1
   done: `DayPage.tsx` (a page in `App`'s `page` state, not an overlay) with the entries table
   (one `<tbody>` per task; columns from `entryFormat`) and the segmented choice input
   (`"input": "segmented"`, `short` labels). Step 2 done: `DayCalendar.tsx` beside the table in
   Day mode (layout in `calendar.ts`: overlap columns, gaps; selection shared with the table).
   Step 3 done: drag to move/resize (mouse and pen; the math is `dragTimes` in `calendar.ts`,
-  tested). Next: (4) drag across empty space to add time, then long-press drag on touch.
-  Custom component, no library.
+  tested). Step 4 done: drag across empty space → `Switcher` with a `span` → `session.create`
+  (or `createTaskWithSession`). M3 is done on the desktop; touch dragging is in the backlog.
+- **Next: M4, CW tickets & lists** (DESIGN.md §12), then M5 CW write.
 - **Evan, around 2026-10-17:** the Cloudflare clean-up under Open items in the runbook.
 - Requests and ideas: [docs/backlog.md](docs/backlog.md).
 - Compatibility code that can go once nothing old is left anywhere (say after M4): the reducer's

@@ -44,7 +44,13 @@ export function App() {
       } else if (e.key === "/" && !isTyping(e.target) && !overlay) {
         e.preventDefault();
         setOverlay({ kind: "switcher" });
-      } else if (e.key === "Escape" && !overlay && pageRef.current === "day" && !isTyping(e.target)) {
+      } else if (
+        e.key === "Escape" &&
+        pageRef.current === "day" &&
+        !isTyping(e.target) &&
+        // A dialog (App's, or one the Day page opened itself) takes Esc first.
+        !document.querySelector(".backdrop")
+      ) {
         setPage("now");
       } else if (e.altKey && !e.ctrlKey && !e.metaKey) {
         const act: Record<string, () => void> = {

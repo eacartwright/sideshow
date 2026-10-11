@@ -53,9 +53,13 @@ The always-on copy runs on a home mini PC behind Cloudflare Tunnel + Access; see
 - Switching to another task pauses the old one; it stays on the Now stack until you stop it.
 - Sessions under 30 seconds with no notes are discarded (except a task's first), and continuing
   a task within 10 minutes reopens the same session. Both are adjustable (or off) in ⚙ Settings.
-- **Entries** (Alt+E) opens the full-width time entries page: one row per session, grouped by
-  ticket, with Date, Start, End, Hours, Work Type, Billing (B | NB | NC) and Notes; click a value
-  to copy it. **Mark entered** once it's in CW; "To enter" shows what's left. Esc goes back.
+- **Entries** (Alt+E) opens the full-width time entries page: the day's calendar on the left, and
+  one row per session, grouped by ticket, with Date, Start, End, Hours, Work Type, Billing
+  (B | NB | NC) and Notes; click a value to copy it. **Mark entered** once it's in CW; "To enter"
+  shows what's left. Esc goes back.
+- On the calendar (mouse): drag a block to move it, drag its top or bottom edge to resize it
+  (15-minute steps, Alt for 1 minute, Esc cancels, Undo in the toast), and drag across empty
+  space to add time to a task or a new one. Gaps are shaded.
 - Merge sessions in task details: tap one, tap another, and everything between is selected.
 
 ## Layout

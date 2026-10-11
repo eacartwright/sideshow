@@ -238,6 +238,8 @@ export interface Actions {
   mergeSessions(sessionIds: Id[]): void;
   /** Add time after the fact. Returns the new session id. */
   createSession(taskId: Id, start: number, end: number): Id;
+  /** A new task with one session over a span (the calendar's drag-to-add). Returns the session id. */
+  createTaskWithSession(title: string, start: number, end: number): Id;
   /** Delete a session, with an Undo toast. */
   deleteSession(sessionId: Id): void;
   /** Add an item to one of the profile's lists (a new client). */
@@ -346,6 +348,13 @@ export function useActionsFactory(): Actions {
       },
       createSession(taskId, start, end) {
         const sessionId = newId();
+        sync.dispatch({ type: "session.create", sessionId, taskId, start, end });
+        return sessionId;
+      },
+      createTaskWithSession(title, start, end) {
+        const taskId = newId();
+        const sessionId = newId();
+        sync.dispatch({ type: "task.create", taskId, title: title.trim(), projectId: null });
         sync.dispatch({ type: "session.create", sessionId, taskId, start, end });
         return sessionId;
       },

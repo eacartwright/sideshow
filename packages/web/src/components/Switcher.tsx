@@ -1,16 +1,29 @@
 import { matchesQuery } from "@sideshow/shared";
 import { useEffect, useRef, useState } from "react";
-import { hm, whenLabel } from "../format";
+import { hm, timeOfDay, whenLabel } from "../format";
 import { taskTotals, useA, useM, type TaskInfo } from "../model";
 import { Dialog } from "./Dialog";
 
 // Find any task and continue it, or start a new one with what you typed.
 // Ctrl+K or / on desktop, Find on the phone. In "alongside" mode (or with Shift),
-// whatever is running keeps running.
+// whatever is running keeps running. With a `span` (a drag across empty space on the Day
+// page's calendar) it doesn't touch the clock: the pick gets a session covering that span.
 
 type Item = { kind: "task"; info: TaskInfo } | { kind: "new"; title: string };
 
-export function Switcher({ alongside = false, onClose }: { alongside?: boolean; onClose: () => void }) {
+export function Switcher({
+  alongside = false,
+  span,
+  onAdded,
+  onClose,
+}: {
+  alongside?: boolean;
+  /** Add this span of time to the picked task instead of starting it. */
+  span?: { start: number; end: number };
+  /** With a span: the new session's id. */
+  onAdded?: (sessionId: string) => void;
+  onClose: () => void;
+}) {
   const m = useM();
   const a = useA();
   const [q, setQ] = useState("");
@@ -33,13 +46,27 @@ export function Switcher({ alongside = false, onClose }: { alongside?: boolean; 
 
   const act = (item: Item | undefined, along: boolean) => {
     if (!item) return;
+    if (span) {
+      const id =
+        item.kind === "new"
+          ? a.createTaskWithSession(item.title, span.start, span.end)
+          : a.createSession(item.info.task.id, span.start, span.end);
+      onClose();
+      onAdded?.(id);
+      return;
+    }
     if (item.kind === "new") a.startNew(item.title, along);
     else a.continueTask(item.info.task.id, along);
     onClose();
   };
+  const title = span
+    ? `Add ${timeOfDay(span.start)}–${timeOfDay(span.end)} (${hm(span.end - span.start)}) to…`
+    : alongside
+      ? "Also working on…"
+      : "Switch task";
 
   return (
-    <Dialog title={alongside ? "Also working on…" : "Switch task"} onClose={onClose} className="switcher">
+    <Dialog title={title} onClose={onClose} className="switcher">
       <input
         className="search"
         autoFocus
@@ -71,7 +98,7 @@ export function Switcher({ alongside = false, onClose }: { alongside?: boolean; 
             >
               {item.kind === "new" ? (
                 <span className="result-new">
-                  ▶ New task{item.title ? ": " : ""}
+                  {span ? "+" : "▶"} New task{item.title ? ": " : ""}
                   <strong>{item.title}</strong>
                 </span>
               ) : (
@@ -82,8 +109,14 @@ export function Switcher({ alongside = false, onClose }: { alongside?: boolean; 
         ))}
       </ul>
       <div className="hint muted small">
-        ↑↓ move · Enter {alongside ? "start alongside" : "switch"}
-        {alongside ? "" : " · Shift+Enter alongside"} · Ctrl+Enter new task · Esc close
+        {span ? (
+          <>↑↓ move · Enter add the time · Ctrl+Enter new task · Esc cancel</>
+        ) : (
+          <>
+            ↑↓ move · Enter {alongside ? "start alongside" : "switch"}
+            {alongside ? "" : " · Shift+Enter alongside"} · Ctrl+Enter new task · Esc close
+          </>
+        )}
       </div>
     </Dialog>
   );

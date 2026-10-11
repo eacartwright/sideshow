@@ -1,6 +1,6 @@
 import { durationMs, type Id, type Ms, type Session } from "@sideshow/shared";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { dragTimes, findGaps, placeBlocks, type DragMode } from "../calendar";
+import { dragTimes, findGaps, placeBlocks, spanFromDrag, type DragMode } from "../calendar";
 import { hm, timeOfDay } from "../format";
 import { sessionFieldTexts, useA, useM } from "../model";
 import { showToast } from "../toast";
@@ -9,8 +9,8 @@ import { showToast } from "../toast";
 // side by side, the stretches between the first and last session shaded as gaps. Click a block
 // to select it (its table row highlights), double-click to open the task. With a mouse or pen,
 // drag a block to move it or its top/bottom edge to resize it: 15-minute steps, Alt for 1
-// minute, Esc cancels, and the drop offers Undo. (Touch only selects and scrolls for now.)
-// Drag-to-create comes next (M3 step 4).
+// minute, Esc cancels, and the drop offers Undo. Drag across empty space to add time there:
+// the switcher opens to pick a task or name a new one. (Touch only selects and scrolls for now.)
 
 const MIN = 60_000;
 const HOUR = 3_600_000;
@@ -34,6 +34,12 @@ interface Drag {
   to: { start: Ms; end: Ms };
 }
 
+/** A drag across empty space: where it began, and the span it covers so far. */
+interface Sweep {
+  from: Ms;
+  span: { start: Ms; end: Ms } | null;
+}
+
 export function DayCalendar({
   day,
   dayEnd,
@@ -42,6 +48,8 @@ export function DayCalendar({
   selectedId,
   onSelect,
   onOpenTask,
+  adding,
+  onAdd,
 }: {
   day: Ms;
   dayEnd: Ms;
@@ -51,6 +59,10 @@ export function DayCalendar({
   selectedId: Id | null;
   onSelect: (sessionId: Id | null) => void;
   onOpenTask: (taskId: Id) => void;
+  /** A span being added (its switcher is open): drawn as a placeholder block. */
+  adding: { start: Ms; end: Ms } | null;
+  /** A drag across empty space ended: add time over this span. */
+  onAdd: (span: { start: Ms; end: Ms }) => void;
 }) {
   const m = useM();
   const a = useA();
@@ -59,6 +71,11 @@ export function DayCalendar({
   const dragRef = useRef(drag);
   dragRef.current = drag;
   const dragging = drag !== null;
+  const grid = useRef<HTMLDivElement>(null);
+  const [sweep, setSweep] = useState<Sweep | null>(null);
+  const sweepRef = useRef(sweep);
+  sweepRef.current = sweep;
+  const sweeping = sweep !== null;
   const hours = Math.round((dayEnd - day) / HOUR); // 23 or 25 on a DST change
   const isToday = now >= day && now < dayEnd;
 
@@ -148,6 +165,47 @@ export function DayCalendar({
     });
   }
 
+  // A drag across empty space: follow the pointer, then hand the span to the switcher.
+  const timeAt = (clientY: number) => day + ((clientY - grid.current!.getBoundingClientRect().top) / PX_PER_HOUR) * HOUR;
+  useEffect(() => {
+    if (!sweeping) return;
+    let startY: number | null = null;
+    const move = (e: PointerEvent) => {
+      const sw = sweepRef.current;
+      if (!sw) return;
+      startY ??= e.clientY;
+      if (!sw.span && Math.abs(e.clientY - startY) < DRAG_THRESHOLD) return;
+      setSweep({ ...sw, span: spanFromDrag({ from: sw.from, to: timeAt(e.clientY), step: e.altKey ? MIN : 15 * MIN, day, dayEnd }) });
+    };
+    const up = () => {
+      const sw = sweepRef.current;
+      setSweep(null);
+      if (sw?.span) onAdd(sw.span);
+      else onSelect(null); // a plain click on empty space clears the selection
+    };
+    const key = (e: KeyboardEvent) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      setSweep(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("keydown", key, true);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("keydown", key, true);
+    };
+  }, [sweeping, day, dayEnd]);
+
+  function pressEmpty(e: React.PointerEvent) {
+    if (e.button !== 0 || e.pointerType === "touch" || (e.target as Element).closest(".cal-block")) return;
+    e.preventDefault();
+    setSweep({ from: timeAt(e.clientY), span: null });
+  }
+
+  const ghost = sweep?.span ?? adding;
+
   // A block selected from the table scrolls into view here.
   useEffect(() => {
     if (!selectedId) return;
@@ -155,8 +213,8 @@ export function DayCalendar({
   }, [selectedId]);
 
   return (
-    <div className={`cal ${drag?.moved ? `dragging drag-${drag.mode}` : ""}`} ref={scroller} aria-label="Day calendar">
-      <div className="cal-grid" style={{ height: px(hours * HOUR) }} onClick={(e) => e.target === e.currentTarget && onSelect(null)}>
+    <div className={`cal ${drag?.moved ? `dragging drag-${drag.mode}` : ""} ${sweep?.span ? "sweeping" : ""}`} ref={scroller} aria-label="Day calendar">
+      <div className="cal-grid" ref={grid} style={{ height: px(hours * HOUR) }} onPointerDown={pressEmpty}>
         {Array.from({ length: hours }, (_, h) => (
           <div key={h} className="cal-hour" style={{ top: px(h * HOUR) }}>
             <span className="cal-hour-label">{timeOfDay(day + h * HOUR)}</span>
@@ -214,6 +272,13 @@ export function DayCalendar({
             </button>
           );
         })}
+        {ghost && (
+          <div className="cal-ghost" style={{ top: px(ghost.start - day), height: px(ghost.end - ghost.start) }} aria-hidden>
+            <span className="cal-drag-time">
+              {timeOfDay(ghost.start)}–{timeOfDay(ghost.end)} · {hm(ghost.end - ghost.start)}
+            </span>
+          </div>
+        )}
         {isToday && <div className="cal-now" style={{ top: px(now - day) }} aria-hidden />}
       </div>
     </div>

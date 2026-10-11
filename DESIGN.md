@@ -343,8 +343,7 @@ pressing ▶ New.
    aren't replaced by CW versions.
 5. **Task detail**: title, project, profile fields (client, ticket #…), description, and
    sessions grouped by day with daily subtotals and each session's notes.
-6. **Day page** (M3; the table and the calendar with drag to move/resize are built; drag to add
-   time is next; replaced the Time entries dialog
+6. **Day page** (M3, built 2026-10-10; replaced the Time entries dialog
    and the planned Day report): one full-width page for seeing a day, fixing it, and entering it
    into CW. See below. **Mark entered** sets `session.enteredAt` (undoable). An entered session
    is never reopened by resume-within-gap, and a merge only stays entered if every part was.
@@ -405,7 +404,10 @@ Esc or ← Now goes back; ▶ New returns to Now); (2) the calendar, read-only, 
 at now; layout in `calendar.ts`, tested); (3) drag to move and resize (**done** 2026-10-10,
 mouse and pen: a press becomes a drag after 4 px, so a click still selects; Esc cancels; the
 drop shows a toast with Undo, which also restores "entered"; a session that crosses midnight
-isn't draggable; touch only selects for now); (4) drag across empty space to add time.
+isn't draggable; touch only selects for now); (4) drag across empty space to add time
+(**done** 2026-10-10: a dashed ghost shows the span; the switcher opens as "Add 3:00 PM–3:45 PM
+to…"; a new title makes a new task; the new session is selected). Left for later: dragging on
+touch screens (docs/backlog.md).
 
 ### Time entry (editing sessions)
 
@@ -582,14 +584,14 @@ always kept.
 ## 12. Milestones
 
 Renumbered 2026-10-10 into the order they'll be built (the old numbers, such as M1.5 and M5,
-appear in commits and notes from before then). **M3 is next**, then CW read and write as soon
-as possible.
+appear in commits and notes from before then). **M4 is next**: CW read and write as soon as
+possible.
 
 | # | Goal | Status | Done when… |
 |---|---|---|---|
 | **M1** | Core app | **Done**, except three pieces that moved: the Day report → M3's Day page; the Client page → with the sidebar (M6); plain-text export → later | Server on mini PC + web UI on iPhone and desktop browser. ▶ New / ▶ Continue / alongside / Stop, stacked running cards with notes, blip discard, resume-within-gap, session merge. Switcher with recent-first search + client filter. Inbox. Time picker, manual sessions, deduct. Client and work type lists. Task detail by day. Outbox in place. |
 | **M2** | Projects & profiles | **Done** 2026-10-10 | Projects (any depth) with tasks under them, and a Projects view. The profile engine (§4): field types, the `fields` blob, one active profile, `entryFormat` driving Time entries. Client, work type and ticket # moved out of core columns into the CW profile (a migration), with no change in what I see. With no profile, the app is a plain task and time tracker. Billing field with defaults per work type. |
-| **M3** | Day page & calendar | **Next** | The Day page (§7): calendar and entries table side by side, drag to move/resize, drag across empty space to add time, visible gaps, segmented billing control. |
+| **M3** | Day page & calendar | **Done** 2026-10-10 on the desktop; touch dragging is in the backlog | The Day page (§7): calendar and entries table side by side, drag to move/resize, drag across empty space to add time, visible gaps, segmented billing control. |
 | **M4** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
 | **M5** | CW write | Not started | Push sessions as time entries (with billing) from the Day page. |
 | **M6** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |

@@ -1,6 +1,6 @@
 import type { Session } from "@sideshow/shared";
 import { describe, expect, it } from "vitest";
-import { dragTimes, findGaps, placeBlocks } from "./calendar";
+import { dragTimes, findGaps, placeBlocks, spanFromDrag } from "./calendar";
 
 const MIN = 60_000;
 const span = (id: string, start: number, end: number) => ({ session: { id } as Session, start: start * MIN, end: end * MIN });
@@ -52,5 +52,18 @@ describe("dragTimes", () => {
   });
   it("doesn't let a running session start after now", () => {
     expect(dragTimes({ ...base, mode: "start", running: true, end: 12 * H, delta: 5 * H }).start).toBe(12 * H);
+  });
+});
+
+describe("spanFromDrag", () => {
+  const H = 60 * MIN;
+  const base = { step: 15 * MIN, day: 0, dayEnd: 24 * H };
+  it("snaps both ends, dragging down or up", () => {
+    expect(spanFromDrag({ ...base, from: 9 * H + 4 * MIN, to: 9 * H + 52 * MIN })).toEqual({ start: 9 * H, end: 9.75 * H });
+    expect(spanFromDrag({ ...base, from: 9 * H + 52 * MIN, to: 9 * H + 4 * MIN })).toEqual({ start: 9 * H, end: 9.75 * H });
+  });
+  it("is at least one step long and inside the day", () => {
+    expect(spanFromDrag({ ...base, from: 9 * H + 1 * MIN, to: 9 * H + 3 * MIN })).toEqual({ start: 9 * H, end: 9.25 * H });
+    expect(spanFromDrag({ ...base, from: 23.9 * H, to: 25 * H })).toEqual({ start: 23.75 * H, end: 24 * H });
   });
 });

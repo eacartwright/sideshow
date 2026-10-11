@@ -20,7 +20,9 @@ Items marked **(?)** need a word from Evan on what was meant before building.
 
 ## Next — small, from daily use
 
-Nothing waiting.
+- **Drag on the calendar with a finger (M3 leftover).** On touch screens the Day page's
+  calendar only selects and scrolls. Add long-press to drag a block or its edges, and to sweep
+  out new time, without breaking scrolling. Low priority: the phone is for capture.
 
 ## Soon — with the CW milestones (M4–M6)
 

@@ -16,6 +16,7 @@ import { bareText, fieldText, useA, useM, useNow, type Model, type TaskInfo } fr
 import { DayCalendar } from "./DayCalendar";
 import { addDays, DayNav } from "./DayNav";
 import { FieldInput, TicketInfo } from "./fields";
+import { Switcher } from "./Switcher";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
 
 // The Day page (DESIGN.md §7): a day's sessions as a table, ready to enter into another system
@@ -58,6 +59,8 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
   const [day, setDay] = useState(() => startOfDay(Date.now()));
   // The session picked in the calendar or the table; the other one highlights it too.
   const [selectedId, setSelectedId] = useState<Id | null>(null);
+  // A span dragged out on the calendar, waiting for a task to be picked.
+  const [adding, setAdding] = useState<{ start: Ms; end: Ms } | null>(null);
   const { columns, target } = layout(m);
   const dayEnd = addDays(day, 1);
 
@@ -123,6 +126,8 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
             selectedId={selectedId}
             onSelect={setSelectedId}
             onOpenTask={onOpenTask}
+            adding={adding}
+            onAdd={setAdding}
           />
         )}
         {groups.length > 0 ? (
@@ -153,9 +158,12 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
             ))}
           </table>
         ) : (
-          <p className="empty">{mode === "todo" ? `Nothing left to enter in ${target}.` : "No time tracked that day."}</p>
+          <p className="empty">
+            {mode === "todo" ? `Nothing left to enter in ${target}.` : "No time tracked that day. Drag across the calendar to add some."}
+          </p>
         )}
       </div>
+      {adding && <Switcher span={adding} onAdded={setSelectedId} onClose={() => setAdding(null)} />}
     </section>
   );
 }

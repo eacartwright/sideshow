@@ -1620,6 +1620,26 @@ select:focus {
   opacity: 0.92;
   box-shadow: 0 4px 14px rgb(0 0 0 / 0.25);
 }
+.cal-grid {
+  cursor: crosshair;
+}
+.cal.sweeping {
+  user-select: none;
+}
+.cal-ghost {
+  position: absolute;
+  z-index: 4;
+  left: 2px;
+  right: 2px;
+  display: flex;
+  align-items: flex-start;
+  padding: 3px 6px;
+  border: 2px dashed var(--block-edge);
+  border-radius: 6px;
+  background: var(--block-bg);
+  font-size: 0.8rem;
+  pointer-events: none;
+}
 .cal-drag-time {
   font-weight: 700;
   font-variant-numeric: tabular-nums;

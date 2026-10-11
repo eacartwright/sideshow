@@ -85,3 +85,18 @@ export function dragTimes(o: {
   }
   return { start: o.start, end: clamp(snap(o.end + o.delta), o.start + o.step, o.dayEnd) };
 }
+
+/**
+ * The span a drag across empty calendar space covers: both ends snapped to `step` from
+ * midnight, either direction, at least one step long, within the day.
+ */
+export function spanFromDrag(o: { from: Ms; to: Ms; step: number; day: Ms; dayEnd: Ms }): { start: Ms; end: Ms } {
+  const snap = (t: Ms) => o.day + Math.round((t - o.day) / o.step) * o.step;
+  let start = Math.max(o.day, snap(Math.min(o.from, o.to)));
+  let end = Math.min(o.dayEnd, snap(Math.max(o.from, o.to)));
+  if (end - start < o.step) {
+    end = Math.min(o.dayEnd, start + o.step);
+    start = end - o.step;
+  }
+  return { start, end };
+}
