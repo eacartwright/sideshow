@@ -12,7 +12,8 @@ under Status in [CLAUDE.md](../CLAUDE.md).
   pair of dropdowns (`web/src/fonts.ts`, loads Google Fonts on demand, per device). Once Evan
   picks, load just those fonts (self-host or one `<link>` in index.html), set `--font` /
   `--font-brand` in styles.css, and delete `fonts.ts`, `fonts-sans.ts` (all 551 Latin
-  sans-serif families), `FontSetting` and `startFonts()`.
+  sans-serif families), `FontSetting` and `startFonts()`, and the rule that stops Settings dimming
+  the app (`.backdrop:has(> .dialog.settings)` in styles.css).
 
 - **Edit the profile in the app (later).** Fields, lists and the entry format from Settings,
   instead of editing the profile JSON in the repo.

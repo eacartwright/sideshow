@@ -746,6 +746,14 @@ select:focus {
 }
 
 /* ---- dialogs ---- */
+/* TEMPORARY, with the font tester: Settings doesn't dim the app, so fonts can be judged
+   while flipping through them. Restore the dimming when the tester goes. */
+.backdrop:has(> .dialog.settings) {
+  background: none;
+}
+.dialog.settings {
+  box-shadow: 0 8px 40px rgb(0 0 0 / 0.45);
+}
 .backdrop {
   position: fixed;
   inset: 0;
