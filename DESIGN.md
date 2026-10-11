@@ -384,12 +384,17 @@ Day  ‹ Fri 10/09/2026 ›  Today                         [ Day | To enter ]   
   reverse). Double-click opens Task details.
 
 **Table** (right):
-- Grouped by task, because entries go into CW ticket by ticket. A group's header row has the
-  title, Ticket # and Client (click to copy), the total, **✓ Mark all entered**, **+ Add time**
-  and **Merge…**.
-- One row per session (= one CW entry): Start, End, Hours, Work type, Billing, Notes (first line;
-  click to expand), ✓ Mark entered. Click a value to copy it. Work type and billing are set
-  right in the row; ✎ opens the session editor under the row.
+- Grouped by task, because entries go into CW ticket by ticket. A group's header row is a row
+  of the table: Ticket # and Client (task fields, click to copy) in their own columns at the
+  left, under their headings, then the title across the rest of the row (cut with "…") with the
+  total, **+ Add time**, **Merge…** and **Push all** / **✓ Mark all entered** at its end. Session
+  rows leave the Ticket # and Client cells blank, like a grouped spreadsheet. (Settled
+  2026-10-10 after trying a staggered header, fixed slots, and the fields on the first session
+  row: each either didn't line up with the column headings or looked per-session.)
+- One row per session (= one CW entry): Start, End, Hours, Work type, Billing, ✓ Mark entered. Click a value to copy it. Work type and billing are set
+  right in the row; ✎ opens the session editor under the row. No Notes column (dropped
+  2026-10-10: a row can't show them usefully): they're on ✎'s tooltip, in the push preview and
+  in Task details.
 - **Billing** is a segmented control, `B | NB | NC`: the profile gives a choice field short
   labels and `"input": "segmented"`; the full names show as tooltips.
 - What's missing (ticket, client, work type) is flagged in the row, as today.
@@ -624,7 +629,7 @@ entries comes first. **M4 is built and pushed live (test ticket #106745); next i
 | **M1** | Core app | **Done**, except three pieces that moved: the Day report → M3's Day page; the Client page → with the sidebar (M6); plain-text export → later | Server on mini PC + web UI on iPhone and desktop browser. ▶ New / ▶ Continue / alongside / Stop, stacked running cards with notes, blip discard, resume-within-gap, session merge. Switcher with recent-first search + client filter. Inbox. Time picker, manual sessions, deduct. Client and work type lists. Task detail by day. Outbox in place. |
 | **M2** | Projects & profiles | **Done** 2026-10-10 | Projects (any depth) with tasks under them, and a Projects view. The profile engine (§4): field types, the `fields` blob, one active profile, `entryFormat` driving Time entries. Client, work type and ticket # moved out of core columns into the CW profile (a migration), with no change in what I see. With no profile, the app is a plain task and time tracker. Billing field with defaults per work type. |
 | **M3** | Day page & calendar | **Done** 2026-10-10 on the desktop; touch dragging is in the backlog | The Day page (§7): calendar and entries table side by side, drag to move/resize, drag across empty space to add time, visible gaps, segmented billing control. |
-| **M4** | CW write | **Done** 2026-10-10 (table layout still being picked) | Push sessions as time entries from the Day page (one, a ticket's, or ticked ones) through a preview; notes Internal / Discussion; email per entry, off by default; edits update the same CW entry; ticket # links to CW (§10). |
+| **M4** | CW write | **Done** 2026-10-10 | Push sessions as time entries from the Day page (one, a ticket's, or ticked ones) through a preview; notes Internal / Discussion; email per entry, off by default; edits update the same CW entry; ticket # links to CW (§10). |
 | **M5** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
 | **M6** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |
 | **M7** | AI note cleanup | Not started | Clean-up button with template. |

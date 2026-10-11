@@ -1234,9 +1234,6 @@ select:focus {
   width: 1%;
   white-space: nowrap;
 }
-.col-notes {
-  min-width: 12rem;
-}
 /* One day: every row has the same date, and it's in the header already. */
 .entries-table.one-day .col-date {
   display: none;
@@ -1245,16 +1242,20 @@ select:focus {
   max-width: 13rem;
   text-overflow: ellipsis;
 }
-/* Narrower windows: a tighter table, and if it still doesn't fit, it scrolls sideways in its
-   own box rather than the whole page. */
-@media (max-width: 1759px) {
-  .table-wrap {
-    overflow-x: auto;
-    min-width: 0;
-  }
+/* Less room (a narrower window, or the calendar beside it in Day mode): a tighter table, and if
+   it still doesn't fit, it scrolls sideways in its own box rather than the whole page. The
+   tightening follows the table's own box, not the window, so Day and To enter both fit. */
+.table-wrap {
+  container-type: inline-size;
+  overflow-x: auto;
+  min-width: 0;
+}
+@media (min-width: 900px) and (max-width: 1759px) {
   .day-split {
     grid-template-columns: minmax(220px, 250px) minmax(0, 1fr) !important;
   }
+}
+@container (max-width: 1711px) {
   .entries-table td {
     padding: 3px 3px;
   }
@@ -1262,7 +1263,14 @@ select:focus {
     padding: 8px 6px;
   }
   .entries-table .col-field .select {
-    max-width: 11rem;
+    max-width: 9.5rem;
+  }
+  .table-wrap .entries-table .col-task .ref-input {
+    width: 6.5rem;
+  }
+  .table-wrap .entries-table .col-task,
+  .table-wrap .entries-table td.col-task .copy {
+    max-width: 10.5rem;
   }
   .entries-table .seg {
     min-width: 34px;
@@ -1270,9 +1278,6 @@ select:focus {
   }
   .entries-table .email-toggle {
     padding: 0 7px;
-  }
-  .entries-table .col-notes {
-    min-width: 11rem;
   }
 }
 .col-actions {
@@ -1392,24 +1397,6 @@ select:focus {
 }
 .copy:hover {
   border-color: var(--primary);
-}
-.copy.multi {
-  display: flex;
-  width: 100%;
-  font-weight: 400;
-}
-.copy.multi .copy-text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
-  overflow: hidden;
-}
-.copy.muted {
-  color: var(--muted);
-  font-style: italic;
 }
 .copy-ok:empty {
   display: none;
@@ -1547,10 +1534,6 @@ select:focus {
     font-size: 0.75rem;
     font-weight: 600;
     padding-left: 6px;
-  }
-  .entries-table .col-notes {
-    flex: 1 1 100%;
-    min-width: 0;
   }
   .entries-table .col-actions {
     margin-left: auto;
@@ -1862,46 +1845,35 @@ a.ticket-link:hover {
   font-weight: 700;
 }
 
-/* ---- Entries: group header layouts (TEMPORARY A/B, see DayPage.tsx) ---- */
-.layout-pick .seg {
-  min-height: 32px;
-  font-size: 0.8rem;
+/* ---- Entries: each group's header row ----
+   The task's fields (ticket #, client) in their own columns, then the title across the rest of
+   the row with the totals and buttons at its end. Session rows leave those columns blank. */
+.group-head td {
+  vertical-align: middle;
 }
-/* Slots: the same fixed-width slots in every group's header, so they line up like columns. */
-.group-head-inner.slots {
-  display: grid;
-  align-items: center;
-  gap: 8px;
+/* Its content can't widen the table: the title is cut with an ellipsis instead. */
+.group-head td.group-main {
+  max-width: 0;
 }
-.group-head-inner.slots > *,
-.slot {
+.group-head-inner {
+  flex-wrap: nowrap;
   min-width: 0;
-}
-.slot {
-  display: flex;
-  align-items: center;
-  overflow: hidden;
-}
-.slot .copy-chip,
-.slot .group-missing,
-.slot .group-missing > *,
-.slot .ref-input {
-  max-width: 100%;
-  min-width: 0;
-}
-.slot .copy-chip .copy-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .group-head-inner .group-title {
-  max-width: 100%;
+  max-width: none;
   min-width: 0;
+  flex: 0 1 auto;
 }
 .group-head-inner .group-title .row-title {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.group-info {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  flex: 1 1 0;
 }
 .group-end {
   display: flex;
@@ -1909,8 +1881,7 @@ a.ticket-link:hover {
   justify-content: flex-end;
   gap: 8px;
   white-space: nowrap;
-}
-.group-head-inner.slim .group-end {
+  flex: none;
   margin-left: auto;
 }
 /* The CW ticket line on one row, cut with an ellipsis. */
@@ -1940,27 +1911,60 @@ a.ticket-link:hover {
   min-height: 32px;
   padding: 0 6px;
 }
-/* Columns: the task's fields as table columns on the group's first row. */
+/* Task fields keep a fixed limit, so a long client name ("Smileboston Cosmetic and Implant
+   Dentistry") is cut with "…" (the whole name is on hover, and copies) instead of widening
+   the table. */
 .entries-table .col-task {
   width: 1%;
-  max-width: 13rem;
+  max-width: 12rem;
   white-space: nowrap;
 }
 .entries-table td.col-task .copy {
-  max-width: 13rem;
+  max-width: 12rem;
 }
 .entries-table td.col-task .copy-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .entries-table .col-task .ref-input {
   width: 8rem;
 }
-.group-head-inner.slim {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.group-head-inner.slim .slot-info {
-  flex: 1;
+/* Phone: the header row wraps like a session card; the blank cells go. */
+@media (max-width: 899px) {
+  .entries-table .group-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 4px;
+    border-top: 1.5px solid var(--border-strong);
+    background: var(--bg);
+  }
+  .entry-group:first-of-type .group-head {
+    border-top: 0;
+  }
+  .entries-table .group-head td {
+    border: 0;
+    padding: 2px;
+    width: auto;
+    max-width: none;
+  }
+  .entries-table .group-head td.group-main {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+  .entries-table .group-head-inner {
+    flex-wrap: wrap;
+  }
+  .entries-table .group-end {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-left: 0;
+    flex: 1 1 100%;
+  }
+  .entries-table .session-row td.col-task {
+    display: none;
+  }
 }

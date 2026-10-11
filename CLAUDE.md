@@ -135,9 +135,7 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - **M4 CW write built** (2026-10-10, DESIGN.md §10 "Pushing time entries"; M4 and M5 swapped):
   push from the Day page through `PushDialog`, Notes to / Email per entry, Update after edits,
   ticket links, entries deleted in CW go back to To enter. First live push done 2026-10-10 (test
-  ticket #106745). **Open: the entries table layout**: a temporary Slots | Columns switch on the
-  Day page while Evan picks (or neither); then remove the switch and the losing layout, and drop
-  the CW summary slot (the title is the summary now). Then M5 CW tickets & lists.
+  ticket #106745). **Next: M5 CW tickets & lists.**
 - **Evan, around 2026-10-17:** the Cloudflare clean-up under Open items in the runbook.
 - Requests and ideas: [docs/backlog.md](docs/backlog.md).
 - Compatibility code that can go once nothing old is left anywhere (say after M5): the reducer's

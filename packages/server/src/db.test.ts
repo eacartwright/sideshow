@@ -65,6 +65,24 @@ describe("migration 8: profile fields", () => {
 });
 
 describe("migration 9: integration data", () => {
+  it("migration 10 titles linked tasks with their ticket's summary, in a new rev", () => {
+    const file = tempDb();
+    const old = openDb(file, 9);
+    old.exec(`
+      INSERT INTO meta VALUES ('rev', '7');
+      INSERT INTO tasks (id, title, fields, ref_info, description, status, created_at, updated_at, rev)
+        VALUES ('t1', 'tests', '{}', '{"field":"ticket","ref":"1","summary":" API test ","company":"V","closed":false,"fetchedAt":5}', '', 'open', 1, 2, 3);
+      INSERT INTO tasks (id, title, fields, ref_info, description, status, created_at, updated_at, rev)
+        VALUES ('t2', 'Mine', '{}', NULL, '', 'open', 1, 2, 3);
+    `);
+    old.close();
+    const db = openDb(file);
+    const s = loadState(db);
+    db.close();
+    expect(s.tasks.t1).toMatchObject({ title: "API test", rev: 8 });
+    expect(s.tasks.t2).toMatchObject({ title: "Mine", rev: 3 });
+  });
+
   it("saves and loads a session's ext; older sessions get an empty one", () => {
     const file = tempDb();
     const old = openDb(file, 8);

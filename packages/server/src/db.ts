@@ -111,6 +111,19 @@ const MIGRATIONS: string[] = [
   `,
   // Integration data per session (JSON: Ext), e.g. the CW time entry it was pushed as.
   `ALTER TABLE sessions ADD COLUMN ext TEXT NOT NULL DEFAULT '{}';`,
+  // A linked ticket's summary became the task's title (2026-10-10). Tasks looked up before then
+  // catch up once, in a new rev so devices pick the change up.
+  `
+  INSERT INTO meta (key, value) VALUES ('rev', '0') ON CONFLICT(key) DO NOTHING;
+  UPDATE meta SET value = CAST(value AS INTEGER) + 1 WHERE key = 'rev';
+  UPDATE tasks SET
+    title = trim(json_extract(ref_info, '$.summary')),
+    updated_at = CAST(unixepoch('subsec') * 1000 AS INTEGER),
+    rev = (SELECT CAST(value AS INTEGER) FROM meta WHERE key = 'rev')
+  WHERE ref_info IS NOT NULL
+    AND trim(coalesce(json_extract(ref_info, '$.summary'), '')) <> ''
+    AND title <> trim(json_extract(ref_info, '$.summary'));
+  `,
 ];
 
 export type DB = DatabaseSync;

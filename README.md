@@ -55,7 +55,7 @@ The always-on copy runs on a home mini PC behind Cloudflare Tunnel + Access; see
   a task within 10 minutes reopens the same session. Both are adjustable (or off) in ⚙ Settings.
 - **Entries** (Alt+E) opens the full-width time entries page: the day's calendar on the left, and
   one row per session, grouped by ticket, with Date, Start, End, Hours, Work Type, Billing
-  (B | NB | NC) and Notes; click a value to copy it. **Mark entered** once it's in CW; "To enter"
+  (B | NB | NC); click a value to copy it (notes: hover ✎, or open the task). **Mark entered** once it's in CW; "To enter"
   shows what's left. Esc goes back.
 - With ConnectWise set up (`CW_*` and `CW_MEMBER` in `.env`), **Push…** sends an entry to its
   ticket as a CW time entry: per row, per ticket (**Push all**), or tick rows and push those.

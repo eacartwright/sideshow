@@ -22,26 +22,13 @@ import { defaultManualSpan, SessionEditor } from "./SessionEditor";
 
 // The Day page (DESIGN.md §7): a day's sessions as a table, ready to enter into another system
 // (ConnectWise at this job). Grouped by task, because entries go in ticket by ticket: the task
-// fields once in the group's header row, then one row per session (= one entry). Columns and
+// fields once in the group's header row, in their own columns (the ticket first), then one row
+// per session (= one entry), its cells under those columns left blank. Columns and
 // formats come from the profile's entryFormat. Click a value to copy it.
 // "Day" is one day's log; "To enter" is everything not yet marked entered, across days.
 // Built for the desktop's width; on a phone each row wraps into a small card.
 
 type Mode = "day" | "todo";
-/**
- * TEMPORARY: two ways to lay out a task's fields, while Evan picks one. "slots": the group's
- * header row in fixed-width slots (ticket, title, client, CW summary). "columns": ticket and
- * client as table columns on the group's first row, the title on a slim line above.
- */
-type Layout = "slots" | "columns";
-const LAYOUT_KEY = "sideshow:entries-layout";
-function savedLayout(): Layout {
-  try {
-    return localStorage.getItem(LAYOUT_KEY) === "columns" ? "columns" : "slots";
-  } catch {
-    return "slots";
-  }
-}
 
 const CONTINUATION = "Continuation of previous work";
 const TIMES = new Set(["date", "start", "end", "hours"]);
@@ -55,8 +42,12 @@ function layout(m: Model) {
     fields: [...DEFAULT_ENTRY_FORMAT.fields, ...m.profile.fields.map((d) => d.key)],
   };
   const def = (k: string) => m.profile.fields.find((d) => d.key === k);
-  const taskDefs = fmt.fields.map(def).filter((d): d is FieldDef => d?.on === "task");
-  const columns = fmt.fields.filter((k) => !def(k) || def(k)!.on === "session");
+  // The task's fields, the ticket first: they lead the table, filled in on each group's header row.
+  const taskFields = fmt.fields.map(def).filter((d): d is FieldDef => d?.on === "task");
+  const ticket = taskFields.filter((d) => d.key === m.profile.connectwise?.ticketField);
+  const taskDefs = [...ticket, ...taskFields.filter((d) => !ticket.includes(d))];
+  // Notes don't fit a table row in any useful way: they show on ✎ (hover) and in the push preview.
+  const columns = fmt.fields.filter((k) => k !== "notes" && (!def(k) || def(k)!.on === "session"));
   return { fmt, def, taskDefs, columns, target: fmt.target ?? "the other system" };
 }
 
@@ -81,7 +72,6 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
   const canPush = !!m.config.cwPush;
   const [checked, setChecked] = useState<Set<Id>>(() => new Set());
   const [pushing, setPushing] = useState<Id[] | null>(null);
-  const [tableLayout, setTableLayout] = useState<Layout>(savedLayout);
   const { columns, target, taskDefs } = layout(m);
   const dayEnd = addDays(day, 1);
 
@@ -157,26 +147,6 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
             </button>
           </div>
         )}
-        <span className="segmented layout-pick" role="group" aria-label="Layout (testing)" title="Testing two layouts: pick one and this switch goes away">
-          {(["slots", "columns"] as Layout[]).map((l) => (
-            <button
-              key={l}
-              type="button"
-              className={`seg ${tableLayout === l ? "seg-on" : ""}`}
-              aria-pressed={tableLayout === l}
-              onClick={() => {
-                setTableLayout(l);
-                try {
-                  localStorage.setItem(LAYOUT_KEY, l);
-                } catch {
-                  // per-device convenience only
-                }
-              }}
-            >
-              {l === "slots" ? "Slots" : "Columns"}
-            </button>
-          ))}
-        </span>
         {mode === "day" ? (
           <DayNav day={day} onDay={setDay} now={now}>
             {list.length > 0 && <span className="day-total">Total {hm(total)}</span>}
@@ -206,7 +176,7 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
         )}
         {groups.length > 0 ? (
           <div className="table-wrap">
-            <table className={`entries-table ${mode === "day" ? "one-day" : ""} layout-${tableLayout}`}>
+            <table className={`entries-table ${mode === "day" ? "one-day" : ""}`}>
               <thead>
                 <tr>
                   {canPush && (
@@ -220,15 +190,14 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
                       />
                     </th>
                   )}
-                  {tableLayout === "columns" &&
-                    taskDefs.map((d) => (
-                      <th key={d.key} className={`col-task col-${d.key}`}>
-                        {d.label}
-                      </th>
-                    ))}
+                  {taskDefs.map((d) => (
+                    <th key={d.key} className={`col-task col-${d.key}`}>
+                      {d.label}
+                    </th>
+                  ))}
                   {columns.map((k) => (
                     <th key={k} className={`col-${k}`}>
-                      {TIME_LABELS[k] ?? (k === "notes" ? "Notes" : m.profile.fields.find((d) => d.key === k)?.label)}
+                      {TIME_LABELS[k] ?? m.profile.fields.find((d) => d.key === k)?.label}
                     </th>
                   ))}
                   {canPush && <th className="col-email">Email</th>}
@@ -250,7 +219,6 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
                   checked={checked}
                   onCheck={toggleCheck}
                   onPush={setPushing}
-                  tableLayout={tableLayout}
                 />
               ))}
             </table>
@@ -280,7 +248,6 @@ function EntryGroup({
   checked,
   onCheck,
   onPush,
-  tableLayout,
 }: {
   info: TaskInfo;
   sessions: Session[];
@@ -294,7 +261,6 @@ function EntryGroup({
   onCheck: (ids: Id[], on: boolean) => void;
   /** Open the push preview for these sessions. */
   onPush: (ids: Id[]) => void;
-  tableLayout: Layout;
 }) {
   const m = useM();
   const a = useA();
@@ -303,12 +269,9 @@ function EntryGroup({
   const [picked, setPicked] = useState<Set<Id>>(() => new Set());
   const { def, taskDefs, columns, target } = layout(m);
   const canPush = !!m.config.cwPush;
-  const asColumns = tableLayout === "columns";
-  const span = columns.length + 1 + (canPush ? 2 : 0) + (asColumns ? taskDefs.length : 0);
-  // The ticket field leads (far left), the other task fields (client) come after the title.
-  const ticketDef = taskDefs.find((d) => d.key === m.profile.connectwise?.ticketField);
-  const otherDefs = taskDefs.filter((d) => d !== ticketDef);
-  const orderedDefs = ticketDef ? [ticketDef, ...otherDefs] : otherDefs;
+  const span = (canPush ? 2 : 0) + taskDefs.length + columns.length + 1;
+  // On the header row the title takes every column after the task fields.
+  const titleSpan = span - (canPush ? 1 : 0) - taskDefs.length;
   const pushable = sessions.filter((s) => !s.enteredAt && !pushProblem(m, s));
   const link = ticketUrl(m, info.task);
   const fields = info.task.fields;
@@ -321,11 +284,11 @@ function EntryGroup({
     .map(def)
     .filter((d): d is FieldDef => !!d && sessions.some((s) => !copyValue(m, d, s.fields[d.key])))
     .map((d) => d.label.toLowerCase());
-  /** A task field in the header or its column: click-to-copy when set (the ticket with ↗), else an input. */
+  /** A task field in its column on the header row: click-to-copy when set (the ticket with ↗), else an input. */
   const taskField = (d: FieldDef) => {
     const value = copyValue(m, d, fields[d.key]);
     if (value) {
-      // Plain text: its slot or column says what it is.
+      // Plain text: its column says what it is.
       const chip = <Copy label={d.label} value={value} shown={fieldText(d, fields[d.key], m.view)} />;
       if (d.key !== m.profile.connectwise?.ticketField || !link) return chip;
       return (
@@ -355,22 +318,30 @@ function EntryGroup({
   return (
     <tbody className={`entry-group ${enterable.length === 0 && entered ? "all-entered" : ""}`}>
       <tr className="group-head">
-        <td colSpan={span}>
-          <div
-            className={`group-head-inner ${asColumns ? "slim" : "slots"}`}
-            style={asColumns ? undefined : { gridTemplateColumns: `${ticketDef ? "8.5rem " : ""}minmax(8rem, 17rem) ${otherDefs.map(() => "13rem").join(" ")} minmax(0, 1fr) auto` }}
-          >
-            {!asColumns && ticketDef && <span className="slot">{taskField(ticketDef)}</span>}
+        {canPush && (
+          <td className="col-pick">
+            {pushable.length > 0 && (
+              <input
+                type="checkbox"
+                aria-label="Select this task's entries that can be pushed"
+                title="Select this task's entries that can be pushed"
+                checked={pushable.every((s) => checked.has(s.id))}
+                onChange={(e) => onCheck(pushable.map((s) => s.id), e.target.checked)}
+              />
+            )}
+          </td>
+        )}
+        {taskDefs.map((d) => (
+          <td key={d.key} className={`col-task col-${d.key}`} data-label={d.label}>
+            {taskField(d)}
+          </td>
+        ))}
+        <td colSpan={titleSpan} className="group-main">
+          <div className="group-head-inner">
             <button className="group-title" onClick={() => onOpenTask(info.task.id)} title={`${info.title}\nOpen task details`}>
               <span className={`row-title ${info.titleDerived ? "derived" : ""}`}>{info.title}</span>
             </button>
-            {!asColumns &&
-              otherDefs.map((d) => (
-                <span key={d.key} className="slot">
-                  {taskField(d)}
-                </span>
-              ))}
-            <span className="slot slot-info">
+            <span className="group-info">
               <TicketInfo
                 task={info.task}
                 compact
@@ -432,18 +403,12 @@ function EntryGroup({
         </td>
       </tr>
 
-      {sessions.map((s, i) => (
+      {sessions.map((s) => (
         <SessionRows
           key={s.id}
-          lead={
-            asColumns
-              ? orderedDefs.map((d) => (
-                  <td key={d.key} className={`col-task col-${d.key}`} data-label={d.label}>
-                    {i === 0 ? taskField(d) : null}
-                  </td>
-                ))
-              : null
-          }
+          lead={taskDefs.map((d) => (
+            <td key={d.key} className={`col-task col-${d.key}`} />
+          ))}
           session={s}
           now={now}
           span={span}
@@ -524,7 +489,7 @@ function SessionRows({
   editing: boolean;
   onEdit: () => void;
   picking: boolean;
-  /** Cells before the session's own: the task's fields, in the "columns" layout. */
+  /** Cells before the session's own: blank ones under the task's fields (on the header row). */
   lead: React.ReactNode;
   /** Ticked for a push to CW. */
   checked: boolean;
@@ -562,14 +527,6 @@ function SessionRows({
       return (
         <td key={k} className={`col-${k}`} data-label={label}>
           {value === null ? <span className="muted">running</span> : <Copy label={label} value={value} />}
-        </td>
-      );
-    }
-    if (k === "notes") {
-      const notes = s.notes.trim();
-      return (
-        <td key={k} className="col-notes" data-label="Notes">
-          <Copy label="Notes" value={notes || CONTINUATION} shown={notes ? undefined : CONTINUATION} multiline muted={!notes} />
         </td>
       );
     }
@@ -644,7 +601,7 @@ function SessionRows({
                     ⚠
                   </span>
                 )}
-                <button className="btn subtle sm icon" onClick={onEdit} aria-label="Edit this entry" aria-expanded={editing} title="Edit">
+                <button className="btn subtle sm icon" onClick={onEdit} aria-label="Edit this entry" aria-expanded={editing} title={`Edit\n\nNotes: ${s.notes.trim() || CONTINUATION}`}>
                   ✎
                 </button>
                 {s.enteredAt ? (
@@ -710,15 +667,11 @@ function Copy({
   label,
   value,
   shown,
-  multiline,
-  muted,
   chip,
 }: {
   label: string;
   value: string;
   shown?: string;
-  multiline?: boolean;
-  muted?: boolean;
   chip?: boolean;
 }) {
   const [copied, setCopied] = useState(false);
@@ -726,8 +679,8 @@ function Copy({
   return (
     <button
       type="button"
-      className={`copy ${multiline ? "multi" : ""} ${muted ? "muted" : ""} ${chip ? "copy-chip" : ""} ${copied ? "copied" : ""}`}
-      title={`Copy ${label}${multiline ? `\n\n${value}` : ""}`}
+      className={`copy ${chip ? "copy-chip" : ""} ${copied ? "copied" : ""}`}
+      title={`${label}: ${shown ?? value}\nClick to copy`}
       onClick={async () => {
         if (!(await copyText(value))) return;
         setCopied(true);
@@ -736,16 +689,13 @@ function Copy({
       }}
     >
       {chip && <span className="copy-chip-label">{label}</span>}
-      <span className="copy-text">{multiline ? firstLines(shown ?? value) : (shown ?? value)}</span>
+      <span className="copy-text">{shown ?? value}</span>
       <span className="copy-ok" aria-live="polite">
         {copied ? "Copied ✓" : ""}
       </span>
     </button>
   );
 }
-
-/** Notes as shown in a row: the text as written, clamped to a few lines by CSS. */
-const firstLines = (notes: string) => notes.replace(/\n{3,}/g, "\n\n");
 
 /** Saves on Enter or blur, so the row doesn't swap the input out mid-typing. */
 function CommitInput({ placeholder, onCommit }: { placeholder: string; onCommit: (v: string) => void }) {

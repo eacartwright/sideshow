@@ -463,10 +463,12 @@ export function TicketInfo({
         )}
       </>
     );
+  // Next to the task's title (the Day page), the summary would say the same thing again.
+  const showSummary = !compact || info.summary.trim() !== task.title.trim();
   return (
     <p className={`ticket small ${compact ? "compact" : ""}`}>
       <span className="ticket-text">
-        {ticketUrl(m, task) ? (
+        {!showSummary ? null : ticketUrl(m, task) ? (
           <a className="ticket-summary ticket-link" href={ticketUrl(m, task)!} target="_blank" rel="noreferrer" title="Open the ticket in ConnectWise">
             {info.summary} ↗
           </a>
