@@ -1,6 +1,6 @@
 // TEMPORARY font tester (Settings → Fonts). Loads a Google Font on demand and applies it to the
 // header ("sideshow") or the whole app, per device. Once fonts are chosen, replace this with
-// the chosen ones in styles.css / index.html and delete this file (docs/backlog.md, Inbox).
+// the chosen ones in styles.css / index.html and delete this file and fonts-sans.ts (docs/backlog.md, Inbox).
 
 export const FONTS = [
   "Google Sans Flex",

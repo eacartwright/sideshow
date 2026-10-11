@@ -2,6 +2,7 @@ import { DEFAULT_SETTINGS } from "@sideshow/shared";
 import { useState } from "react";
 import { useA, useM } from "../model";
 import { FONTS, fontChoice, loaded, setFont, type FontSlot } from "../fonts";
+import { ALL_SANS } from "../fonts-sans";
 import { setThemePref, themePref, type ThemePref } from "../theme";
 import { Dialog } from "./Dialog";
 
@@ -112,12 +113,22 @@ function FontSetting({ slot, label }: { slot: FontSlot; label: string }) {
         }}
       >
         <option value="">{slot === "app" ? "System font (default)" : "Same as the app (default)"}</option>
-        {FONTS.map((f) => (
-          <option key={f} value={f}>
-            {f}
-            {loaded.get(f) === false ? " (not on Google Fonts)" : ""}
-          </option>
-        ))}
+        <optgroup label="Your picks">
+          {FONTS.map((f) => (
+            <option key={f} value={f}>
+              {f}
+              {loaded.get(f) === false ? " (not on Google Fonts)" : ""}
+            </option>
+          ))}
+        </optgroup>
+        <optgroup label={`All ${ALL_SANS.length} sans-serif, most popular first`}>
+          {ALL_SANS.filter((f) => !FONTS.includes(f)).map((f) => (
+            <option key={f} value={f}>
+              {f}
+              {loaded.get(f) === false ? " (couldn't load)" : ""}
+            </option>
+          ))}
+        </optgroup>
       </select>
       {missing && <p className="warn small setting-help">Google Fonts doesn't have “{family}”; showing the system font.</p>}
       {slot === "app" && (
