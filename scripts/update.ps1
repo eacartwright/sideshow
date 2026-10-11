@@ -45,6 +45,14 @@ try {
 }
 
 $port = (Get-Content .env | Where-Object { $_ -match "^PORT=" }) -replace "^PORT=", ""
+if (-not $port) {
+  # Without PORT the server falls back to 8787, but the tunnel points at the port install.ps1
+  # set (8081 on the mini PC), so the site would be down. Usually .env was replaced by a copy
+  # of the dev PC's, which has no PORT or backup folder.
+  Write-Host "No PORT in .env, so the server is on its default 8787 and the public site can't reach it." -ForegroundColor Red
+  Write-Host "Run install.ps1 again with -Port and -BackupDir (docs\runbook.md, Settings) to put them back." -ForegroundColor Red
+  exit 1
+}
 for ($i = 0; $i -lt 30; $i++) {
   Start-Sleep -Seconds 1
   try {

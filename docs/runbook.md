@@ -67,7 +67,10 @@ change copies the database to `data\sideshow.db.before-v<N>.db` before migrating
 `rev` and `lastBackup`.
 
 **Settings** (`.env`). `install.ps1` writes `PORT` and `SIDESHOW_BACKUP_DIR` and keeps every other
-line. Added by hand:
+line. **This `.env` is not the desktop's:** the desktop's has no `PORT` or backup folder (dev runs
+on 8787 and backs up to `data\backups`), so copying it over this one moves the server off 8081
+and the site goes down (happened 2026-10-10). To fix it, run `install.ps1` again with
+`-Port 8081 -BackupDir \\evnas\Junk\Tech\DBBackups\sideshow`. Added by hand:
 - `PROFILE=veritaz-cw`: the job fields (client, ticket #, work type, billing). Without it they're
   hidden, not lost. The log says which profile loaded.
 - `CW_*`: ConnectWise credentials, copied from the desktop's `.env`. Without them the ticket
