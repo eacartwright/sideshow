@@ -9,10 +9,11 @@ import {
   type Ms,
   type Session,
 } from "@sideshow/shared";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { copyText } from "../clipboard";
 import { entryDate, entryHours, entryTime, hm, whenLabel } from "../format";
 import { bareText, fieldText, useA, useM, useNow, type Model, type TaskInfo } from "../model";
+import { DayCalendar } from "./DayCalendar";
 import { addDays, DayNav } from "./DayNav";
 import { FieldInput, TicketInfo } from "./fields";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
@@ -55,13 +56,18 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
   const now = useNow(30_000);
   const [mode, setMode] = useState<Mode>("day");
   const [day, setDay] = useState(() => startOfDay(Date.now()));
+  // The session picked in the calendar or the table; the other one highlights it too.
+  const [selectedId, setSelectedId] = useState<Id | null>(null);
   const { columns, target } = layout(m);
+  const dayEnd = addDays(day, 1);
 
   const all = Object.values(m.view.sessions)
     .filter((s) => !s.deleted && m.tasks.has(s.taskId))
     .sort((a, b) => a.start - b.start);
   const todo = all.filter((s) => !s.enteredAt);
-  const list = mode === "todo" ? todo : all.filter((s) => s.start >= day && s.start < addDays(day, 1));
+  const list = mode === "todo" ? todo : all.filter((s) => s.start >= day && s.start < dayEnd);
+  // The calendar also shows sessions that run into the day from the one before.
+  const onCalendar = all.filter((s) => s.start < dayEnd && (s.end ?? now) > day);
   const total = list.reduce((t, s) => t + durationMs(s, now), 0);
 
   // Within a task, oldest first with a still-running session last; tasks ordered by their
@@ -107,34 +113,49 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
         )}
       </div>
 
-      {groups.length > 0 ? (
-        <table className="entries-table">
-          <thead>
-            <tr>
-              {columns.map((k) => (
-                <th key={k} className={`col-${k}`}>
-                  {TIME_LABELS[k] ?? (k === "notes" ? "Notes" : m.profile.fields.find((d) => d.key === k)?.label)}
+      <div className={mode === "day" ? "day-split" : ""}>
+        {mode === "day" && (
+          <DayCalendar
+            day={day}
+            dayEnd={dayEnd}
+            sessions={onCalendar}
+            now={now}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onOpenTask={onOpenTask}
+          />
+        )}
+        {groups.length > 0 ? (
+          <table className="entries-table">
+            <thead>
+              <tr>
+                {columns.map((k) => (
+                  <th key={k} className={`col-${k}`}>
+                    {TIME_LABELS[k] ?? (k === "notes" ? "Notes" : m.profile.fields.find((d) => d.key === k)?.label)}
+                  </th>
+                ))}
+                <th className="col-actions">
+                  <span className="visually-hidden">Actions</span>
                 </th>
-              ))}
-              <th className="col-actions">
-                <span className="visually-hidden">Actions</span>
-              </th>
-            </tr>
-          </thead>
-          {groups.map((g) => (
-            <EntryGroup
-              key={g.info.task.id}
-              info={g.info}
-              sessions={g.sessions}
-              now={now}
-              day={mode === "day" ? day : null}
-              onOpenTask={onOpenTask}
-            />
-          ))}
-        </table>
-      ) : (
-        <p className="empty">{mode === "todo" ? `Nothing left to enter in ${target}.` : "No time tracked that day."}</p>
-      )}
+              </tr>
+            </thead>
+            {groups.map((g) => (
+              <EntryGroup
+                key={g.info.task.id}
+                info={g.info}
+                sessions={g.sessions}
+                now={now}
+                day={mode === "day" ? day : null}
+                onOpenTask={onOpenTask}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
+            ))}
+          </table>
+        ) : (
+          <p className="empty">{mode === "todo" ? `Nothing left to enter in ${target}.` : "No time tracked that day."}</p>
+        )}
+      </div>
     </section>
   );
 }
@@ -145,6 +166,8 @@ function EntryGroup({
   now,
   day,
   onOpenTask,
+  selectedId,
+  onSelect,
 }: {
   info: TaskInfo;
   sessions: Session[];
@@ -152,6 +175,8 @@ function EntryGroup({
   /** The day being shown, for "+ Add time"; null in To enter. */
   day: Ms | null;
   onOpenTask: (taskId: Id) => void;
+  selectedId: Id | null;
+  onSelect: (sessionId: Id) => void;
 }) {
   const m = useM();
   const a = useA();
@@ -251,6 +276,8 @@ function EntryGroup({
           editing={!merging && editingId === s.id}
           onEdit={() => setEditingId(editingId === s.id ? null : s.id)}
           picking={merging}
+          selected={selectedId === s.id}
+          onSelect={() => onSelect(s.id)}
           picked={picked.has(s.id)}
           onPick={() =>
             setPicked((prev) => {
@@ -305,6 +332,8 @@ function SessionRows({
   editing,
   onEdit,
   picking,
+  selected,
+  onSelect,
   picked,
   onPick,
 }: {
@@ -314,6 +343,9 @@ function SessionRows({
   editing: boolean;
   onEdit: () => void;
   picking: boolean;
+  /** Picked in the calendar (or by clicking this row). */
+  selected: boolean;
+  onSelect: () => void;
   picked: boolean;
   onPick: () => void;
 }) {
@@ -321,6 +353,11 @@ function SessionRows({
   const a = useA();
   const running = s.end === null;
   const { fmt, def, columns, target } = layout(m);
+  const rowRef = useRef<HTMLTableRowElement>(null);
+  // Picked in the calendar: bring the row into view.
+  useEffect(() => {
+    if (selected) rowRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [selected]);
 
   const cell = (k: string) => {
     if (TIMES.has(k)) {
@@ -355,7 +392,11 @@ function SessionRows({
 
   return (
     <>
-      <tr className={`session-row ${s.enteredAt ? "entered" : ""} ${editing ? "editing" : ""} ${picked ? "picked" : ""}`}>
+      <tr
+        ref={rowRef}
+        className={`session-row ${s.enteredAt ? "entered" : ""} ${editing ? "editing" : ""} ${picked ? "picked" : ""} ${selected ? "selected" : ""}`}
+        onClick={onSelect}
+      >
         {columns.map(cell)}
         <td className="col-actions">
           <div className="row-tools">

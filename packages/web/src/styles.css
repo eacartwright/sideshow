@@ -18,6 +18,8 @@
   --on-paused: #ffffff;
   --warn: #a15c00;
   --focus: #1747c9;
+  --block-bg: #e2e9fb;
+  --block-edge: #1747c9;
   --radius: 10px;
   --tap: 44px;
   --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -44,6 +46,8 @@
   --on-paused: #1a1000;
   --warn: #ffb454;
   --focus: #8fb6ff;
+  --block-bg: #1a2640;
+  --block-edge: #6ea0ff;
 }
 
 * {
@@ -1118,7 +1122,9 @@ select:focus {
     padding-right: 24px;
   }
 }
-.btn-on {
+/* Beats .btn:hover too: a tapped button stays "hovered" on a phone. */
+.btn.btn-on,
+.btn.btn-on:hover {
   border-color: var(--text);
   background: var(--text);
   color: var(--bg);
@@ -1150,6 +1156,7 @@ select:focus {
 }
 .day-head .day-nav {
   flex: 1;
+  flex-wrap: wrap;
   min-width: min(100%, 420px);
 }
 .day-total {
@@ -1277,6 +1284,15 @@ select:focus {
 }
 .session-row.entered td:not(.col-actions) {
   opacity: 0.55;
+}
+.session-row {
+  cursor: default;
+}
+.session-row.selected td {
+  background: var(--block-bg);
+}
+.session-row.selected td:first-child {
+  box-shadow: inset 3px 0 0 var(--block-edge);
 }
 .session-row.editing td,
 .session-row.picked td {
@@ -1487,4 +1503,139 @@ select:focus {
   .entries-table .col-actions {
     margin-left: auto;
   }
+}
+
+/* ---- Day page: calendar beside the table ---- */
+.day-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.day-split .cal {
+  order: 2; /* phone: under the table */
+  height: 480px;
+}
+@media (min-width: 900px) {
+  .day-split {
+    grid-template-columns: minmax(260px, 340px) minmax(0, 1fr);
+    align-items: start;
+  }
+  .day-split .cal {
+    order: 0;
+    position: sticky;
+    top: 12px;
+    height: calc(100vh - 150px);
+  }
+}
+.cal {
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: 10px 6px 10px 0;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+}
+.cal-grid {
+  position: relative;
+  margin-left: 58px;
+}
+.cal-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid var(--border);
+}
+.cal-hour-label {
+  position: absolute;
+  left: -56px;
+  width: 48px;
+  top: -0.7em;
+  text-align: right;
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.cal-gap {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(135deg, transparent 0 6px, var(--surface-2) 6px 12px);
+  color: var(--warn);
+  font-size: 0.72rem;
+  font-weight: 700;
+  pointer-events: none;
+}
+.cal-block {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  overflow: hidden;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--block-edge);
+  border-radius: 6px;
+  background: var(--block-bg);
+  font-size: 0.8rem;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
+}
+.cal-block:hover {
+  border-color: var(--block-edge);
+}
+.cal-block.tight {
+  flex-direction: row;
+  align-items: center;
+  padding: 0 6px;
+  font-size: 0.72rem;
+}
+.cal-block.running {
+  background: var(--running-bg);
+  border-left-color: var(--running);
+}
+.cal-block.entered {
+  opacity: 0.55;
+}
+.cal-block.selected {
+  z-index: 2;
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.cal-title {
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-title.derived {
+  font-style: italic;
+}
+.cal-meta {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cal-now {
+  position: absolute;
+  z-index: 3;
+  left: -6px;
+  right: 0;
+  border-top: 2px solid var(--warn);
+  pointer-events: none;
+}
+.cal-now::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: -5px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
 }
