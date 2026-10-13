@@ -285,11 +285,17 @@ export interface Actions {
   createListItem(list: string, name: string): Id;
   /**
    * The client for a CW company: the one linked to it, else an unlinked one of the same name
-   * (which gets linked), else a new linked one. Archived ones come back.
+   * (which gets linked), else a new linked one. Archived ones come back. It takes the
+   * company's CW name.
    */
   clientForCompany(list: string, company: { id: number; name: string }): Id;
-  /** Link a list item to a CW company, or with null unlink it. */
-  linkListItem(itemId: Id, companyId: number | null): void;
+  /** Link a list item to a CW company (and give it the company's name), or with null unlink it. */
+  linkListItem(itemId: Id, company: { id: number; name: string } | null): void;
+  /**
+   * Fold list items into one: every task using one of `itemIds` (in a task field of that list)
+   * uses `keepId` instead, and the others are removed (archived).
+   */
+  mergeListItems(keepId: Id, itemIds: Id[]): void;
   /** Take an item out of its list (archived, so records using it keep their value), with an Undo toast. */
   removeListItem(itemId: Id): void;
   restoreListItem(itemId: Id): void;
@@ -301,6 +307,27 @@ export interface Actions {
 }
 
 const coarse = () => window.matchMedia("(pointer: coarse)").matches;
+
+/** Actions.clientForCompany. */
+function clientFor(list: string, company: { id: number; name: string }): Id {
+  const items = Object.values(sync.getSnapshot().view.lists).filter((x) => x.list === list);
+  const live = (x: ListItem) => (x.archived ? 1 : 0);
+  const linked = items.filter((x) => x.ext?.cw?.companyId === company.id).sort((a, b) => live(a) - live(b))[0];
+  const named = items
+    .filter((x) => !x.ext?.cw?.companyId && companyKey(x.name) === companyKey(company.name))
+    .sort((a, b) => live(a) - live(b))[0];
+  const item = linked ?? named;
+  const name = company.name.trim();
+  if (!item) {
+    const itemId = newId();
+    sync.dispatch({ type: "list.create", itemId, list, name, ext: { cw: { companyId: company.id } } });
+    return itemId;
+  }
+  if (item !== linked || item.archived || item.name !== name) {
+    sync.dispatch({ type: "list.update", itemId: item.id, patch: { name, archived: false, ext: { cw: { companyId: company.id } } } });
+  }
+  return item.id;
+}
 
 export function useActionsFactory(): Actions {
   const notesRef = useRef<HTMLTextAreaElement | null>(null);
@@ -359,18 +386,23 @@ export function useActionsFactory(): Actions {
         try {
           const res = await api(`/api/cw/tickets/${n}`);
           const t = (await res.json()) as { summary: string; company: string; companyId?: number | null; closed: boolean };
-          // The CW company becomes the client if a client is linked to it, or an unlinked
-          // one has its name (that one gets linked).
+          // The ticket says whose work it is: its CW company becomes the task's client,
+          // replacing whatever was there (the client linked to it, found or added).
           const fill: Fields = {};
           const clientDef = snap.config.profile.fields.find((f) => f.key === cw.clientField);
-          if (clientDef?.list) {
-            const items = Object.values(sync.getSnapshot().view.lists).filter((x) => x.list === clientDef.list && !x.archived);
-            const linked = t.companyId ? items.find((x) => x.ext?.cw?.companyId === t.companyId) : undefined;
-            const named = items.find((x) => !x.ext?.cw?.companyId && companyKey(x.name) === companyKey(t.company));
-            const item = linked ?? named;
-            if (!linked && named && t.companyId) {
-              sync.dispatch({ type: "list.update", itemId: named.id, patch: { ext: { cw: { companyId: t.companyId } } } });
+          // As the task is now, after the request: skipped if its ticket # changed meanwhile.
+          const now = sync.getSnapshot().view.tasks[taskId];
+          const same = !!now && ticketNumber(String(now.fields[cw.ticketField] ?? "")) === n;
+          if (clientDef?.list && t.companyId && same) {
+            const id = clientFor(clientDef.list, { id: t.companyId, name: t.company });
+            if (now.fields[clientDef.key] !== id) {
+              sync.dispatch({ type: "task.update", taskId, patch: { fields: { [clientDef.key]: id } } });
             }
+          } else if (clientDef?.list) {
+            // An older server without the company's id: fill the client by name if unset.
+            const item = Object.values(sync.getSnapshot().view.lists).find(
+              (x) => x.list === clientDef.list && !x.archived && companyKey(x.name) === companyKey(t.company),
+            );
             if (item) fill[clientDef.key] = item.id;
           }
           sync.dispatch({
@@ -492,26 +524,27 @@ export function useActionsFactory(): Actions {
         sync.dispatch({ type: "list.create", itemId, list, name: name.trim() });
         return itemId;
       },
-      clientForCompany(list, company) {
-        const items = Object.values(sync.getSnapshot().view.lists).filter((x) => x.list === list);
-        const live = (x: ListItem) => (x.archived ? 1 : 0);
-        const linked = items.filter((x) => x.ext?.cw?.companyId === company.id).sort((a, b) => live(a) - live(b))[0];
-        const named = items
-          .filter((x) => !x.ext?.cw?.companyId && companyKey(x.name) === companyKey(company.name))
-          .sort((a, b) => live(a) - live(b))[0];
-        const item = linked ?? named;
-        if (!item) {
-          const itemId = newId();
-          sync.dispatch({ type: "list.create", itemId, list, name: company.name.trim(), ext: { cw: { companyId: company.id } } });
-          return itemId;
-        }
-        if (item !== linked || item.archived) {
-          sync.dispatch({ type: "list.update", itemId: item.id, patch: { archived: false, ext: { cw: { companyId: company.id } } } });
-        }
-        return item.id;
+      clientForCompany: clientFor,
+      linkListItem(itemId, company) {
+        sync.dispatch({
+          type: "list.update",
+          itemId,
+          patch: company ? { name: company.name.trim(), ext: { cw: { companyId: company.id } } } : { ext: { cw: { companyId: null } } },
+        });
       },
-      linkListItem(itemId, companyId) {
-        sync.dispatch({ type: "list.update", itemId, patch: { ext: { cw: { companyId } } } });
+      mergeListItems(keepId, itemIds) {
+        const snap = sync.getSnapshot();
+        const keep = snap.view.lists[keepId];
+        if (!keep) return;
+        const gone = new Set(itemIds.filter((id) => id !== keepId));
+        // Task fields only: changing a session's field would flag entered sessions as edited.
+        const keys = snap.config.profile.fields.filter((f) => f.on === "task" && f.list === keep.list).map((f) => f.key);
+        for (const task of Object.values(snap.view.tasks)) {
+          const patch: Record<string, Id> = {};
+          for (const k of keys) if (gone.has(String(task.fields[k] ?? ""))) patch[k] = keepId;
+          if (Object.keys(patch).length) sync.dispatch({ type: "task.update", taskId: task.id, patch: { fields: patch } });
+        }
+        for (const id of gone) sync.dispatch({ type: "list.update", itemId: id, patch: { archived: true } });
       },
       removeListItem(itemId) {
         const name = sync.getSnapshot().view.lists[itemId]?.name ?? "";

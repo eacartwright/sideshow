@@ -928,6 +928,8 @@ select:focus {
 }
 .ticket-refresh {
   flex: none;
+  display: inline-grid;
+  place-items: center;
   min-width: var(--tap);
   padding: 0 10px;
 }

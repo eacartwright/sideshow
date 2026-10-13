@@ -630,9 +630,16 @@ its coordination ticket is then two clicks.
   - **Settings › Clients…** lists your clients: link / change / unlink each, **Remove** (archived,
     so tasks keep their value; Undo, and Restore under Removed), "Update now", and a one-click
     **Link all** for unlinked clients whose name is a company's.
-  - Ticket lookup now returns the company's id: the client filled in is the one linked to it,
-    else an unlinked one of the same name (`companyKey`), which gets linked. "Set as client"
-    links too. Creating a ticket (next) needs a linked client.
+  - **The ticket decides the client** (2026-10-12): a ticket lookup sets the task's client to
+    the ticket's CW company, **replacing** whatever was there ("Veritaz" → "Veritaz IT
+    Solutions"): the client linked to that company, else an unlinked one of the same name
+    (`companyKey`, which gets linked), else a new linked one. Skipped if the ticket # changed
+    while the lookup ran. Creating a ticket needs a linked client.
+  - **A linked client takes its company's CW name**, when linked (picker, Link…, Link all) or
+    looked up. Settings › Clients offers **Use the ConnectWise names** for clients linked
+    before that, and **Merge** when several clients are linked to one company: the one with the
+    company's name (else the most-used) stays, every task on the others moves to it, and the
+    others are removed (archived). Task fields only; sessions aren't touched.
 - **Pushing time entries** (M4, built 2026-10-10). From the Day page: a row's **Push…**, a
   ticket group's **Push all N…**, or tick rows and **Push N selected…**. Every push goes through
   a preview (ticket, date, times, hours, work type, billing, where the notes go, who gets

@@ -13,6 +13,7 @@ import {
 } from "@sideshow/shared";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { syncText, useCompanies } from "../companies";
+import { RefreshIcon } from "./icons";
 import { Spinner } from "./Spinner";
 import { useA, useM } from "../model";
 
@@ -652,7 +653,7 @@ export function TicketInfo({
         title="Refresh from ConnectWise"
         aria-label="Refresh ticket from ConnectWise"
       >
-        ↻
+        <RefreshIcon size={compact ? 15 : 17} />
       </button>
     </p>
   );

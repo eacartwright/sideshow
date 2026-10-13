@@ -47,8 +47,9 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   per-session results (`integrations/connectwise/push.ts`; needs `CW_MEMBER` in `.env`, else
   `config.cwPush` is false and the UI shows Mark entered only). Ticket lookup: entering a ticket #
   fetches it once the number settles and records it with the `task.refInfo` op, which is ignored
-  if the ref changed since, replaces the title with the ticket's summary and fills the client only if unset
-  (the client linked to the ticket's company, else one of the same name, which gets linked).
+  if the ref changed since, and replaces the title with the ticket's summary. The ticket's company
+  then **replaces** the task's client (the client linked to it, found, linked or added; linked
+  clients take CW's name).
   Changing the ref clears `refInfo`. A client links to a CW company with `ext.cw.companyId` on its
   list item (green chain); Settings › Clients… links, unlinks and removes (DESIGN.md §10).
 - **Profiles** (DESIGN.md §4): job fields are declared in `packages/server/profiles/<name>.json`,

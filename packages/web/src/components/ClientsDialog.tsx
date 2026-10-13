@@ -17,6 +17,8 @@ const ago = (t: number) => {
   return h < 48 ? `${h} h ago` : `${Math.round(h / 24)} days ago`;
 };
 
+const tasksText = (n: number) => (n === 1 ? "1 task" : `${n} tasks`);
+
 export function ClientsDialog({ onClose }: { onClose: () => void }) {
   const m = useM();
   const a = useA();
@@ -46,6 +48,34 @@ export function ClientsDialog({ onClose }: { onClose: () => void }) {
     ? active.flatMap((x) => {
         const c = linkedCompanyId(x) === undefined ? byKey.get(companyKey(x.name)) : undefined;
         return c ? [{ item: x, company: c }] : [];
+      })
+    : [];
+
+  // Several clients linked to one company: merged into the one with the company's name (else
+  // the one most tasks use), so each company is one client.
+  const byCompany = new Map<number, ListItem[]>();
+  for (const x of active) {
+    const id = linkedCompanyId(x);
+    if (id !== undefined) byCompany.set(id, [...(byCompany.get(id) ?? []), x]);
+  }
+  const uses = (x: ListItem) => [...m.tasks.values()].filter((t) => t.groupItem?.id === x.id).length;
+  const merges = cwOn
+    ? [...byCompany]
+        .filter(([, items]) => items.length > 1)
+        .map(([id, items]) => {
+          const company = cw.byId.get(id);
+          const keep = [...items].sort((x, y) => Number(y.name === company?.name) - Number(x.name === company?.name) || uses(y) - uses(x))[0]!;
+          return { company, keep, others: items.filter((x) => x !== keep) };
+        })
+    : [];
+  const merging = new Set(merges.flatMap((g) => g.others.map((x) => x.id)));
+
+  // Linked clients still under another name than their company's ("Veritaz" for "Veritaz IT Solutions").
+  const renames = cwOn
+    ? active.flatMap((x) => {
+        const id = linkedCompanyId(x);
+        const c = id !== undefined ? cw.byId.get(id) : undefined;
+        return c && c.name.trim() !== x.name && !merging.has(x.id) ? [{ item: x, company: c }] : [];
       })
     : [];
 
@@ -85,8 +115,54 @@ export function ClientsDialog({ onClose }: { onClose: () => void }) {
               ))}
             </ul>
           </details>
-          <button className="btn" onClick={() => matches.forEach(({ item, company }) => a.linkListItem(item.id, company.id))}>
+          <button className="btn" onClick={() => matches.forEach(({ item, company }) => a.linkListItem(item.id, company))}>
             Link {matches.length === 1 ? "it" : `all ${matches.length}`}
+          </button>
+        </section>
+      )}
+
+      {merges.length > 0 && (
+        <section className="clients-matches">
+          <p>
+            {merges.length === 1 ? "Some clients are" : `${merges.length} companies have several clients`} linked to the same ConnectWise
+            company. Merging keeps one and moves their tasks to it.
+          </p>
+          <ul className="small">
+            {merges.map(({ company, keep, others }) => (
+              <li key={keep.id}>
+                {others.map((x) => `${x.name} (${tasksText(uses(x))})`).join(", ")} → {keep.name} ({tasksText(uses(keep))})
+                {company && company.name !== keep.name ? ` (${company.name})` : ""}
+              </li>
+            ))}
+          </ul>
+          <button
+            className="btn"
+            onClick={() =>
+              merges.forEach(({ keep, others, company }) => {
+                a.mergeListItems(keep.id, others.map((x) => x.id));
+                if (company && company.name !== keep.name) a.linkListItem(keep.id, company);
+              })
+            }
+          >
+            Merge
+          </button>
+        </section>
+      )}
+
+      {renames.length > 0 && (
+        <section className="clients-matches">
+          <p>
+            {renames.length === 1 ? `1 linked ${label} has` : `${renames.length} linked ${label}s have`} a different name than in ConnectWise.
+          </p>
+          <ul className="small">
+            {renames.map(({ item, company }) => (
+              <li key={item.id}>
+                {item.name} → {company.name}
+              </li>
+            ))}
+          </ul>
+          <button className="btn" onClick={() => renames.forEach(({ item, company }) => a.linkListItem(item.id, company))}>
+            Use the ConnectWise name{renames.length === 1 ? "" : "s"}
           </button>
         </section>
       )}
@@ -182,7 +258,7 @@ function ClientRow({
                   key: String(c.id),
                   text: c.name,
                   label: <CompanyLabel c={c} linkedTo={other && other.id !== item.id ? other.name : undefined} />,
-                  pick: () => a.linkListItem(item.id, c.id),
+                  pick: () => a.linkListItem(item.id, c),
                 };
               })
             }
