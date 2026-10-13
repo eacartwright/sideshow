@@ -152,6 +152,7 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - **Next, Evan's pick (2026-10-13): the task description.** Backlog Inbox, "Task description":
   keep it sideshow-only scratch space (recommended), say so in its placeholder and in New
   ticket…, maybe show the ticket's own initial description read-only.
+- **Also queued for 2026-10-14:** the DEV badge (backlog Inbox; the design is settled there).
 - **Then:** the ticket / project-ticket picker (M5/M6, backlog). Still to check live: ▶ New
   raising the iPhone keyboard (notes are now an editor), an attachment push to #106745, the
   first real "Update ticket". The iPhone layout pass Evan asked for (desktop first).

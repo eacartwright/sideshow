@@ -8,6 +8,12 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 
 ## Inbox
 
+- **DEV badge (Evan to pick up 2026-10-14).** So the dev server can't be mistaken for the live
+  site. Detect it with Vite's `import.meta.env.DEV` (true only under `npm run dev`; the built app
+  on the mini PC never is), not by port or host (the mini PC's LAN address :8081 is the real
+  data). Proposed: an orange **DEV** pill after "sideshow" in the header (`--warn` token), and
+  the tab title "sideshow · DEV". Optional: an orange-dot favicon. ~10 minutes.
+
 - **Task description: decide what it is (Evan to look at next, 2026-10-13).** Today it's
   sideshow-only: New ticket… copies it into the ticket's initial description once, and after
   that nothing syncs either way. Recommended: keep it as private scratch space and say so
