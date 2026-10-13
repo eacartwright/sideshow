@@ -18,9 +18,16 @@ export function sessionValue(m: Model, s: Session, key: string | undefined) {
 export function pushProblem(m: Model, s: Session): string | null {
   const cw = m.profile.connectwise;
   if (!cw) return "No ConnectWise settings";
-  if (s.end === null) return "Still running";
   const task = m.view.tasks[s.taskId];
-  if (!task || !ticketNumber(String(task.fields[cw.ticketField] ?? ""))) return "No ticket #";
+  if (s.end !== null && (!task || !ticketNumber(String(task.fields[cw.ticketField] ?? "")))) return "No ticket #";
+  return entryProblem(m, s);
+}
+
+/** pushProblem without the ticket #: what a session needs before any ticket will take it. */
+export function entryProblem(m: Model, s: Session): string | null {
+  const cw = m.profile.connectwise;
+  if (!cw) return "No ConnectWise settings";
+  if (s.end === null) return "Still running";
   if (cw.workTypeField && !sessionValue(m, s, cw.workTypeField)) return "No work type";
   if (cw.billingField && !sessionValue(m, s, cw.billingField)) return "No billing";
   return null;

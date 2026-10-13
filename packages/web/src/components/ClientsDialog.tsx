@@ -1,8 +1,9 @@
 import { companyKey, searchCompanies, type CompanyInfo, type ListItem } from "@sideshow/shared";
 import { useState } from "react";
-import { refreshCompanies, useCompanies } from "../companies";
+import { refreshCompanies, syncText, useCompanies } from "../companies";
 import { useA, useM } from "../model";
 import { Dialog } from "./Dialog";
+import { Spinner } from "./Spinner";
 import { ComboPicker, CompanyLabel, companyNote, ItemName, linkedCompanyId } from "./fields";
 
 // Your clients (the profile's groupBy list): link each to its CW company, unlink, remove and
@@ -52,11 +53,19 @@ export function ClientsDialog({ onClose }: { onClose: () => void }) {
     <Dialog title={`${def.label}s`} onClose={onClose} className="clients">
       {cwOn && (
         <p className="muted small clients-sync">
-          ConnectWise: {cw.companies.length} companies
-          {cw.syncedAt ? `, updated ${ago(cw.syncedAt)}` : ""}
-          {cw.error && <span className="warn"> · {cw.error}</span>}
-          <button className="btn subtle" disabled={cw.busy} onClick={() => void refreshCompanies()}>
-            {cw.busy ? "Updating…" : "Update now"}
+          {syncText(cw) ? (
+            <span className="busy-line" role="status">
+              <Spinner /> {syncText(cw)}
+            </span>
+          ) : (
+            <span>
+              ConnectWise: {cw.companies.length} companies
+              {cw.syncedAt ? `, updated ${ago(cw.syncedAt)}` : ""}
+            </span>
+          )}
+          {cw.error && <span className="warn">{cw.error}</span>}
+          <button className="btn subtle" disabled={cw.syncing} onClick={() => void refreshCompanies()}>
+            Update now
           </button>
         </p>
       )}

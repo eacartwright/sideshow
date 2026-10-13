@@ -38,6 +38,10 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   CW is optional: the server enables it only when `CW_SITE` is set and the profile has a
   `connectwise` section (`config.cw` in `/api/state`; the UI hides CW features otherwise). `npm run dev` loads the root `.env`. Endpoint so far:
   `GET /api/cw/tickets/:id` → `{summary, company, companyId, closed}`;
+  `GET /api/cw/boards` → service boards with types/statuses + the owner;
+  `POST /api/cw/tickets {taskId, summary, boardId, typeId?, statusId?, assign, description?,
+  pushSessionIds?}` → `{ticketId, pushed?}` (`tickets.ts`; writes the number onto the task, then
+  pushes those sessions). The client retries CW's 429s after the wait CW asks for;
   `GET /api/cw/companies` (+ `POST …/refresh[?full=1]`) → the cached CW companies, duplicates
   marked (`companies.ts`; the browser keeps a copy, `web/src/companies.ts`); `POST /api/cw/push {sessionIds}` →
   per-session results (`integrations/connectwise/push.ts`; needs `CW_MEMBER` in `.env`, else
@@ -121,7 +125,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - `listen EACCES` on a free port = Windows NAT (Hyper-V/WSL) reserved it; ranges re-roll each boot
   (`netsh interface ipv4 show excludedportrange protocol=tcp`). Fixed on the desktop by reserving
   8787 (admin: `net stop winnat`, `netsh int ipv4 add excludedportrange protocol=tcp startport=8787
-  numberofports=1`, `net start winnat`). Don't just pick another 8xxx port; it can be grabbed too.
+  numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
+  2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
 ## Status (2026-10-12)
 
@@ -144,8 +149,9 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   duplicates sorted out by last ticket date, CW companies in the Client field, linked clients
   (chain), Settings › Clients… (link, unlink, remove). Not yet run against live CW from the app
   (the first sync on the live server takes a minute or two).
-- **Next (Evan's order, 2026-10-12): create a CW ticket from a task** (needs a linked client),
-  then the ticket / project-ticket picker, then a CW-style notes editor (B/I/U, lists, link,
+- **Create a CW ticket from a task built (2026-10-12)**, DESIGN.md §10. Tested against a fake CW
+  only: the first live ticket should go on Veritaz IT Solutions (19300), Internal board.
+- **Next (Evan's order, 2026-10-12):** the ticket / project-ticket picker, then a CW-style notes editor (B/I/U, lists, link,
   images; Markdown) with pasted screenshots pushed to the ticket. Delete for tasks/projects/inbox
   is small and can go in anywhere. Backlog Inbox has the details.
 - **Before that (2026-10-11).** Day page improvements from the first real day (Oct 7 on the

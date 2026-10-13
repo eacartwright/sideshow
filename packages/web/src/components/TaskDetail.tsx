@@ -2,6 +2,7 @@ import { durationMs, startOfDay, type Id, type Session } from "@sideshow/shared"
 import { useState } from "react";
 import { dayLabel, hm, timeOfDay } from "../format";
 import { sessionFieldTexts, useA, useM, useNow } from "../model";
+import { NewTicketButton } from "./CreateTicket";
 import { Dialog } from "./Dialog";
 import { DraftInput, DraftTextarea, ProjectPicker, TaskFieldInputs, TicketInfo } from "./fields";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
@@ -64,6 +65,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
         <div className="row-actions">
           <ProjectPicker value={task.projectId ?? null} onChange={(projectId) => a.updateTask(taskId, { projectId })} />
           <TaskFieldInputs task={task} />
+          {m.profile.connectwise && !task.fields[m.profile.connectwise.ticketField] && <NewTicketButton taskId={taskId} />}
         </div>
         <TicketInfo task={task} />
         <DraftTextarea

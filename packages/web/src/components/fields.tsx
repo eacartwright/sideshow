@@ -12,7 +12,8 @@ import {
   type Task,
 } from "@sideshow/shared";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
-import { useCompanies } from "../companies";
+import { syncText, useCompanies } from "../companies";
+import { Spinner } from "./Spinner";
 import { useA, useM } from "../model";
 
 // Text fields bound to synced values. They keep a local draft so that
@@ -265,7 +266,7 @@ function ClientPicker({ def, value, onChange }: { def: FieldDef; value: Id | nul
       chip={current ? <ItemName item={current} /> : `+ ${def.label}`}
       set={!!current}
       placeholder={`Find ${label}…`}
-      empty={cw.busy && !cw.companies.length ? "Loading ConnectWise companies…" : "No match"}
+      empty={!cw.companies.length && (cw.busy || cw.syncing) ? "Loading ConnectWise companies…" : "No match"}
       options={(query, typed) => {
         const mine = items.filter((x) => x.name.toLowerCase().includes(query)).slice(0, query ? 6 : 8);
         const theirs = query ? searchCompanies(cw.companies, typed, { withDuplicates: dups, limit: 8 }).filter((c) => !linked.has(c.id)) : [];
@@ -291,10 +292,17 @@ function ClientPicker({ def, value, onChange }: { def: FieldDef; value: Id | nul
         ];
       }}
       footer={
-        <label className="picker-footer muted small">
-          <input type="checkbox" checked={dups} onChange={(e) => setDups(e.target.checked)} />
-          Show older duplicates
-        </label>
+        <>
+          {syncText(cw) && (
+            <p className="picker-footer muted small busy-line" role="status">
+              <Spinner /> {syncText(cw)}
+            </p>
+          )}
+          <label className="picker-footer muted small">
+            <input type="checkbox" checked={dups} onChange={(e) => setDups(e.target.checked)} />
+            Show older duplicates
+          </label>
+        </>
       }
     />
   );

@@ -9,6 +9,8 @@ import { SettingsDialog } from "./components/Settings";
 import { Switcher } from "./components/Switcher";
 import { TaskDetail } from "./components/TaskDetail";
 import { TaskList } from "./components/TaskList";
+import { syncText, useCompanies } from "./companies";
+import { Spinner } from "./components/Spinner";
 import { ActionsContext, ModelContext, useActionsFactory, useModel, type Model } from "./model";
 import { dismissToast, useToast } from "./toast";
 
@@ -218,8 +220,26 @@ function SyncBadge({ model }: { model: Model }) {
   else if (connection === "offline") [text, tone] = [pending ? `Offline · ${pending} unsent` : "Offline", "warn"];
   else if (pending) [text, tone] = ["Saving…", "wait"];
   return (
-    <span className={`sync sync-${tone}`} role="status">
-      <span className="sync-dot" aria-hidden /> {text}
+    <>
+      <span className={`sync sync-${tone}`} role="status">
+        <span className="sync-dot" aria-hidden /> {text}
+      </span>
+      {model.config.cw && <CwSyncBadge />}
+    </>
+  );
+}
+
+/** While the server syncs ConnectWise's companies (the first time takes a minute or two). */
+function CwSyncBadge() {
+  const cw = useCompanies(true);
+  const text = syncText(cw);
+  if (!text) return null;
+  // On a phone the header has room for a few characters only.
+  const short = `CW sync${cw.progress ? ` ${cw.progress.done}/${cw.progress.total}` : "…"}`;
+  return (
+    <span className="sync sync-wait sync-cw busy-line" role="status" title={text}>
+      <Spinner /> <span className="wide-only">{text}</span>
+      <span className="narrow-only">{short}</span>
     </span>
   );
 }

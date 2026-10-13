@@ -8,7 +8,7 @@ import { Dialog } from "./Dialog";
 
 // Two kinds of settings. Appearance belongs to this device (localStorage). The reducer's
 // tunable rules are synced (every device and the server must apply the same thresholds),
-// so a change to them applies everywhere.
+// so a change to them applies everywhere. Things being tried out go on the Experimental tab.
 
 const THEMES: { value: ThemePref; label: string }[] = [
   { value: "system", label: "System" },
@@ -19,17 +19,59 @@ const THEMES: { value: ThemePref; label: string }[] = [
 const BLIP_OPTIONS = [0, 10, 30, 60, 120];
 const GAP_OPTIONS = [0, 2, 5, 10, 15, 30, 60];
 
+type Tab = "general" | "experimental";
+const TABS: { value: Tab; label: string }[] = [
+  { value: "general", label: "General" },
+  { value: "experimental", label: "Experimental" },
+];
+
 export function SettingsDialog({ onClose, onClients }: { onClose: () => void; onClients: () => void }) {
+  const [tab, setTab] = useState<Tab>("general");
+  return (
+    <Dialog title="Settings" onClose={onClose} className="settings">
+      <div className="tabs settings-tabs" role="tablist">
+        {TABS.map((t) => (
+          <button
+            key={t.value}
+            role="tab"
+            id={`settings-tab-${t.value}`}
+            aria-selected={tab === t.value}
+            aria-controls="settings-panel"
+            className={`tab ${tab === t.value ? "on" : ""}`}
+            onClick={() => setTab(t.value)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>
+        {tab === "general" ? <GeneralSettings onClients={onClients} /> : <ExperimentalSettings />}
+      </div>
+    </Dialog>
+  );
+}
+
+/** Being tried out: may change or go away. */
+function ExperimentalSettings() {
+  return (
+    <>
+      <p className="muted small setting-help">Things being tried out. They may change or go away.</p>
+      <h3 className="settings-group">On this device</h3>
+      <FontSetting slot="header" label="Header font" />
+      <FontSetting slot="app" label="App font" />
+    </>
+  );
+}
+
+function GeneralSettings({ onClients }: { onClients: () => void }) {
   const m = useM();
   const a = useA();
   const { blipSec, resumeGapMin } = m.settings;
 
   return (
-    <Dialog title="Settings" onClose={onClose} className="settings">
+    <>
       <h3 className="settings-group">On this device</h3>
       <ThemeSetting />
-      <FontSetting slot="header" label="Header font (testing)" />
-      <FontSetting slot="app" label="App font (testing)" />
 
       <h3 className="settings-group">On every device</h3>
 
@@ -72,7 +114,7 @@ export function SettingsDialog({ onClose, onClients }: { onClose: () => void; on
         gap counts as worked), so bouncing between tasks doesn't make a pile of tiny time entries. A
         session already marked entered is never reopened.
       </Setting>
-    </Dialog>
+    </>
   );
 }
 
@@ -126,7 +168,8 @@ function FontSetting({ slot, label }: { slot: FontSlot; label: string }) {
           if (fontChoice(slot) === f) setMissing(!ok);
         }}
       >
-        <option value="">{slot === "app" ? "System font (default)" : "Same as the app (default)"}</option>
+        <option value="">{slot === "app" ? "Bricolage Grotesque (default)" : "Unbounded (default)"}</option>
+        <option value="system-ui">System font</option>
         <optgroup label="Your picks">
           {FONTS.map((f) => (
             <option key={f} value={f}>
@@ -147,7 +190,7 @@ function FontSetting({ slot, label }: { slot: FontSlot; label: string }) {
       {missing && <p className="warn small setting-help">Google Fonts doesn't have “{family}”; showing the system font.</p>}
       {slot === "app" && (
         <p className="muted small setting-help">
-          Temporary, for picking fonts: applies to this device only. Focus a list and use the arrow keys to flip through them.
+          Applies to this device only. Focus a list and use the arrow keys to flip through them.
         </p>
       )}
     </section>

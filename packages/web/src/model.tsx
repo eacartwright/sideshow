@@ -84,6 +84,27 @@ export interface PushResult {
   error?: string;
 }
 
+/** A CW service board a new ticket can go on (the server's BoardChoice). */
+export interface CwBoard {
+  id: number;
+  name: string;
+  types: { id: number; name: string; default: boolean }[];
+  statuses: { id: number; name: string; default: boolean }[];
+}
+
+/** What a new CW ticket is made with (the server's NewTicket). */
+export interface NewCwTicket {
+  taskId: Id;
+  summary: string;
+  boardId: number;
+  typeId?: number;
+  statusId?: number;
+  assign: boolean;
+  description?: string;
+  /** The task's sessions to push to the new ticket once it's made. */
+  pushSessionIds?: Id[];
+}
+
 export interface ProjectInfo {
   project: Project;
   depth: number;
@@ -245,6 +266,10 @@ export interface Actions {
   lookupTicket(taskId: Id): Promise<string | null>;
   /** Ask CW which of these pushed sessions' entries were deleted there (they go back to To enter). Resolves to how many, or null if CW couldn't be asked. */
   checkCw(sessionIds: Id[]): Promise<number | null>;
+  /** What a new CW ticket can be: boards, and who it's assigned to. */
+  cwBoards(): Promise<{ boards: CwBoard[]; owner: { id: number; name: string } | null } | { error: string }>;
+  /** Make a CW ticket for a task; the server puts its number on the task. */
+  createCwTicket(t: NewCwTicket): Promise<{ ticketId: number; pushed?: PushResult[]; pushError?: string } | { error: string }>;
   /** Push sessions to CW as time entries: each one's result, or why the whole push failed. */
   pushToCw(sessionIds: Id[]): Promise<{ results: PushResult[] } | { error: string }>;
   updateSession(sessionId: Id, patch: SessionPatch): void;
@@ -389,6 +414,32 @@ export function useActionsFactory(): Actions {
           return removed.length;
         } catch {
           return null;
+        }
+      },
+      async cwBoards() {
+        try {
+          return await (await api("/api/cw/boards")).json();
+        } catch (err) {
+          if (err instanceof SignedOut) return { error: "Signed out: reload to sign in." };
+          return { error: "Couldn't load the boards from ConnectWise." };
+        }
+      },
+      async createCwTicket(t) {
+        // The server reads the task's client from its own state: send what's queued here first.
+        if (!(await sync.sendNow())) return { error: "Couldn't send your latest changes to the server first. Check the connection and try again." };
+        try {
+          const res = await fetch("/api/cw/tickets", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(t),
+            redirect: "manual",
+          });
+          if (res.type === "opaqueredirect" || res.status === 401 || res.status === 403) return { error: "Signed out: reload to sign in, then try again." };
+          const body = await res.json().catch(() => ({}));
+          if (res.ok && body.ticketId) return body as { ticketId: number; pushed?: PushResult[]; pushError?: string };
+          return { error: (body.error as string) || "Couldn't make the ticket." };
+        } catch {
+          return { error: "Couldn't reach the server. No ticket was made." };
         }
       },
       async pushToCw(sessionIds) {

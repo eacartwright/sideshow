@@ -62,7 +62,7 @@ describe("CW company cache", () => {
       { id: 1, name: "Zen Dental Group", identifier: "zendentalgroup", status: "Active", types: ["Client"], lastTicket: "2026-10-01", dupOf: undefined },
       { id: 2, name: "Zen Dental Group", identifier: "ZenDentalGroup7C6", status: "Active", types: ["Customer"], lastTicket: "2024-06-01", dupOf: 1 },
     ]);
-    expect(c.status()).toMatchObject({ syncing: false, error: null });
+    expect(c.status()).toMatchObject({ syncing: false, progress: null, error: null });
     expect(c.status().syncedAt).toBeGreaterThan(0);
   });
 
@@ -79,6 +79,19 @@ describe("CW company cache", () => {
       [3, "2026-10-12", undefined],
       [1, "2026-10-01", undefined],
     ]);
+  });
+
+  it("reports how far the first scan has got", async () => {
+    const { cache: c, cw } = cache();
+    const seen: unknown[] = [];
+    const latest = cw.latestTicket.bind(cw);
+    (cw as any).latestTicket = async (kind: "service" | "project", conditions?: string) => {
+      if (conditions) seen.push({ ...c.status().progress });
+      return latest(kind, conditions);
+    };
+    await c.sync();
+    expect(seen[0]).toEqual({ done: 0, total: 3 });
+    expect(c.status().progress).toBeNull();
   });
 
   it("joins a sync already running and records a failure", async () => {

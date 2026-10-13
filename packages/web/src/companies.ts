@@ -12,6 +12,10 @@ export interface CompaniesSnapshot {
   syncedAt: number | null;
   /** A fetch or a refresh is under way. */
   busy: boolean;
+  /** The server is syncing with CW (the first sync takes a minute or two). */
+  syncing: boolean;
+  /** How far the first sync has got, while it runs. */
+  progress: { done: number; total: number } | null;
   error: string | null;
 }
 
@@ -28,9 +32,18 @@ function load(): Pick<CompaniesSnapshot, "companies" | "syncedAt"> {
 }
 
 const cached = load();
-let snap: CompaniesSnapshot = { ...cached, byId: new Map(cached.companies.map((c) => [c.id, c])), busy: false, error: null };
+let snap: CompaniesSnapshot = {
+  ...cached,
+  byId: new Map(cached.companies.map((c) => [c.id, c])),
+  busy: false,
+  syncing: false,
+  progress: null,
+  error: null,
+};
 const listeners = new Set<() => void>();
 let fetched = false;
+/** The one pending "ask again" while the server syncs. */
+let poll: ReturnType<typeof setTimeout> | undefined;
 
 function set(patch: Partial<CompaniesSnapshot>) {
   snap = { ...snap, ...patch };
@@ -49,10 +62,17 @@ async function request(path: string, init?: RequestInit) {
   set({ busy: true });
   try {
     const res = await api(path, init);
-    const body = (await res.json()) as { companies: CompanyInfo[]; syncedAt: number | null; syncing: boolean; error: string | null };
-    set({ companies: body.companies, syncedAt: body.syncedAt, busy: false, error: body.error });
-    // The server's first sync can still be running: ask again shortly.
-    if (body.syncing) setTimeout(() => void request("/api/cw/companies"), 10_000);
+    const body = (await res.json()) as {
+      companies: CompanyInfo[];
+      syncedAt: number | null;
+      syncing: boolean;
+      progress: { done: number; total: number } | null;
+      error: string | null;
+    };
+    set({ companies: body.companies, syncedAt: body.syncedAt, syncing: body.syncing, progress: body.progress ?? null, busy: false, error: body.error });
+    // While the server syncs, ask again shortly: for its progress, then the finished list.
+    clearTimeout(poll);
+    if (body.syncing) poll = setTimeout(() => void request("/api/cw/companies"), 3_000);
   } catch {
     set({ busy: false, error: "Couldn't reach the server" });
   }
@@ -65,9 +85,16 @@ export function ensureCompanies() {
   void request("/api/cw/companies");
 }
 
-/** Ask the server to sync with CW now. */
+/** Ask the server to sync with CW now (the answer comes once it's done). */
 export function refreshCompanies(full = false) {
+  set({ syncing: true });
   return request(`/api/cw/companies/refresh${full ? "?full=1" : ""}`, { method: "POST" });
+}
+
+/** "Syncing ConnectWise companies… 312 of 745", or null when no sync is running. */
+export function syncText(s: CompaniesSnapshot): string | null {
+  if (!s.syncing) return null;
+  return `Syncing ConnectWise companies…${s.progress ? ` ${s.progress.done} of ${s.progress.total}` : ""}`;
 }
 
 export function getCompanies() {

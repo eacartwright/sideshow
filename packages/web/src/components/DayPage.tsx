@@ -15,6 +15,7 @@ import { entryDate, entryHours, entryTime, hm, whenLabel } from "../format";
 import { bareText, fieldText, useA, useM, useNow, type Model, type TaskInfo } from "../model";
 import { DayCalendar } from "./DayCalendar";
 import { addDays, DayNav } from "./DayNav";
+import { NewTicketButton } from "./CreateTicket";
 import { FieldInput, TicketInfo, ticketUrl } from "./fields";
 import { isUpdate, PushDialog, pushProblem } from "./PushDialog";
 import { Switcher } from "./Switcher";
@@ -342,6 +343,9 @@ function EntryGroup({
               <span className="row-title">{info.title}</span>
             </button>
             <span className="group-info">
+              {m.profile.connectwise && !fields[m.profile.connectwise.ticketField] && (
+                <NewTicketButton taskId={info.task.id} className="btn subtle sm" />
+              )}
               <TicketInfo
                 task={info.task}
                 compact

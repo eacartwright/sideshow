@@ -560,10 +560,33 @@ its coordination ticket is then two clicks.
   replacing whatever it was), and from then on **pushes each of that task's
   sessions as its own time entry on that ticket**. From M5, searching CW and choosing **Track**
   replaces the manual search; pasting a number still works.
-- **Creating a ticket from a task** (planned): the **Ticket Owner** defaults to me (probably; not
-  final), shown as a chip with an **×**. Removing it leaves the ticket unassigned so it lands on
-  the **Tier 1** service board, where the service coordinator assigns a tech. Often I'll want it
-  myself; sometimes I deliberately drop it in the queue.
+- **Creating a ticket from a task** (built 2026-10-12, `integrations/connectwise/tickets.ts`,
+  `web/.../CreateTicket.tsx`): **New ticket…** in Task details and on a Day page task with no
+  ticket #. The dialog: **Summary** (the task's title, CW's 100-character limit), **Company**
+  (the task's client, which must be linked; the client picker is right there to fix it),
+  **Board** (service boards only; this device remembers the last one, else Tier 1), **Type** and
+  **Status** (the board's defaults), **Owner** (CW_MEMBER, shown as a chip with an **×**;
+  removing it leaves the ticket unassigned in the board's queue, where the service coordinator
+  assigns a tech), optional **Description** (the task's description) → the ticket's initial
+  description. CW's automatic emails stay off; the contact is the company's default. The server
+  makes the ticket (`POST /api/cw/tickets`, refusing a task that already has a ticket, an unlinked
+  client, or a second click while one is being made), then puts the number and summary on the
+  task with ops, so every device sees it and its sessions push to the new ticket.
+  - **Time already on the task** (added 2026-10-12): "Push its N time entries to the new
+    ticket" is ticked by default when the task has unentered sessions ready to push (work type
+    and billing set, not running). The server pushes them right after making the ticket, in the
+    same request, as the Day page's push would (email per entry, off unless turned on). Ones that
+    can't go yet are named in the dialog and left for the Day page; if a push fails, the dialog
+    says which before closing.
+- **Rate limit**: CW answers 429 ("Too many requests. Please try again in 30 seconds.") when
+  sideshow sends too much at once, e.g. the first company sync plus loading boards. The client
+  waits as long as CW asks (Retry-After or the message, 1–60 s) and tries again, up to 3 times;
+  the first sync asks 4 companies at a time, and boards load one at a time.
+- **Sync feedback**: while the server syncs companies, the header shows a spinner and "Syncing
+  ConnectWise companies… 312 of 745" ("CW sync 312/745" on a phone), as do the client picker
+  and Settings › Clients; the browser asks for progress every 3 s. Until the first sync is done,
+  ticket dates (and so which duplicate wins) are incomplete. Loading boards and creating a ticket
+  have spinners too.
 - **Testing against the live instance**: test tickets go on **Veritaz IT Solutions** (CW company
   id `19300`, identifier `veritasitsolutions`), not on a client. Beware the lookalikes "Veritas IT
   Solutions" (19593) and "Veritaz IT" (20018). The standing test ticket is **#106745**

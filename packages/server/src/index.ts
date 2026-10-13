@@ -11,6 +11,7 @@ import { openDb } from "./db";
 import { ConnectWiseClient, CwError, configFromEnv } from "./integrations/connectwise/client";
 import { CompanyCache } from "./integrations/connectwise/companies";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
+import { TicketMaker, type NewTicket } from "./integrations/connectwise/tickets";
 import { defaultsBackfill, loadProfile, profileListChanges } from "./profile";
 import { Store } from "./store";
 
@@ -66,6 +67,7 @@ if (companies) {
 // Pushing time entries also needs whose time it is (a CW member identifier, e.g. ecartwright).
 const CW_MEMBER = process.env.CW_MEMBER?.trim() || null;
 if (cw && profile.connectwise && !CW_MEMBER) console.log("ConnectWise push is off: set CW_MEMBER in .env");
+const tickets = cw && profile.connectwise ? new TicketMaker(cw, store, profile, CW_MEMBER) : null;
 /**
  * A ticket's page in CW, with {id} for the number: the form of CW's own "Share" link, on the API
  * host without its "api-" prefix (api-na.myconnectwise.net → na.myconnectwise.net). Signed out,
@@ -124,6 +126,52 @@ app.post("/api/cw/companies/refresh", async (c) => {
   if (!companies) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
   await companies.sync(c.req.query("full") === "1");
   return c.json({ ...companies.status(), companies: companies.list() });
+});
+
+// What a new ticket can be: boards with their types and statuses, and who it's assigned to.
+app.get("/api/cw/boards", async (c) => {
+  if (!tickets) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  try {
+    const [boards, owner] = await Promise.all([tickets.getBoards(), tickets.getOwner().catch(() => null)]);
+    return c.json({ boards, owner });
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: "Couldn't reach ConnectWise" }, 502);
+  }
+});
+
+// Create a CW ticket for a task; its number goes onto the task (an op every device sees).
+app.post("/api/cw/tickets", async (c) => {
+  if (!tickets) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  const b = await c.req.json().catch(() => null);
+  const num = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x > 0 ? x : undefined);
+  if (!b || typeof b.taskId !== "string" || typeof b.summary !== "string" || !num(b.boardId)) {
+    return c.json({ error: "taskId, summary and boardId needed" }, 400);
+  }
+  const req: NewTicket = {
+    taskId: b.taskId,
+    summary: b.summary,
+    boardId: num(b.boardId)!,
+    typeId: num(b.typeId),
+    statusId: num(b.statusId),
+    assign: b.assign !== false,
+    description: typeof b.description === "string" ? b.description : undefined,
+    pushSessionIds: Array.isArray(b.pushSessionIds) ? b.pushSessionIds.filter((x: unknown) => typeof x === "string") : undefined,
+  };
+  try {
+    const result = await tickets.create(req);
+    return c.json(result, "error" in result ? 409 : 200);
+  } catch (err) {
+    console.error(err);
+    // CW's message says what it didn't like (a required field, a closed board…).
+    let detail: string | undefined;
+    try {
+      detail = err instanceof CwError ? JSON.parse(err.body)?.message : undefined;
+    } catch {
+      // Not JSON: the generic message will do.
+    }
+    return c.json({ error: detail ? `ConnectWise: ${detail}` : "Couldn't reach ConnectWise. No ticket was made." }, 502);
+  }
 });
 
 // Push sessions to CW as time entries. The client sends its queued ops first, so the server's

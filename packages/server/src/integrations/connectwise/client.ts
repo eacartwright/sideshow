@@ -127,9 +127,19 @@ export function configFromEnv(env: NodeJS.ProcessEnv = process.env): CwConfig {
   };
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** How long CW wants us to wait after a 429: Retry-After, or "try again in 30 seconds" in its message. 1–60 s. */
+export function retryWait(retryAfter: string | null, body: string): number {
+  const seconds = Number(retryAfter) || Number(/in (\d+) seconds?/i.exec(body)?.[1]) || 30;
+  return Math.min(Math.max(seconds, 1), 60) * 1000;
+}
+
 export class ConnectWiseClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
+  /** How many times a request turned away with 429 is sent again. */
+  retries = 3;
 
   constructor(config: CwConfig) {
     this.baseUrl = config.baseUrl ?? `https://${config.site}/v4_6_release/apis/3.0`;
@@ -149,13 +159,22 @@ export class ConnectWiseClient {
     for (const [k, v] of Object.entries(params ?? {})) {
       if (v !== undefined) url.searchParams.set(k, String(v));
     }
-    const res = await fetch(url, {
-      method,
-      headers: this.headers,
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-    if (!res.ok) throw new CwError(res.status, await res.text(), method, path);
-    return (await res.json()) as T;
+    for (let attempt = 0; ; attempt++) {
+      const res = await fetch(url, {
+        method,
+        headers: this.headers,
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      if (res.ok) return (await res.json()) as T;
+      const text = await res.text();
+      // Too many requests: CW turned the request away without doing it, so it's safe to send
+      // again (even a POST) once the wait it asks for is over.
+      if (res.status === 429 && attempt < this.retries) {
+        await sleep(retryWait(res.headers.get("retry-after"), text));
+        continue;
+      }
+      throw new CwError(res.status, text, method, path);
+    }
   }
 
   private get<T>(path: string, params?: Params) {
@@ -269,6 +288,7 @@ export class ConnectWiseClient {
     summary: string;
     companyId: number;
     boardId: number;
+    typeId?: number;
     statusId?: number;
     ownerId?: number;
     initialDescription?: string;
@@ -279,6 +299,7 @@ export class ConnectWiseClient {
       summary: t.summary,
       company: { id: t.companyId },
       board: { id: t.boardId },
+      ...(t.typeId ? { type: { id: t.typeId } } : {}),
       ...(t.statusId ? { status: { id: t.statusId } } : {}),
       ...(t.ownerId ? { owner: { id: t.ownerId } } : {}),
       ...(t.initialDescription ? { initialDescription: t.initialDescription } : {}),
@@ -363,13 +384,20 @@ export class ConnectWiseClient {
 
   /** Active service boards. */
   getBoards() {
-    return this.getAll<CwRef & { inactiveFlag?: boolean }>("/service/boards", "inactiveFlag=false");
+    return this.getAll<CwRef & { inactiveFlag?: boolean; projectFlag?: boolean }>("/service/boards", "inactiveFlag=false");
   }
 
+  /** A board's statuses, in the board's own order. */
   getBoardStatuses(boardId: number) {
-    return this.getAll<CwRef & { defaultFlag?: boolean; closedStatus?: boolean; inactive?: boolean }>(
+    return this.get<(CwRef & { defaultFlag?: boolean; closedStatus?: boolean; inactive?: boolean; sortOrder?: number })[]>(
       `/service/boards/${boardId}/statuses`,
+      { pageSize: 1000, orderBy: "sortOrder asc" },
     );
+  }
+
+  /** A board's ticket types (Problem, Request…). */
+  getBoardTypes(boardId: number) {
+    return this.getAll<CwRef & { defaultFlag?: boolean; inactiveFlag?: boolean }>(`/service/boards/${boardId}/types`);
   }
 
   /** e.g. `identifier="ecartwright"` or `firstName="Evan"`. */

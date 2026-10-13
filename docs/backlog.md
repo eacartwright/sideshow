@@ -8,21 +8,17 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 
 ## Inbox
 
-- **Pick fonts, then remove the font tester.** Settings has a temporary Header font / App font
-  pair of dropdowns (`web/src/fonts.ts`, loads Google Fonts on demand, per device). Once Evan
-  picks, load just those fonts (self-host or one `<link>` in index.html), set `--font` /
-  `--font-brand` in styles.css, and delete `fonts.ts`, `fonts-sans.ts` (all 551 Latin
-  sans-serif families), `FontSetting` and `startFonts()`, and the rule that stops Settings dimming
-  the app (`.backdrop:has(> .dialog.settings)` in styles.css).
+- **Fonts: picked 2026-10-12** (Unbounded for the header, Bricolage Grotesque for the rest),
+  loaded from Google Fonts by one `<link>` in index.html and set as `--font-brand` / `--font` in
+  styles.css. The tester stays under Settings › Experimental (`fonts.ts`, `fonts-sans.ts`,
+  `FontSetting`), per device. Later: self-host the two fonts so the installed app has them
+  offline, and drop the tester (and `.backdrop:has(> .dialog.settings)`) once settled.
 
 - **Delete (2026-10-12).** A Delete button for inbox items, tasks, projects and notes (once M8
   Notes exist). Today tasks and projects only Archive. Proposed: tombstones like
   `session.delete` (a `deleted` flag, Undo toast); a task takes its sessions with it, warning
   when any were pushed to CW; a project's tasks and subprojects move up to its parent.
-- **Create a CW ticket from a task (2026-10-12), next.** Needs a linked client (the company
-  picker, done 2026-10-12). DESIGN.md §10
-  "Creating a ticket from a task" has the owner chip idea.
-- **Ticket and project-ticket picker (2026-10-12, M5/M6).** After creating tickets. See the
+- **Ticket and project-ticket picker (2026-10-12, M5/M6), next.** See the
   Ticket search window and Track a CW project below.
 - **Rich text / Markdown in notes (2026-10-12).** Simple, like CW's own editor: toolbar
   B / I / U, bulleted and numbered lists, attach, link, image; stored as Markdown (CW notes

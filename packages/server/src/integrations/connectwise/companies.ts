@@ -11,6 +11,8 @@ export interface CompanyCacheStatus {
   /** When the last sync finished; null if none has. */
   syncedAt: number | null;
   syncing: boolean;
+  /** How far the first sync's company-by-company scan has got; null when there's none running. */
+  progress: { done: number; total: number } | null;
   /** Why the last sync failed, if it did. */
   error: string | null;
 }
@@ -21,6 +23,7 @@ const day = (t: CwTicketStamp) => t._info?.dateEntered?.slice(0, 10) ?? null;
 
 export class CompanyCache {
   private running: Promise<void> | null = null;
+  private progress: { done: number; total: number } | null = null;
   private error: string | null = null;
 
   constructor(
@@ -46,7 +49,7 @@ export class CompanyCache {
 
   status(): CompanyCacheStatus {
     const at = this.meta("cw.companiesSyncedAt");
-    return { syncedAt: at ? Number(at) : null, syncing: this.running !== null, error: this.error };
+    return { syncedAt: at ? Number(at) : null, syncing: this.running !== null, progress: this.progress, error: this.error };
   }
 
   /** Bring the cache up to date. `full` asks every company for its newest ticket again. Joins a sync already running. */
@@ -61,6 +64,7 @@ export class CompanyCache {
       })
       .finally(() => {
         this.running = null;
+        this.progress = null;
       });
     return this.running;
   }
@@ -92,17 +96,19 @@ export class CompanyCache {
     this.log(`ConnectWise companies: ${companies.length} synced${fresh ? " (every company's newest ticket)" : ""} in ${Math.round((Date.now() - started) / 1000)} s`);
   }
 
-  /** Each company's newest ticket, asked one company at a time (8 at once). */
+  /** Each company's newest ticket, asked one company at a time (4 at once: CW limits the rate). */
   private async scanEveryCompany(ids: number[]) {
     // The newest ticket ids now, so the next sync can read only what's newer.
     const top = await Promise.all(KINDS.map((k) => this.cw.latestTicket(k)));
     const set = this.db.prepare("UPDATE cw_companies SET last_ticket = ? WHERE id = ?");
-    for (let i = 0; i < ids.length; i += 8) {
+    this.progress = { done: 0, total: ids.length };
+    for (let i = 0; i < ids.length; i += 4) {
       await Promise.all(
-        ids.slice(i, i + 8).map(async (id) => {
+        ids.slice(i, i + 4).map(async (id) => {
           const latest = await Promise.all(KINDS.map((k) => this.cw.latestTicket(k, `company/id=${id}`)));
           const days = latest.map((t) => (t ? day(t) : null)).filter((d): d is string => !!d);
           set.run(days.sort().at(-1) ?? null, id);
+          this.progress!.done++;
         }),
       );
     }

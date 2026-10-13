@@ -1,6 +1,6 @@
-// TEMPORARY font tester (Settings → Fonts). Loads a Google Font on demand and applies it to the
-// header ("sideshow") or the whole app, per device. Once fonts are chosen, replace this with
-// the chosen ones in styles.css / index.html and delete this file and fonts-sans.ts (docs/backlog.md, Inbox).
+// Font tester (Settings › Experimental). Loads a Google Font on demand and applies it to the
+// header ("sideshow") or the whole app, per device, over the defaults in styles.css / index.html
+// (Unbounded and Bricolage Grotesque, 2026-10-12).
 
 export const FONTS = [
   "Google Sans Flex",
@@ -80,6 +80,11 @@ async function apply(slot: FontSlot, family: string): Promise<boolean> {
   const root = document.documentElement.style;
   if (!family) {
     root.removeProperty(VAR[slot]);
+    return true;
+  }
+  // The device's own font: nothing to load.
+  if (family === "system-ui") {
+    root.setProperty(VAR[slot], SYSTEM);
     return true;
   }
   const ok = await load(family);
