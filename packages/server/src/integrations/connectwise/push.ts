@@ -1,6 +1,8 @@
 import { newId, ticketNumber, type Id, type Profile, type Session, type State } from "@sideshow/shared";
 import type { Store } from "../../store";
+import { fileIdsIn } from "../../files";
 import { CwError, type ConnectWiseClient, type CwTimeEntryInput } from "./client";
+import type { Attachments } from "./documents";
 
 // Pushing sessions to ConnectWise as time entries (DESIGN.md §10, M4). Each session becomes one
 // entry on its task's ticket, as the member in CW_MEMBER. The result is recorded on the session
@@ -20,6 +22,27 @@ export interface PushResult {
   action?: "created" | "updated";
   entryId?: number;
   error?: string;
+}
+
+/**
+ * A note's Markdown as CW's notes take it. Pictures and files pasted in sideshow link to
+ * sideshow, which CW users can't open: they go to the ticket as documents, and the note names
+ * them instead ("*Attachment: screenshot.png*"). Underline is ++text++ in sideshow and
+ * __text__ in CW (its editor's own form, seen 2026-10-13; plain Markdown would read it as bold).
+ */
+export function cwNotes(markdown: string): string {
+  const name = (label: string, src: string) => {
+    if (label.trim()) return label.trim();
+    try {
+      return decodeURIComponent(src.split("/").pop() ?? "") || "file";
+    } catch {
+      return "file";
+    }
+  };
+  return markdown
+    .replace(/!?\[([^\]]*)\]\((\/api\/files\/[^)\s]*)[^)]*\)/g, (_m, label: string, src: string) => `*Attachment: ${name(label, src)}*`)
+    .replace(/\+\+(.+?)\+\+/g, "__$1__")
+    .trim();
 }
 
 /** UTC, to the minute, as CW wants it: 2026-10-09T14:26:00Z. */
@@ -69,7 +92,7 @@ export function timeEntryFor(
       hoursDeduct: Math.round((s.deductMin / 60) * 100) / 100,
       workType: { id: workTypeId },
       billableOption: billing,
-      notes: s.notes.trim() || CONTINUATION,
+      notes: cwNotes(s.notes) || CONTINUATION,
       addToDetailDescriptionFlag: discussion,
       addToInternalAnalysisFlag: !discussion,
       addToResolutionFlag: false,
@@ -87,6 +110,7 @@ export async function pushSessions(
   profile: Profile,
   member: string,
   sessionIds: Id[],
+  attachments?: Attachments,
 ): Promise<PushResult[]> {
   const cw = profile.connectwise!;
   // Look up what the entries need once: work type ids, and each ticket's kind.
@@ -114,6 +138,9 @@ export async function pushSessions(
         continue;
       }
       const { entry } = built;
+      // Its files go onto the ticket first: if one can't, nothing is half pushed.
+      const fileIds = fileIdsIn(s.notes);
+      if (fileIds.length && attachments) await attachments.ensureOnTicket(fileIds, entry.chargeToId, entry.addToInternalAnalysisFlag);
       const known = Number(s.ext?.cw?.entryId) || 0;
       let action: PushResult["action"] = "created";
       let entryId: number;
@@ -183,7 +210,7 @@ export async function checkPushed(client: ConnectWiseClient, store: Store, sessi
 
 /** CW's error bodies are JSON with a message (and sometimes per-field errors); keep them short. */
 function cwMessage(err: unknown): string {
-  if (!(err instanceof CwError)) return "ConnectWise didn't answer";
+  if (!(err instanceof CwError)) return err instanceof Error && err.message.startsWith("Couldn't attach") ? err.message : "ConnectWise didn't answer";
   try {
     const body = JSON.parse(err.body) as { message?: string; errors?: { message?: string }[] };
     const detail = body.errors?.map((e) => e.message).filter(Boolean).join("; ");

@@ -22,11 +22,33 @@ export function durationMs(s: Session, now: Ms): Ms {
 
 /** First meaningful line of some notes, without list/heading markers. */
 export function firstLine(notes: string, max = 80): string {
-  for (const raw of notes.split(/\r?\n/)) {
+  for (const raw of plainNote(notes).split(/\r?\n/)) {
     const line = raw.replace(/^\s*(?:(?:[-*•>]|#+|\d+[.)]|\[[ xX]\])\s*)*/, "").trim();
     if (line) return line.length > max ? `${line.slice(0, max - 1)}…` : line;
   }
   return "";
+}
+
+/**
+ * A note's Markdown as plain text (DESIGN.md §5): formatting marks dropped, a link as its text,
+ * an image or attached file as its name in brackets ("[screenshot.png]"), escapes like "\(" undone.
+ * Lines and list markers stay.
+ */
+export function plainNote(markdown: string): string {
+  const fileName = (src: string) => {
+    try {
+      return decodeURIComponent(src.split("/").pop() ?? "");
+    } catch {
+      return "";
+    }
+  };
+  return markdown
+    .replace(/!\[([^\]]*)\]\(([^)\s]*)[^)]*\)/g, (_m, alt: string, src: string) => `[${alt || fileName(src) || "image"}]`)
+    .replace(/\[([^\]]+)\]\(([^)\s]*)[^)]*\)/g, (_m, text: string, href: string) => (href.startsWith("/api/files/") ? `[${text}]` : text))
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/\+\+(.+?)\+\+/g, "$1")
+    .replace(/(^|[^*\w])\*(?![\s*])(.+?)\*(?!\w)/g, "$1$2")
+    .replace(/\\([\\`*_{}[\]()#+\-.!|>~])/g, "$1");
 }
 
 /**

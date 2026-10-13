@@ -198,7 +198,7 @@ system takes them (at this job, CW entries carry their own start and end time).
 | `start` | Set automatically. Editable with the time picker (§7). |
 | `end` | `null` while running. Editable. |
 | `deduct` | Optional minutes subtracted (e.g. lunch), mainly for after-the-fact sessions. |
-| `notes` | Stream-of-consciousness notes. Dictation works here. |
+| `notes` | Stream-of-consciousness notes. Dictation works here. **Markdown**, edited formatted (below). |
 | `fields` | Profile field values (Work Type, Billing…). Inherited from the task's previous session. |
 | `enteredAt` | When it was marked as entered into the external system (core: "exported"). |
 
@@ -220,6 +220,31 @@ Derived: **duration** = end − start − deduct.
 - **Merge**: in task details, tap one session and then another. Everything between them is
   selected. Merging keeps the earliest start and the latest end, and joins the notes (empty
   "continuation" notes are skipped). Merges are same-day only, since each CW entry is for one day.
+
+### Rich notes and attachments (2026-10-13)
+
+Session notes and task descriptions are edited **formatted** and stored as **Markdown**
+(`web/src/markdown.ts`, `RichNotes.tsx`, TipTap). The toolbar matches CW's: **B / I / U**,
+bulleted and numbered lists, attach a file, link, add a picture (on a phone the running card's
+toolbar shows only while typing there). Underline is stored as `++text++`.
+
+- **Old plain notes stay as they are**: a single line break is a line break both ways (read with
+  `breaks`, written as a bare "
+"), so opening and saving a plain note changes nothing.
+- **Pasting a screenshot** (or dropping a file, or the 📎 / picture buttons) uploads it to the
+  server (`POST /api/files`, up to 25 MB; needs a connection, not queued offline). Pictures show
+  in the note (`![name](/api/files/<id>/<name>)`), other files as a link. A pasted screenshot is
+  named `screenshot-YYYY-MM-DD-HHMMSS.png`.
+- Files live in `data/files/` beside the database (`FileStore`, table `files`), are served
+  back with their type (SVG, HTML and the like only as downloads), and are copied to the
+  backup folder's `files/` hourly, never pruned.
+- Where a note is previewed (Task details' session list, earlier sessions on the running card) it
+  shows **formatted** (`NoteView`: the editor's schema to HTML, links checked; pictures as
+  thumbnails). Clicking a link there opens it in a new tab (a picture full size), not the
+  session; in the editor a click edits and **Ctrl+click** opens. Hovering a link shows where it
+  goes (an attachment: its file name). Where notes must be one line of text (titles from
+  notes, tooltips, the push preview) they go through `plainNote` (shared): marks dropped,
+  pictures and files as "[name]".
 
 ### Notes (M8)
 Quick markdown pages of jottings that aren't tasks *yet*: the "they mentioned ABC and DEF on the
@@ -428,6 +453,9 @@ an entry): Date (moves the whole session), Start, End (native time inputs, so th
 its wheel; an end before the start means past midnight), Deduct (min), Work type, Notes,
 **Snap to 15 min** (rounds start/end to the nearest quarter hour), **Delete** (with an Undo
 toast). Changes save as you go. Recorded timer times are stored exactly until edited.
+**Now** beside Start and End sets it to the current minute, like CW's clock button (2026-10-13):
+for coming back to a ticket after its entry was pushed, End → Now, then Update…. Off when it
+would put the end before the start (or the start after the end).
 
 - **+ Add time** (Task details, and per ticket in Time entries) adds a manual session (the half
   hour before now, or midday on the day being viewed) and opens it in the editor.
@@ -600,7 +628,16 @@ its coordination ticket is then two clicks.
   ("API test ticket (please leave open)", Internal board, type New Tool Testing, owner and contact
   Evan = member 192, Do Not Bill, automatic emails off).
 - **Notes are Markdown in CW**: its editor stores "(…)" as `\(…\)`. Notes sideshow pushes (and
-  reads back) must be treated as Markdown: escape or allow for it.
+  reads back) must be treated as Markdown: escape or allow for it. Seen in CW notes (2026-10-13):
+  `**bold**`, `*italic*`, `* ` bullets, `1. ` numbers, `[text](url)`; pictures pasted in CW's
+  editor are hosted by CW (`![image](https://na.myconnectwise.net/v2025_1/api/newinlineimages/
+  veritasits/<guid>/<guid>)`, an editor endpoint, not the public API). **Underline is `__text__`**
+  (seen on #106745; plain Markdown would read that as bold).
+- **Attachments on push** (2026-10-13): every file a session's notes link to (`/api/files/…`) is
+  uploaded to the entry's ticket as a CW document (`POST /system/documents`, multipart; private
+  when the notes go to Internal) before the entry is made, once per ticket (`cw_documents`). If
+  one can't be attached, the entry isn't made. In the entry's notes each picture or file link
+  becomes "*Attachment: name*", and underline (`++…++` in sideshow) goes as CW's `__…__`.
 - **Keep the name "sideshow" out of CW** for now: no app name in summaries, descriptions or
   notes that sideshow writes. New tickets default the contact to the company's primary contact
   (Veritaz: Vitoria Bianci), which is another reason CW's automatic contact emails stay off.

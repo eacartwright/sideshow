@@ -144,6 +144,24 @@ const MIGRATIONS: string[] = [
   ALTER TABLE tasks ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE sessions ADD COLUMN deleted_with_task INTEGER NOT NULL DEFAULT 0;
   `,
+  // Attachments (2026-10-13): files pasted or attached in notes, kept in a folder beside the
+  // database (FileStore); notes link to them. And which CW ticket each was uploaded to, so a
+  // push uploads a file to a ticket once.
+  `
+  CREATE TABLE files (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    type TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    created_at INTEGER NOT NULL
+  );
+  CREATE TABLE cw_documents (
+    file_id TEXT NOT NULL,
+    ticket INTEGER NOT NULL,
+    document_id INTEGER NOT NULL,
+    PRIMARY KEY (file_id, ticket)
+  );
+  `,
 ];
 
 export type DB = DatabaseSync;

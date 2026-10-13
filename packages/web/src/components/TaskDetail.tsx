@@ -5,7 +5,9 @@ import { sessionFieldTexts, useA, useM, useNow } from "../model";
 import { NewTicketButton } from "./CreateTicket";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
-import { DraftInput, DraftTextarea, ProjectPicker, TaskFieldInputs, TicketInfo } from "./fields";
+import { DraftInput, ProjectPicker, TaskFieldInputs, TicketInfo } from "./fields";
+import { NoteView } from "./NoteView";
+import { RichNotes } from "./RichNotes";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
 
 // Everything about one task: its fields, and its sessions grouped by day.
@@ -73,11 +75,12 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
           {m.profile.connectwise && !task.fields[m.profile.connectwise.ticketField] && <NewTicketButton taskId={taskId} />}
         </div>
         <TicketInfo task={task} />
-        <DraftTextarea
+        <RichNotes
           className="description"
           value={task.description}
+          resetKey={taskId}
           placeholder="Description (optional context)"
-          aria-label="Description"
+          label="Description"
           onValue={(description) => a.updateTask(taskId, { description })}
         />
         <div className="row-actions">
@@ -228,9 +231,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
                         {timeOfDay(s.start)}–{s.end ? timeOfDay(s.end) : "now"} · {hm(durationMs(s, now))}
                         {sessionFieldTexts(m, s).map((x) => ` · ${x}`)}
                       </span>
-                      <span className={`pre ${s.notes ? "" : "muted"}`}>
-                        {s.notes || "Continuation of previous work"}
-                      </span>
+                      {s.notes.trim() ? <NoteView markdown={s.notes} /> : <span className="muted">Continuation of previous work</span>}
                       {s.enteredAt ? (
                         <span className="entered-label small">✓ Entered</span>
                       ) : (

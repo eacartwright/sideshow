@@ -18,7 +18,7 @@ can do and check.
 | Address | **https://sideshow.evans.tools** |
 | Login | Cloudflare Access app `sideshow` (team `crimson-frog-8dc4`), only Evan's email; `sideshow icons` app lets the icon files through |
 | Data | `C:\Apps\sideshow\data\sideshow.db` |
-| Backups | Daily to `\\evnas\Junk\Tech\DBBackups\sideshow` (TrueNAS), 30 kept |
+| Backups | Daily to `\\evnas\Junk\Tech\DBBackups\sideshow` (TrueNAS), 30 kept; attachments (`data\files`) copied to its `files` folder hourly, all kept |
 | Settings | `C:\Apps\sideshow\.env` (git-ignored) |
 | Log | `C:\Apps\sideshow\data\server.log` |
 

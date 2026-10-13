@@ -1,6 +1,7 @@
 import { newId, ticketNumber, type Id, type Profile } from "@sideshow/shared";
 import type { Store } from "../../store";
 import type { ConnectWiseClient } from "./client";
+import type { Attachments } from "./documents";
 import { pushSessions, type PushResult } from "./push";
 
 // Creating a CW ticket from a task (DESIGN.md §10, "Creating a ticket from a task"). The company
@@ -46,6 +47,7 @@ export class TicketMaker {
     private store: Store,
     private profile: Profile,
     private member: string | null,
+    private attachments?: Attachments,
   ) {}
 
   /** Service boards (not project boards) with their types and open statuses. Cached for an hour. */
@@ -152,7 +154,7 @@ export class TicketMaker {
       if (!ids.length) return { ticketId: ticket.id };
       if (!this.member) return { ticketId: ticket.id, pushError: "Pushing isn't set up on the server (CW_MEMBER in .env)" };
       try {
-        return { ticketId: ticket.id, pushed: await pushSessions(this.cw, this.store, this.profile, this.member, ids) };
+        return { ticketId: ticket.id, pushed: await pushSessions(this.cw, this.store, this.profile, this.member, ids, this.attachments) };
       } catch (err) {
         console.error(err);
         return { ticketId: ticket.id, pushError: "The ticket was made, but its entries couldn't be pushed. Push them from the Day page." };

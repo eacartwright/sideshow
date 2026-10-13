@@ -1,6 +1,7 @@
 import {
   DEFAULT_ENTRY_FORMAT,
   durationMs,
+  plainNote,
   startOfDay,
   type EntryFormat,
   type FieldDef,
@@ -678,7 +679,7 @@ function SessionRows({
                     ⚠
                   </span>
                 )}
-                <button className="btn subtle sm icon" onClick={onEdit} aria-label="Edit this entry" aria-expanded={editing} title={`Edit\n\nNotes: ${s.notes.trim() || CONTINUATION}`}>
+                <button className="btn subtle sm icon" onClick={onEdit} aria-label="Edit this entry" aria-expanded={editing} title={`Edit\n\nNotes: ${plainNote(s.notes).trim() || CONTINUATION}`}>
                   ✎
                 </button>
                 {s.enteredAt ? (

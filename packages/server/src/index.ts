@@ -8,8 +8,10 @@ import { fileURLToPath } from "node:url";
 import { OP_TYPES, type OpEnvelope } from "@sideshow/shared";
 import { startBackups } from "./backup";
 import { openDb } from "./db";
+import { FileStore, MAX_FILE } from "./files";
 import { ConnectWiseClient, CwError, configFromEnv } from "./integrations/connectwise/client";
 import { CompanyCache } from "./integrations/connectwise/companies";
+import { CwDocuments } from "./integrations/connectwise/documents";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
 import { TicketMaker, type NewTicket } from "./integrations/connectwise/tickets";
 import { defaultsBackfill, loadProfile, profileListChanges } from "./profile";
@@ -20,6 +22,7 @@ const PORT = Number(process.env.PORT ?? 8787);
 const setting = (name: string) => process.env[`SIDESHOW_${name}`] ?? process.env[`FIELDTIME_${name}`];
 const DB_FILE = setting("DB") ?? defaultDbFile();
 const BACKUP_DIR = setting("BACKUP_DIR") ?? join(dirname(DB_FILE), "backups");
+const FILES_DIR = setting("FILES_DIR") ?? join(dirname(DB_FILE), "files");
 
 /** data/sideshow.db, renaming data/fieldtime.db (and its WAL files) to it the first time. */
 function defaultDbFile(): string {
@@ -38,7 +41,8 @@ const profile = loadProfile(process.env.PROFILE);
 console.log(process.env.PROFILE ? `profile: ${profile.name}` : "profile: none (set PROFILE in .env for job fields)");
 const db = openDb(DB_FILE);
 const store = new Store(db);
-const backups = startBackups(db, BACKUP_DIR);
+const files = new FileStore(db, FILES_DIR);
+const backups = startBackups(db, BACKUP_DIR, FILES_DIR);
 const now = Date.now();
 const listChanges = profileListChanges(profile, store.state, now);
 if (listChanges.length) {
@@ -67,7 +71,9 @@ if (companies) {
 // Pushing time entries also needs whose time it is (a CW member identifier, e.g. ecartwright).
 const CW_MEMBER = process.env.CW_MEMBER?.trim() || null;
 if (cw && profile.connectwise && !CW_MEMBER) console.log("ConnectWise push is off: set CW_MEMBER in .env");
-const tickets = cw && profile.connectwise ? new TicketMaker(cw, store, profile, CW_MEMBER) : null;
+// A note's attachments go to the ticket its time is pushed to (once per ticket).
+const documents = cw ? new CwDocuments(db, files, cw) : undefined;
+const tickets = cw && profile.connectwise ? new TicketMaker(cw, store, profile, CW_MEMBER, documents) : null;
 /**
  * A ticket's page in CW, with {id} for the number: the form of CW's own "Share" link, on the API
  * host without its "api-" prefix (api-na.myconnectwise.net → na.myconnectwise.net). Signed out,
@@ -183,7 +189,7 @@ app.post("/api/cw/push", async (c) => {
   const ids: unknown[] = Array.isArray(body?.sessionIds) ? body.sessionIds : [];
   if (!ids.length || ids.some((x) => typeof x !== "string")) return c.json({ error: "sessionIds needed" }, 400);
   try {
-    const results = await pushSessions(cw, store, profile, CW_MEMBER, ids as string[]);
+    const results = await pushSessions(cw, store, profile, CW_MEMBER, ids as string[], documents);
     return c.json({ results });
   } catch (err) {
     console.error(err);
@@ -203,6 +209,42 @@ app.post("/api/cw/check", async (c) => {
     console.error(err);
     return c.json({ error: "Couldn't reach ConnectWise" }, 502);
   }
+});
+
+// Attachments. Upload: the raw bytes as the body, the type as Content-Type, the name in
+// X-File-Name (URL-encoded). Answers with where notes link to it.
+app.post("/api/files", async (c) => {
+  const length = Number(c.req.header("content-length") ?? 0);
+  if (length > MAX_FILE) return c.json({ error: `Files can be up to ${MAX_FILE / 1024 / 1024} MB` }, 413);
+  const data = new Uint8Array(await c.req.arrayBuffer());
+  if (!data.byteLength) return c.json({ error: "Empty file" }, 400);
+  if (data.byteLength > MAX_FILE) return c.json({ error: `Files can be up to ${MAX_FILE / 1024 / 1024} MB` }, 413);
+  let name = "file";
+  try {
+    name = decodeURIComponent(c.req.header("x-file-name") ?? "file");
+  } catch {
+    // Not URL-encoded: keep "file".
+  }
+  const info = files.save(data, name, c.req.header("content-type") ?? "");
+  return c.json({ ...info, url: FileStore.url(info) });
+});
+
+// A file, by id; the name after it is for people and is ignored. Never changes, so cached for good.
+app.get("/api/files/:id/:name?", (c) => {
+  const id = c.req.param("id");
+  if (!/^[0-9a-f-]{36}$/.test(id)) return c.json({ error: "No such file" }, 404);
+  const file = files.read(id);
+  if (!file) return c.json({ error: "No such file" }, 404);
+  const inline = /^(image\/(png|jpeg|gif|webp)|application\/pdf|text\/plain)$/.test(file.info.type);
+  return new Response(new Uint8Array(file.data), {
+    headers: {
+      "content-type": file.info.type,
+      "content-length": String(file.info.size),
+      "cache-control": "private, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+      "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.info.name)}`,
+    },
+  });
 });
 
 app.post("/api/ops", async (c) => {
@@ -241,5 +283,5 @@ if (existsSync(WEB_DIST)) {
 }
 
 serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {
-  console.log(`sideshow server on http://localhost:${info.port}  (db: ${DB_FILE}, backups: ${BACKUP_DIR})`);
+  console.log(`sideshow server on http://localhost:${info.port}  (db: ${DB_FILE}, files: ${FILES_DIR}, backups: ${BACKUP_DIR})`);
 });

@@ -199,17 +199,6 @@ select:focus {
   color: var(--text);
   background: var(--surface);
 }
-.chips .chip {
-  border-style: solid;
-  color: var(--text);
-}
-.chip-on,
-.chips .chip-on {
-  border-style: solid;
-  border-color: var(--text);
-  background: var(--text);
-  color: var(--bg);
-}
 
 .select {
   min-height: 36px;
@@ -632,13 +621,6 @@ select:focus {
   padding: 0 7px;
   font-size: 0.75rem;
 }
-.chips {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: none;
-}
 .total {
   text-align: right;
 }
@@ -1036,15 +1018,24 @@ select:focus {
   gap: 8px;
   padding: 8px 0 4px;
 }
+/* Date, Start, End, Deduct in a row that wraps rather than squeezing a time until it's cut off:
+   each field keeps the room its value needs. */
 .editor-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
 }
-@media (max-width: 599px) {
-  .editor-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.editor-grid > .editor-field {
+  flex: 1 1 10rem;
+}
+.editor-grid > .editor-field:has(.time-with-now) {
+  flex-basis: 13rem;
+}
+.editor-grid > .editor-field.deduct {
+  flex: 0 1 8rem;
+}
+.time-with-now .editor-input {
+  min-width: 8.5rem;
 }
 .editor-field {
   display: grid;
@@ -2013,7 +2004,7 @@ a.ticket-link:hover {
 }
 
 .dialog.clients {
-  width: min(100%, 720px);
+  max-width: 760px;
 }
 .clients-sync {
   display: flex;
@@ -2075,7 +2066,7 @@ a.ticket-link:hover {
 
 /* New CW ticket dialog. */
 .dialog.new-ticket {
-  width: min(100%, 560px);
+  max-width: 560px;
 }
 .field {
   display: flex;
@@ -2258,7 +2249,7 @@ p.picker-footer {
 
 /* "Are you sure?" dialogs, and their destructive button. */
 .dialog.confirm {
-  width: min(100%, 420px);
+  max-width: 420px;
 }
 .dialog.confirm p {
   margin: 0;
@@ -2267,4 +2258,184 @@ p.picker-footer {
   background: var(--warn);
   border-color: var(--warn);
   color: var(--on-paused);
+}
+
+/* ---- Notes editor (RichNotes): looks like the text box it replaced, with a toolbar on top. ---- */
+.rich {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  resize: none;
+}
+.rich:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 0;
+  border-color: var(--focus);
+}
+.rich > div:last-child {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+  overflow-y: auto;
+}
+.rich-content {
+  flex: 1;
+  padding: 10px 12px;
+  outline: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.rich.notes .rich-content {
+  padding: 12px;
+}
+.rich-content p {
+  margin: 0;
+}
+.rich-content p + p,
+.rich-content p + ul,
+.rich-content p + ol,
+.rich-content ul + p,
+.rich-content ol + p {
+  margin-top: 0.5em;
+}
+/* Lists keep their markers wherever the editor sits (the session list's ".days ul" strips them). */
+.rich .rich-content ul,
+.rich .rich-content ol {
+  display: block;
+  margin: 0;
+  padding-left: 1.4em;
+}
+.rich .rich-content ul {
+  list-style: disc;
+}
+.rich .rich-content ul ul {
+  list-style: circle;
+}
+.rich .rich-content ol {
+  list-style: decimal;
+}
+.rich .rich-content li {
+  display: list-item;
+}
+.rich-content a {
+  color: var(--primary);
+  text-decoration: underline;
+}
+.rich-content img {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  margin: 6px 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.rich-content img.ProseMirror-selectednode {
+  outline: 3px solid var(--focus);
+}
+.rich-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--muted);
+  pointer-events: none;
+}
+.rich-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.rich-btn {
+  display: inline-grid;
+  place-items: center;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.rich-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.rich-btn[aria-pressed="true"] {
+  background: var(--surface-2);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1.5px var(--border-strong);
+}
+.rich-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background: var(--border);
+}
+@media (pointer: coarse) {
+  .rich-btn {
+    min-width: 40px;
+    height: 40px;
+  }
+  /* On a phone the running card's toolbar shows only while you're typing there. */
+  .rich.toolbar-on-focus:not(:focus-within) .rich-toolbar {
+    display: none;
+  }
+}
+
+/* A time with its "now" clock beside it (session editor). */
+.time-with-now {
+  display: flex;
+  gap: 4px;
+  min-width: 0;
+}
+.time-with-now .editor-input {
+  flex: 1;
+}
+.now-btn {
+  flex: none;
+  min-height: var(--tap);
+  padding: 0 10px;
+}
+
+/* Task details on a desktop: room for the session editor's fields side by side. */
+@media (min-width: 900px) {
+  .dialog.detail {
+    max-width: 860px;
+  }
+}
+
+/* A note shown formatted but read-only (NoteView): the editor's look, without its box. */
+.note-view.rich-content {
+  padding: 0;
+  white-space: normal;
+}
+.note-view ul,
+.note-view ol {
+  display: block;
+  margin: 0;
+  padding-left: 1.4em;
+}
+.note-view ul {
+  list-style: disc;
+}
+.note-view ol {
+  list-style: decimal;
+}
+.note-view li {
+  display: list-item;
+  border: 0;
+  padding: 0;
+}
+.note-view p:empty {
+  display: none;
+}
+.note-view img {
+  max-height: 120px;
+  cursor: zoom-in;
 }

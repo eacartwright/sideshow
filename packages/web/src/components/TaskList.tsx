@@ -11,7 +11,6 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
   const m = useM();
   const now = useNow(30_000);
   const [view, setView] = useState<View>("recent");
-  const [groupId, setGroupId] = useState<Id | null>(null);
   // The day the Day view shows; null = today, whatever day that is by now.
   const [pickedDay, setPickedDay] = useState<number | null>(null);
 
@@ -32,15 +31,9 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
     }
   };
   // A day's log includes archived tasks; the other views don't.
-  const base = (view === "day" ? m.all : m.recent).filter(inView);
-  const list = groupId ? base.filter((t) => t.groupItem?.id === groupId) : base;
+  const list = (view === "day" ? m.all : m.recent).filter(inView);
   if (view === "inbox") list.sort((a, b) => b.task.createdAt - a.task.createdAt);
 
-  // Clients that appear in this view, most recently worked first.
-  const groupsInView: { id: Id; name: string }[] = [];
-  for (const t of base) {
-    if (t.groupItem && !groupsInView.some((g) => g.id === t.groupItem!.id)) groupsInView.push(t.groupItem);
-  }
   const inboxCount = m.recent.filter((t) => t.inbox).length;
   const dayTotal = view === "day" ? list.reduce((sum, t) => sum + taskTotals(t, now, day).onDay, 0) : 0;
   const archived = view === "done" ? m.all.filter((t) => t.task.status === "archived") : [];
@@ -63,23 +56,6 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
       </div>
 
       {view === "projects" && <ProjectList onOpenProject={onOpenProject} />}
-
-      {groupsInView.length > 0 && (
-        <div className="chips" aria-label={`Filter by ${m.groupBy?.label.toLowerCase()}`}>
-          <button className={`chip ${groupId === null ? "chip-on" : ""}`} onClick={() => setGroupId(null)}>
-            All
-          </button>
-          {groupsInView.map((g) => (
-            <button
-              key={g.id}
-              className={`chip ${groupId === g.id ? "chip-on" : ""}`}
-              onClick={() => setGroupId(groupId === g.id ? null : g.id)}
-            >
-              {g.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       {view === "day" && (
         <DayNav day={day} onDay={(d) => setPickedDay(d === startOfDay(now) ? null : d)} now={now}>

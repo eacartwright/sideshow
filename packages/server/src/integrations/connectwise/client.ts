@@ -160,10 +160,13 @@ export class ConnectWiseClient {
       if (v !== undefined) url.searchParams.set(k, String(v));
     }
     for (let attempt = 0; ; attempt++) {
+      // A form (a file upload) sets its own multipart Content-Type; everything else is JSON.
+      const form = body instanceof FormData;
+      const { "Content-Type": _json, ...formHeaders } = this.headers;
       const res = await fetch(url, {
         method,
-        headers: this.headers,
-        body: body === undefined ? undefined : JSON.stringify(body),
+        headers: form ? formHeaders : this.headers,
+        body: body === undefined ? undefined : form ? body : JSON.stringify(body),
       });
       if (res.ok) return (await res.json()) as T;
       const text = await res.text();
@@ -342,6 +345,22 @@ export class ConnectWiseClient {
   /** Every service or project ticket with an id above `afterId`: id, company and when entered. */
   ticketsAfter(kind: "service" | "project", afterId: number) {
     return this.getAll<CwTicketStamp>(`/${kind}/tickets`, `id>${afterId}`, 1000, "id,company/id,_info/dateEntered");
+  }
+
+  // ---- Documents ----
+
+  /**
+   * Attach a file to a ticket (its Documents). privateFlag keeps it off the customer portal.
+   * CW wants multipart/form-data: the file plus recordType, recordId and title.
+   */
+  uploadDocument(ticketId: number, file: { name: string; type: string; data: Uint8Array }, privateFlag: boolean) {
+    const form = new FormData();
+    form.set("recordType", "Ticket");
+    form.set("recordId", String(ticketId));
+    form.set("title", file.name);
+    form.set("privateFlag", String(privateFlag));
+    form.set("file", new Blob([new Uint8Array(file.data)], { type: file.type }), file.name);
+    return this.post<{ id: number; title?: string }>("/system/documents", form);
   }
 
   // ---- Time entries ----

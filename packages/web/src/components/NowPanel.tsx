@@ -3,7 +3,9 @@ import { useState } from "react";
 import { clock, dayLabel, hm, timeOfDay } from "../format";
 import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
 import { at, timeValue } from "./SessionEditor";
-import { DraftInput, DraftTextarea, ProjectPicker, SessionFieldInputs, TaskFieldInputs, TicketInfo } from "./fields";
+import { DraftInput, ProjectPicker, SessionFieldInputs, TaskFieldInputs, TicketInfo } from "./fields";
+import { NoteView } from "./NoteView";
+import { RichNotes } from "./RichNotes";
 
 // The top of the app: one card per running task, most recently started on top,
 // then a compact card per paused task. Pausing (or switching away) keeps a task here;
@@ -60,9 +62,10 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
     <section className={`now ${running ? "is-running" : "is-idle"} ${top ? "" : "compact"}`} aria-label="Now">
       {running ? <RunningHead {...running} now={now} /> : <IdleHead />}
 
-      <DraftTextarea
-        textareaRef={top ? a.notesRef : undefined}
+      <RichNotes
+        editorRef={top ? a.notesRef : undefined}
         className="notes"
+        toolbar="focus"
         value={session?.notes ?? ""}
         resetKey={session?.id ?? null}
         placeholder={
@@ -72,7 +75,7 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
               : "What are you doing? Notes save as you type."
             : "Start typing to start a new task…"
         }
-        aria-label="Session notes"
+        label="Session notes"
         onValue={(notes) => {
           const id = session?.id ?? a.startNew();
           if (id) a.updateSession(id, { notes });
@@ -92,7 +95,7 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
                   {dayLabel(s.start)} · {timeOfDay(s.start)}–{s.end ? timeOfDay(s.end) : "now"} ·{" "}
                   {hm(durationMs(s, now))}
                 </div>
-                <div className={`pre ${s.notes ? "" : "muted"}`}>{s.notes || "Continuation of previous work"}</div>
+                {s.notes.trim() ? <NoteView markdown={s.notes} /> : <div className="muted">Continuation of previous work</div>}
               </li>
             ))}
           </ul>

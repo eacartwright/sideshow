@@ -1,7 +1,8 @@
 import { durationMs, startOfDay, type Ms, type Session } from "@sideshow/shared";
 import { hm } from "../format";
 import { useA, useNow } from "../model";
-import { DraftTextarea, SessionFieldInputs } from "./fields";
+import { SessionFieldInputs } from "./fields";
+import { RichNotes } from "./RichNotes";
 
 // Edit one session: day, start/end (native time inputs, so the iPhone shows its wheel),
 // deduct, work type, notes; snap to the quarter hour; delete. Used in Task details and
@@ -28,6 +29,17 @@ export function at(day: Ms, hhmm: string): Ms | null {
   return d.getTime();
 }
 const snap = (t: Ms) => Math.round(t / QUARTER) * QUARTER;
+/** Now, to the minute (CW's entries are to the minute). */
+const nowMinute = () => Math.floor(Date.now() / 60_000) * 60_000;
+
+/** Beside a time: set it to now, like the clock button in CW. (Text, not a clock icon: the browser's time input has its own clock.) */
+function NowButton({ label, disabled, onClick }: { label: string; disabled: boolean; onClick: () => void }) {
+  return (
+    <button type="button" className="btn subtle now-btn" aria-label={label} title={label} disabled={disabled} onClick={onClick}>
+      Now
+    </button>
+  );
+}
 
 export function SessionEditor({ session: s, onDone }: { session: Session; onDone?: () => void }) {
   const a = useA();
@@ -61,19 +73,37 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
           <span className="copy-label">Date</span>
           <input type="date" className="editor-input" value={dateValue(s.start)} onChange={(e) => setDay(e.target.value)} />
         </label>
-        <label className="editor-field">
-          <span className="copy-label">Start</span>
-          <input type="time" className="editor-input" value={timeValue(s.start)} onChange={(e) => setStart(e.target.value)} />
-        </label>
-        <label className="editor-field">
-          <span className="copy-label">End</span>
+        <div className="editor-field">
+          <label className="copy-label" htmlFor={`start-${s.id}`}>
+            Start
+          </label>
+          <span className="time-with-now">
+            <input id={`start-${s.id}`} type="time" className="editor-input" value={timeValue(s.start)} onChange={(e) => setStart(e.target.value)} />
+            <NowButton
+              label="Start now"
+              disabled={!running && nowMinute() >= s.end!}
+              onClick={() => a.updateSession(s.id, { start: nowMinute() })}
+            />
+          </span>
+        </div>
+        <div className="editor-field">
+          <label className="copy-label" htmlFor={`end-${s.id}`}>
+            End
+          </label>
           {running ? (
             <span className="editor-static muted">running</span>
           ) : (
-            <input type="time" className="editor-input" value={timeValue(s.end!)} onChange={(e) => setEnd(e.target.value)} />
+            <span className="time-with-now">
+              <input id={`end-${s.id}`} type="time" className="editor-input" value={timeValue(s.end!)} onChange={(e) => setEnd(e.target.value)} />
+              <NowButton
+                label="End now"
+                disabled={nowMinute() <= s.start}
+                onClick={() => a.updateSession(s.id, { end: nowMinute() })}
+              />
+            </span>
           )}
-        </label>
-        <label className="editor-field">
+        </div>
+        <label className="editor-field deduct">
           <span className="copy-label">Deduct (min)</span>
           <input
             type="number"
@@ -94,12 +124,12 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
         {s.end !== null && s.end - s.start >= DAY && <span className="warn"> · longer than a day?</span>}
       </div>
       <SessionFieldInputs session={s} />
-      <DraftTextarea
+      <RichNotes
         className="description"
         value={s.notes}
         resetKey={s.id}
         placeholder="Notes (empty = continuation of previous work)"
-        aria-label="Notes"
+        label="Notes"
         onValue={(notes) => a.updateSession(s.id, { notes })}
       />
       <div className="row-actions">

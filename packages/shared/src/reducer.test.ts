@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { displayTitle, firstLine, projectPath, projectTree, sessionsByTask } from "./derive";
+import { displayTitle, firstLine, plainNote, projectPath, projectTree, sessionsByTask } from "./derive";
 import type { Op, OpEnvelope, StartMode } from "./ops";
 import { applyOp, openSessions } from "./reducer";
 import { emptyState, type State } from "./types";
@@ -781,5 +781,16 @@ describe("deleting a task", () => {
     run(s, T0 + 2 * H, { type: "session.create", sessionId: "late", taskId: "A", start: T0, end: T0 + M });
     expect(openTasks(s)).toEqual([]);
     expect(s.sessions.late).toBeUndefined();
+  });
+});
+
+describe("notes as plain text", () => {
+  it("drops Markdown, keeps lines, names images and files", () => {
+    expect(plainNote("**Action Taken:**\n- Signed in to *3CX*\n- Called \(twice\) ++today++")).toBe("Action Taken:\n- Signed in to 3CX\n- Called (twice) today");
+    expect(plainNote("See ![](/api/files/abc/screen%20shot.png) and [the log](/api/files/def/log.txt) or [docs](https://x.y)")).toBe(
+      "See [screen shot.png] and [the log] or docs",
+    );
+    expect(firstLine("**Printer** offline\nmore")).toBe("Printer offline");
+    expect(plainNote("2 * 3 * 4")).toBe("2 * 3 * 4");
   });
 });

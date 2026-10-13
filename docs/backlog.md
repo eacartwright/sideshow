@@ -19,13 +19,15 @@ under Status in [CLAUDE.md](../CLAUDE.md).
   with a ticket or pushed time (warn; their CW entries stay), and notes once M8 Notes exist.
 - **Ticket and project-ticket picker (2026-10-12, M5/M6), next.** See the
   Ticket search window and Track a CW project below.
-- **Rich text / Markdown in notes (2026-10-12).** Simple, like CW's own editor: toolbar
-  B / I / U, bulleted and numbered lists, attach, link, image; stored as Markdown (CW notes
-  are Markdown, and M8 Notes were always meant to be). Constraint: the running card's notes box must stay a
-  synchronously focusable field (iPhone keyboard).
-- **Attachments, incl. pasting screenshots into notes (2026-10-12).** Stored by the server
-  (and in its backups). Pushed to the CW ticket with the entry (as ticket documents, or inline
-  in the note if CW's Markdown takes images).
+- **Rich notes, follow-ups (2026-10-13).** Built: the editor, attachments, push to CW
+  (DESIGN.md §7 "Rich notes", §10 "Attachments on push").
+  - Check on the iPhone: ▶ New still raises the keyboard (the notes field is now an editor).
+  - Pictures inside CW notes: CW's editor hosts them itself (`newinlineimages`); if there's a
+    supported way to do the same, the note could show the picture instead of "*Attachment:*".
+  - Uploads need a connection; a paste while offline could wait in the outbox (IndexedDB).
+  - The editor made the app's script ~820 kB (256 kB gzipped); load it lazily if the phone
+    feels slower to start.
+  - Project descriptions are still plain text boxes.
 
 - **Edit the profile in the app (later).** Fields, lists and the entry format from Settings,
   instead of editing the profile JSON in the repo.

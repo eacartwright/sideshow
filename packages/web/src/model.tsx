@@ -306,7 +306,7 @@ export interface Actions {
   updateProject(projectId: Id, patch: ProjectPatch): void;
   updateSettings(patch: { blipSec?: number; resumeGapMin?: number }): void;
   /** The top running card's notes field. */
-  notesRef: React.RefObject<HTMLTextAreaElement | null>;
+  notesRef: React.RefObject<HTMLElement | null>;
 }
 
 const coarse = () => window.matchMedia("(pointer: coarse)").matches;
@@ -333,10 +333,10 @@ function clientFor(list: string, company: { id: number; name: string }): Id {
 }
 
 export function useActionsFactory(): Actions {
-  const notesRef = useRef<HTMLTextAreaElement | null>(null);
+  const notesRef = useRef<HTMLElement | null>(null);
 
   return useMemo<Actions>(() => {
-    // The started task always lands in the top card, whose textarea stays mounted.
+    // The started task always lands in the top card, whose notes field stays mounted.
     // Focusing it synchronously inside the tap is what lets iOS raise the keyboard.
     const focusNotes = (force: boolean) => {
       const el = notesRef.current;
