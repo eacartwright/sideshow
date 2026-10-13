@@ -578,6 +578,38 @@ its coordination ticket is then two clicks.
   28 Lead…). CW's company search shows ~385, a filter not yet identified. Suspicion: many
   "Customer" records are leftovers (e.g. Veritas 19593 with identifier `0` beside the real Client
   record), possibly from the Autotask migration. Client mapping has to cope with this.
+- **Duplicates, measured again 2026-10-12** with ticket counts and last ticket date per record
+  (service + project tickets): 230 groups of records with the same name (case, punctuation and
+  Inc/LLC/PC ignored). Ticket counts don't pick the right one: in 188 groups several records
+  have tickets, and the leftover often has more (old history). **The last ticket date does:** in
+  no group do two records have a ticket since 2025-01-01; 182 groups have exactly one, 48 none.
+  The leftovers are type **Customer** (ids 19593–19945, identifiers like `ZenDentalGroup7C6` or a
+  phone number, last ticket mid-2024 or before). The real records are type **Client** (274;
+  identifiers like `zendentalgroup`) or **Former Client** (108), plus new companies that start
+  as **Lead** / Prospect and get tickets that way (~22 since 2025). Exceptions: 7 Client-type
+  pairs like "PDA Dental Group (Reading)" vs "PDA Dental Group - Reading" (`…2`, no tickets at
+  all), so name matching must also ignore "( )" vs " - ".
+- **Company picker** (built 2026-10-12): the server keeps a copy of every company with its
+  type, status and last ticket date (`cw_companies`; `integrations/connectwise/companies.ts`).
+  The first sync asks CW for each company's newest service and project ticket (~1,500 requests);
+  later ones, at startup and every 4 hours, read only tickets with a higher id. In each
+  same-name group (`companyKey` in `shared/src/companies.ts`) one record is **the** company:
+  newest ticket, then Client > Lead/Prospect > Former Client > other, then non-Customer, then
+  lowest id. The rest are **older duplicates**, hidden unless "Show older duplicates" is ticked.
+  - The **Client** field, with CW on, lists your clients first (a green chain on linked ones),
+    then **From ConnectWise**: matching companies not linked yet, clients before leads before
+    former clients, each with its tag and last ticket month. Picking a company links it to the
+    unlinked client of the same name, or adds a new linked client. "Add “…” (not in
+    ConnectWise)" still adds a plain one.
+  - A client's link is `ext.cw.companyId` on its list item (`list.update` merges `ext` like a
+    session's). The link is the manual override: linking a client to an older duplicate is
+    allowed, from the Clients dialog with "Show older duplicates" ticked.
+  - **Settings › Clients…** lists your clients: link / change / unlink each, **Remove** (archived,
+    so tasks keep their value; Undo, and Restore under Removed), "Update now", and a one-click
+    **Link all** for unlinked clients whose name is a company's.
+  - Ticket lookup now returns the company's id: the client filled in is the one linked to it,
+    else an unlinked one of the same name (`companyKey`), which gets linked. "Set as client"
+    links too. Creating a ticket (next) needs a linked client.
 - **Pushing time entries** (M4, built 2026-10-10). From the Day page: a row's **Push…**, a
   ticket group's **Push all N…**, or tick rows and **Push N selected…**. Every push goes through
   a preview (ticket, date, times, hours, work type, billing, where the notes go, who gets

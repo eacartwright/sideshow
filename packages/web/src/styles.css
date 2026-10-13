@@ -17,6 +17,7 @@
   --paused-bg: #fdf1dc;
   --on-paused: #ffffff;
   --warn: #a15c00;
+  --linked: #067a36;
   --focus: #1747c9;
   --block-bg: #e2e9fb;
   --block-edge: #1747c9;
@@ -45,6 +46,7 @@
   --paused-bg: #2a1f0d;
   --on-paused: #1a1000;
   --warn: #ffb454;
+  --linked: #4bd585;
   --focus: #8fb6ff;
   --block-bg: #1a2640;
   --block-edge: #6ea0ff;
@@ -1969,4 +1971,100 @@ a.ticket-link:hover {
   .entries-table .session-row td.col-task {
     display: none;
   }
+}
+
+/* Clients linked to a ConnectWise company (the chain), and the company picker. */
+.linked-icon {
+  color: var(--linked);
+  flex: none;
+  vertical-align: -2px;
+}
+.item-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.company-option {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.picker-section {
+  padding: 8px 10px 2px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.picker-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 4px 10px 0;
+  cursor: pointer;
+}
+.picker:has(.picker-footer) {
+  width: min(100%, 380px);
+}
+
+.dialog.clients {
+  width: min(100%, 720px);
+}
+.clients-sync {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+.clients-matches {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.clients-matches p {
+  margin: 0 0 6px;
+}
+.clients-matches ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}
+.clients-filter {
+  align-items: center;
+  margin-bottom: 8px;
+}
+.clients-filter .search {
+  flex: 1;
+  min-width: 0;
+}
+.clients-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.client-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.client-name {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.client-row .row-actions {
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.picker .picker-footer input {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--primary);
 }

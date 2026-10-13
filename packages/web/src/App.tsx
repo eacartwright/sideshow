@@ -1,5 +1,6 @@
 import type { Id } from "@sideshow/shared";
 import { useEffect, useRef, useState } from "react";
+import { ClientsDialog } from "./components/ClientsDialog";
 import { DayPage } from "./components/DayPage";
 import { InboxAdd } from "./components/InboxAdd";
 import { NowPanel } from "./components/NowPanel";
@@ -15,6 +16,7 @@ type Overlay =
   | { kind: "switcher"; alongside?: boolean }
   | { kind: "inbox" }
   | { kind: "settings" }
+  | { kind: "clients" }
   | { kind: "project"; projectId: Id }
   /** `back`: where closing returns to (the project page it was opened from). */
   | { kind: "detail"; taskId: Id; back?: Overlay }
@@ -159,7 +161,8 @@ export function App() {
 
         {overlay?.kind === "switcher" && <Switcher alongside={overlay.alongside} onClose={close} />}
         {overlay?.kind === "inbox" && <InboxAdd onClose={close} />}
-        {overlay?.kind === "settings" && <SettingsDialog onClose={close} />}
+        {overlay?.kind === "settings" && <SettingsDialog onClose={close} onClients={() => setOverlay({ kind: "clients" })} />}
+        {overlay?.kind === "clients" && <ClientsDialog onClose={() => setOverlay({ kind: "settings" })} />}
         <ToastBar />
         {overlay?.kind === "project" && (
           <ProjectDetail

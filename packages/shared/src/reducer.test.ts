@@ -548,6 +548,17 @@ describe("fields", () => {
     run(s, T0, { type: "list.create", itemId: "b", list: "workTypes", name: "B" });
     expect([s.lists.a!.position, s.lists.x!.position, s.lists.b!.position]).toEqual([0, 0, 1]);
   });
+
+  it("links a list item to an external record and unlinks it", () => {
+    const s = emptyState();
+    run(s, T0, { type: "list.create", itemId: "z", list: "clients", name: "Zen", ext: { cw: { companyId: 19304 } } });
+    expect(s.lists.z!.ext).toEqual({ cw: { companyId: 19304 } });
+    run(s, T0 + M, { type: "list.update", itemId: "x", patch: { ext: { cw: { companyId: 1 } } } });
+    run(s, T0 + M, { type: "list.update", itemId: "z", patch: { name: "Zen Dental", ext: { cw: { companyId: 19650 } } } });
+    expect(s.lists.z).toMatchObject({ name: "Zen Dental", ext: { cw: { companyId: 19650 } } });
+    run(s, T0 + 2 * M, { type: "list.update", itemId: "z", patch: { ext: { cw: { companyId: null } } } });
+    expect(s.lists.z!.ext).toEqual({});
+  });
 });
 
 describe("ops queued before profiles", () => {

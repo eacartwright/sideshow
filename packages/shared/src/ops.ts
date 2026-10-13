@@ -1,4 +1,4 @@
-import type { ExtPatch, Fields, FieldsPatch, Id, ListItem, Ms, Project, RefInfo, Session, Settings, Task } from "./types";
+import type { Ext, ExtPatch, Fields, FieldsPatch, Id, ListItem, Ms, Project, RefInfo, Session, Settings, Task } from "./types";
 
 // Every change to the data is an op. Clients apply ops locally right away and
 // queue them for the server, which applies the same ops with the same reducer.
@@ -49,8 +49,9 @@ export type Op =
   | { type: "session.delete"; sessionId: Id; undo?: boolean }
   /** Combine sessions of one task into the earliest of them. */
   | { type: "session.merge"; sessionIds: Id[] }
-  | { type: "list.create"; itemId: Id; list: string; name: string }
-  | { type: "list.update"; itemId: Id; patch: Partial<Pick<ListItem, "name" | "archived" | "position" | "defaults">> }
+  | { type: "list.create"; itemId: Id; list: string; name: string; ext?: Ext }
+  /** `ext` merges like a session's: per integration, key by key, null removes. */
+  | { type: "list.update"; itemId: Id; patch: Partial<Pick<ListItem, "name" | "archived" | "position" | "defaults">> & { ext?: ExtPatch } }
   | { type: "project.create"; projectId: Id; title: string; parentId: Id | null }
   /** A parent that would put the project inside itself (or doesn't exist) is ignored. */
   | { type: "project.update"; projectId: Id; patch: ProjectPatch }

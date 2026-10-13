@@ -15,6 +15,23 @@ under Status in [CLAUDE.md](../CLAUDE.md).
   sans-serif families), `FontSetting` and `startFonts()`, and the rule that stops Settings dimming
   the app (`.backdrop:has(> .dialog.settings)` in styles.css).
 
+- **Delete (2026-10-12).** A Delete button for inbox items, tasks, projects and notes (once M8
+  Notes exist). Today tasks and projects only Archive. Proposed: tombstones like
+  `session.delete` (a `deleted` flag, Undo toast); a task takes its sessions with it, warning
+  when any were pushed to CW; a project's tasks and subprojects move up to its parent.
+- **Create a CW ticket from a task (2026-10-12), next.** Needs a linked client (the company
+  picker, done 2026-10-12). DESIGN.md §10
+  "Creating a ticket from a task" has the owner chip idea.
+- **Ticket and project-ticket picker (2026-10-12, M5/M6).** After creating tickets. See the
+  Ticket search window and Track a CW project below.
+- **Rich text / Markdown in notes (2026-10-12).** Simple, like CW's own editor: toolbar
+  B / I / U, bulleted and numbered lists, attach, link, image; stored as Markdown (CW notes
+  are Markdown, and M8 Notes were always meant to be). Constraint: the running card's notes box must stay a
+  synchronously focusable field (iPhone keyboard).
+- **Attachments, incl. pasting screenshots into notes (2026-10-12).** Stored by the server
+  (and in its backups). Pushed to the CW ticket with the entry (as ticket documents, or inline
+  in the note if CW's Markdown takes images).
+
 - **Edit the profile in the app (later).** Fields, lists and the entry format from Settings,
   instead of editing the profile JSON in the repo.
 

@@ -498,6 +498,7 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
         position: last + 1,
         archived: false,
         defaults: null,
+        ...(op.ext ? { ext: patchExt(undefined, op.ext) } : {}),
         createdAt: at,
         updatedAt: at,
         rev: 0,
@@ -509,7 +510,9 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
     case "list.update": {
       const item = state.lists[op.itemId];
       if (!item) break;
-      Object.assign(item, op.patch, { updatedAt: at });
+      const { ext, ...patch } = op.patch;
+      Object.assign(item, patch, { updatedAt: at });
+      if (ext) item.ext = patchExt(item.ext, ext);
       t.lists.add(item.id);
       break;
     }

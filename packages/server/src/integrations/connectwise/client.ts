@@ -90,6 +90,13 @@ export interface CwTimeEntry {
   actualHours?: number;
 }
 
+/** Just enough of a ticket to tell when its company last had one. */
+export interface CwTicketStamp {
+  id: number;
+  company?: { id: number };
+  _info?: { dateEntered?: string };
+}
+
 type Params = Record<string, string | number | undefined>;
 
 export class CwError extends Error {
@@ -169,11 +176,11 @@ export class ConnectWiseClient {
    * Every page of a list endpoint. Orders by `id asc`: id is unique, so paging is stable.
    * Ordering by a non-unique field like name can return the same record on two pages.
    */
-  private async getAll<T extends { id: number }>(path: string, conditions?: string, pageSize = 100) {
+  private async getAll<T extends { id: number }>(path: string, conditions?: string, pageSize = 100, fields?: string) {
     const out: T[] = [];
     const seen = new Set<number>();
     for (let page = 1; ; page++) {
-      const batch = await this.get<T[]>(path, { conditions, pageSize, page, orderBy: "id asc" });
+      const batch = await this.get<T[]>(path, { conditions, pageSize, page, orderBy: "id asc", fields });
       for (const item of batch) {
         if (seen.has(item.id)) continue;
         seen.add(item.id);
@@ -206,6 +213,16 @@ export class ConnectWiseClient {
   async getActiveCompanies(statusName = "Active") {
     const statusId = await this.getCompanyStatusId(statusName);
     return this.getAllCompanies(`status/id=${statusId}`);
+  }
+
+  /** Every company, with just what the company picker needs. */
+  getCompanySummaries() {
+    return this.getAll<Pick<CwCompany, "id" | "name" | "identifier" | "status" | "types">>(
+      "/company/companies",
+      undefined,
+      1000,
+      "id,name,identifier,status/name,types/name",
+    );
   }
 
   /** Exact-name matches. CW has duplicate company records, so this returns all of them. */
@@ -285,6 +302,25 @@ export class ConnectWiseClient {
       await this.get<CwTicket>(`/project/tickets/${id}`);
       return "ProjectTicket";
     }
+  }
+
+  /**
+   * The newest service or project ticket (by id), optionally of one company: its id and when it
+   * was entered. null if there are none.
+   */
+  async latestTicket(kind: "service" | "project", conditions?: string): Promise<CwTicketStamp | null> {
+    const [t] = await this.get<CwTicketStamp[]>(`/${kind}/tickets`, {
+      conditions,
+      orderBy: "id desc",
+      pageSize: 1,
+      fields: "id,company/id,_info/dateEntered",
+    });
+    return t ?? null;
+  }
+
+  /** Every service or project ticket with an id above `afterId`: id, company and when entered. */
+  ticketsAfter(kind: "service" | "project", afterId: number) {
+    return this.getAll<CwTicketStamp>(`/${kind}/tickets`, `id>${afterId}`, 1000, "id,company/id,_info/dateEntered");
   }
 
   // ---- Time entries ----

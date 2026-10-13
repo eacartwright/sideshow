@@ -124,6 +124,21 @@ const MIGRATIONS: string[] = [
     AND trim(coalesce(json_extract(ref_info, '$.summary'), '')) <> ''
     AND title <> trim(json_extract(ref_info, '$.summary'));
   `,
+  // A list item's link to an external record (JSON: Ext), e.g. a client's CW company. And the
+  // server's copy of CW's companies, for the company picker (not synced; the client fetches it).
+  `
+  ALTER TABLE list_items ADD COLUMN ext TEXT NOT NULL DEFAULT '{}';
+  CREATE TABLE cw_companies (
+    id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL,
+    identifier TEXT NOT NULL,
+    status TEXT NOT NULL,
+    types TEXT NOT NULL,
+    last_ticket TEXT,
+    -- No longer in CW (deleted there); kept so a client linked to it still shows a name.
+    gone INTEGER NOT NULL DEFAULT 0
+  );
+  `,
 ];
 
 export type DB = DatabaseSync;
@@ -186,6 +201,7 @@ export function loadState(db: DB): State {
       position: r.position,
       archived: !!r.archived,
       defaults: json(r.defaults, null),
+      ext: json(r.ext, {}),
       createdAt: r.created_at,
       updatedAt: r.updated_at,
       rev: r.rev,
@@ -239,8 +255,8 @@ export function loadState(db: DB): State {
 }
 
 export function saveChanges(db: DB, c: Changes) {
-  const l = db.prepare(`INSERT OR REPLACE INTO list_items (id, list, name, position, archived, defaults, created_at, updated_at, rev)
-    VALUES (@id, @list, @name, @position, @archived, @defaults, @createdAt, @updatedAt, @rev)`);
+  const l = db.prepare(`INSERT OR REPLACE INTO list_items (id, list, name, position, archived, defaults, ext, created_at, updated_at, rev)
+    VALUES (@id, @list, @name, @position, @archived, @defaults, @ext, @createdAt, @updatedAt, @rev)`);
   const t = db.prepare(`INSERT OR REPLACE INTO tasks (id, title, project_id, fields, ref_info, description, status, paused_at, created_at, updated_at, rev)
     VALUES (@id, @title, @projectId, @fields, @refInfo, @description, @status, @pausedAt, @createdAt, @updatedAt, @rev)`);
   const p = db.prepare(`INSERT OR REPLACE INTO projects (id, title, parent_id, description, status, created_at, updated_at, rev)
@@ -252,6 +268,7 @@ export function saveChanges(db: DB, c: Changes) {
       ...x,
       archived: x.archived ? 1 : 0,
       defaults: x.defaults ? JSON.stringify(x.defaults) : null,
+      ext: JSON.stringify(x.ext ?? {}),
     } satisfies Record<keyof ListItem, unknown>);
   }
   for (const x of c.projects) p.run({ ...x } satisfies Record<keyof Project, unknown>);

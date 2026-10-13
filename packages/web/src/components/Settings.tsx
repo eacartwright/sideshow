@@ -19,7 +19,7 @@ const THEMES: { value: ThemePref; label: string }[] = [
 const BLIP_OPTIONS = [0, 10, 30, 60, 120];
 const GAP_OPTIONS = [0, 2, 5, 10, 15, 30, 60];
 
-export function SettingsDialog({ onClose }: { onClose: () => void }) {
+export function SettingsDialog({ onClose, onClients }: { onClose: () => void; onClients: () => void }) {
   const m = useM();
   const a = useA();
   const { blipSec, resumeGapMin } = m.settings;
@@ -32,6 +32,20 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
       <FontSetting slot="app" label="App font (testing)" />
 
       <h3 className="settings-group">On every device</h3>
+
+      {m.groupBy?.list && (
+        <section className="setting">
+          <span className="setting-label">{m.groupBy.label}s</span>
+          <button className="btn setting-select" onClick={onClients}>
+            {m.groupBy.label}s…
+          </button>
+          <p className="muted small setting-help">
+            {m.config.cw
+              ? `Link each ${m.groupBy.label.toLowerCase()} to its ConnectWise company, or remove ones you don't use.`
+              : `Remove ${m.groupBy.label.toLowerCase()}s you don't use.`}
+          </p>
+        </section>
+      )}
 
       <Setting
         label="Discard accidental starts"

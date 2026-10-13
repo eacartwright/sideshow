@@ -37,6 +37,8 @@ export interface ListItem {
   archived: boolean;
   /** Values a session takes when this item is chosen (a work type's billing). */
   defaults?: Fields | null;
+  /** Integration data (see Ext): the record it's linked to, e.g. a client's CW company (`cw.companyId`). */
+  ext?: Ext;
   createdAt: Ms;
   updatedAt: Ms;
   /** Server revision of the last change. 0 until the server has seen it. */
@@ -87,6 +89,8 @@ export interface RefInfo {
   summary: string;
   /** The external system's name for the client (CW company). */
   company: string;
+  /** And its id there. Missing on lookups from before 2026-10-12. */
+  companyId?: number;
   closed: boolean;
   fetchedAt: Ms;
 }

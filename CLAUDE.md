@@ -37,12 +37,16 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   Ids on this instance: boards Tier 1 = 1, Internal = 30; Evan = member 192 (`ecartwright`). Page with `orderBy=id asc` (name ordering repeats records).
   CW is optional: the server enables it only when `CW_SITE` is set and the profile has a
   `connectwise` section (`config.cw` in `/api/state`; the UI hides CW features otherwise). `npm run dev` loads the root `.env`. Endpoint so far:
-  `GET /api/cw/tickets/:id` → `{summary, company, closed}`; `POST /api/cw/push {sessionIds}` →
+  `GET /api/cw/tickets/:id` → `{summary, company, companyId, closed}`;
+  `GET /api/cw/companies` (+ `POST …/refresh[?full=1]`) → the cached CW companies, duplicates
+  marked (`companies.ts`; the browser keeps a copy, `web/src/companies.ts`); `POST /api/cw/push {sessionIds}` →
   per-session results (`integrations/connectwise/push.ts`; needs `CW_MEMBER` in `.env`, else
   `config.cwPush` is false and the UI shows Mark entered only). Ticket lookup: entering a ticket #
   fetches it once the number settles and records it with the `task.refInfo` op, which is ignored
   if the ref changed since, replaces the title with the ticket's summary and fills the client only if unset
-  (matched by exact name). Changing the ref clears `refInfo`.
+  (the client linked to the ticket's company, else one of the same name, which gets linked).
+  Changing the ref clears `refInfo`. A client links to a CW company with `ext.cw.companyId` on its
+  list item (green chain); Settings › Clients… links, unlinks and removes (DESIGN.md §10).
 - **Profiles** (DESIGN.md §4): job fields are declared in `packages/server/profiles/<name>.json`,
   chosen with `PROFILE` in `.env` (no PROFILE = no job fields; stored values stay, hidden). Types
   and validation in `shared/src/profile.ts`; the server loads it at startup (`server/src/profile.ts`,
@@ -119,7 +123,7 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   8787 (admin: `net stop winnat`, `netsh int ipv4 add excludedportrange protocol=tcp startport=8787
   numberofports=1`, `net start winnat`). Don't just pick another 8xxx port; it can be grabbed too.
 
-## Status (2026-10-10)
+## Status (2026-10-12)
 
 - **Live** at https://sideshow.evans.tools on the mini PC; hosting, updates and restores are in
   [docs/runbook.md](docs/runbook.md). Done: M1 core app, M2 projects & profiles, M4's ticket
@@ -136,7 +140,15 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   push from the Day page through `PushDialog`, Notes to / Email per entry, Update after edits,
   ticket links, entries deleted in CW go back to To enter. First live push done 2026-10-10 (test
   ticket #106745). Day page table layout settled the same night (DESIGN.md §7).
-- **Pick up here (2026-10-11).** Day page improvements from the first real day (Oct 7 on the
+- **Company picker built (2026-10-12)**, DESIGN.md §10 "Company picker": CW company cache with
+  duplicates sorted out by last ticket date, CW companies in the Client field, linked clients
+  (chain), Settings › Clients… (link, unlink, remove). Not yet run against live CW from the app
+  (the first sync on the live server takes a minute or two).
+- **Next (Evan's order, 2026-10-12): create a CW ticket from a task** (needs a linked client),
+  then the ticket / project-ticket picker, then a CW-style notes editor (B/I/U, lists, link,
+  images; Markdown) with pasted screenshots pushed to the ticket. Delete for tasks/projects/inbox
+  is small and can go in anywhere. Backlog Inbox has the details.
+- **Before that (2026-10-11).** Day page improvements from the first real day (Oct 7 on the
   live site), Evan to choose the order; suggested 1 and 2 first:
   1. Overlapping sessions: ⚠ on rows and calendar blocks, warn in the push preview, one-click
      trim (the earlier one ends where the next starts). The day total counts overlaps twice.

@@ -1,5 +1,18 @@
-import { projectPath, ticketNumber, type FieldDef, type FieldValue, type Id, type Session, type Task } from "@sideshow/shared";
-import { useEffect, useRef, useState, type InputHTMLAttributes, type TextareaHTMLAttributes } from "react";
+import {
+  companyKind,
+  projectPath,
+  searchCompanies,
+  ticketNumber,
+  type CompanyInfo,
+  type FieldDef,
+  type FieldValue,
+  type Id,
+  type ListItem,
+  type Session,
+  type Task,
+} from "@sideshow/shared";
+import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { useCompanies } from "../companies";
 import { useA, useM } from "../model";
 
 // Text fields bound to synced values. They keep a local draft so that
@@ -71,25 +84,39 @@ export function DraftTextarea({ value, onValue, resetKey, textareaRef, ...rest }
   );
 }
 
-type Option = { key: string; text: string; pick: () => void };
+type Option = {
+  key: string;
+  text: string;
+  /** Shown instead of `text`, which stays the accessible name. */
+  label?: ReactNode;
+  /** A heading shown above the first option of each section. */
+  section?: string;
+  pick: () => void;
+};
 
 /**
  * A chip that opens a find-or-add list. `options(query)` gives the choices for what's
  * typed so far (lowercased, trimmed).
  */
-function ComboPicker({
+export function ComboPicker({
   chip,
   chipTitle,
   set,
   placeholder,
   options: optionsFor,
+  empty = "Type a name to add one",
+  footer,
 }: {
-  chip: string;
+  chip: ReactNode;
   /** Tooltip for the chip. */
   chipTitle?: string;
   set: boolean;
   placeholder: string;
   options: (query: string, typed: string) => Option[];
+  /** Shown when nothing matches. */
+  empty?: string;
+  /** Below the list (a "show duplicates" box). */
+  footer?: ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -143,24 +170,144 @@ function ComboPicker({
       <ul role="listbox">
         {options.map((o, i) => (
           <li key={o.key}>
+            {o.section && o.section !== options[i - 1]?.section && <div className="picker-section">{o.section}</div>}
             <button
               type="button"
               className={i === sel ? "active" : ""}
+              aria-label={o.label ? o.text : undefined}
               onMouseEnter={() => setSel(i)}
               onClick={() => choose(i)}
             >
-              {o.text}
+              {o.label ?? o.text}
             </button>
           </li>
         ))}
-        {options.length === 0 && <li className="muted pad">Type a name to add one</li>}
+        {options.length === 0 && <li className="muted pad">{empty}</li>}
       </ul>
+      {footer}
     </div>
+  );
+}
+
+/** A green chain: this client is linked to a ConnectWise company. */
+export function LinkedIcon({ title = "Linked to a ConnectWise company" }: { title?: string }) {
+  return (
+    <svg className="linked-icon" viewBox="0 0 16 16" width="14" height="14" role="img" aria-label={title}>
+      <title>{title}</title>
+      <path
+        d="M6.6 9.4a2.6 2.6 0 0 0 3.7 0l2.4-2.4a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.4 6.6a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** The CW company a list item is linked to, if any. */
+export const linkedCompanyId = (item: ListItem | undefined): number | undefined => {
+  const id = item?.ext?.cw?.companyId;
+  return typeof id === "number" ? id : undefined;
+};
+
+/** "Lead · last ticket 2026-09", "older duplicate · Customer · last ticket 2024-06": what sets a company apart. */
+export function companyNote(c: CompanyInfo): string {
+  const notes: string[] = [];
+  if (c.dupOf !== undefined) notes.push("older duplicate");
+  const kind = companyKind(c);
+  if (kind === "lead") notes.push(c.types.includes("Lead") ? "Lead" : "Prospect");
+  else if (kind === "former") notes.push("Former client");
+  else if (kind === "other") notes.push(c.types.join(", ") || "no type");
+  notes.push(c.lastTicket ? `last ticket ${c.lastTicket.slice(0, 7)}` : "no tickets");
+  return notes.join(" · ");
+}
+
+/** A CW company as a picker row: its name, and what sets it apart. */
+export function CompanyLabel({ c, linkedTo }: { c: CompanyInfo; linkedTo?: string }) {
+  return (
+    <span className="company-option">
+      <span>{c.name}</span>
+      <span className="muted small">
+        {companyNote(c)}
+        {linkedTo ? ` · linked to ${linkedTo}` : ""}
+      </span>
+    </span>
+  );
+}
+
+/** A list item's name, with the chain if it's linked to a CW company. */
+export function ItemName({ item }: { item: ListItem }) {
+  return (
+    <span className="item-name">
+      {item.name}
+      {linkedCompanyId(item) !== undefined && <LinkedIcon />}
+    </span>
+  );
+}
+
+/**
+ * The client field with ConnectWise: your clients first (a chain on the linked ones), then
+ * CW companies not linked yet, without their older duplicates unless asked. Picking a company
+ * links it to a client of the same name, or adds one.
+ */
+function ClientPicker({ def, value, onChange }: { def: FieldDef; value: Id | null; onChange: (id: Id | null) => void }) {
+  const m = useM();
+  const a = useA();
+  const cw = useCompanies(true);
+  const [dups, setDups] = useState(false);
+  const items = [...(m.lists.get(def.list!) ?? [])].sort((x, y) => x.name.localeCompare(y.name));
+  const linked = new Set(items.map(linkedCompanyId).filter((x) => x !== undefined));
+  const current = value ? m.view.lists[value] : undefined;
+  const label = def.label.toLowerCase();
+  return (
+    <ComboPicker
+      chip={current ? <ItemName item={current} /> : `+ ${def.label}`}
+      set={!!current}
+      placeholder={`Find ${label}…`}
+      empty={cw.busy && !cw.companies.length ? "Loading ConnectWise companies…" : "No match"}
+      options={(query, typed) => {
+        const mine = items.filter((x) => x.name.toLowerCase().includes(query)).slice(0, query ? 6 : 8);
+        const theirs = query ? searchCompanies(cw.companies, typed, { withDuplicates: dups, limit: 8 }).filter((c) => !linked.has(c.id)) : [];
+        return [
+          ...mine.map((x) => ({
+            key: x.id,
+            text: x.name,
+            label: <ItemName item={x} />,
+            section: query ? `Your ${label}s` : undefined,
+            pick: () => onChange(x.id),
+          })),
+          ...theirs.map((c) => ({
+            key: `cw${c.id}`,
+            text: c.name,
+            label: <CompanyLabel c={c} />,
+            section: "From ConnectWise",
+            pick: () => onChange(a.clientForCompany(def.list!, c)),
+          })),
+          ...(query && !items.some((x) => x.name.toLowerCase() === query)
+            ? [{ key: "+", text: `Add “${typed}” (not in ConnectWise)`, pick: () => onChange(a.createListItem(def.list!, typed)) }]
+            : []),
+          ...(value ? [{ key: "-", text: `No ${label}`, pick: () => onChange(null) }] : []),
+        ];
+      }}
+      footer={
+        <label className="picker-footer muted small">
+          <input type="checkbox" checked={dups} onChange={(e) => setDups(e.target.checked)} />
+          Show older duplicates
+        </label>
+      }
+    />
   );
 }
 
 /** Pick an item of a long list (clients), or type a new name to add one. */
 function ListPicker({ def, value, onChange }: { def: FieldDef; value: Id | null; onChange: (id: Id | null) => void }) {
+  const m = useM();
+  if (m.config.cw && def.key === m.profile.connectwise?.clientField) return <ClientPicker def={def} value={value} onChange={onChange} />;
+  return <PlainListPicker def={def} value={value} onChange={onChange} />;
+}
+
+function PlainListPicker({ def, value, onChange }: { def: FieldDef; value: Id | null; onChange: (id: Id | null) => void }) {
   const m = useM();
   const a = useA();
   const items = [...(m.lists.get(def.list!) ?? [])].sort((x, y) => x.name.localeCompare(y.name));
@@ -441,15 +588,21 @@ export function TicketInfo({
   const clientKey = m.profile.connectwise?.clientField;
   const clientDef = m.profile.fields.find((f) => f.key === clientKey);
   const clientId = clientKey ? task.fields[clientKey] : undefined;
-  const clientName = clientId ? m.view.lists[String(clientId)]?.name : undefined;
+  const clientItem = clientId ? m.view.lists[String(clientId)] : undefined;
+  const clientName = clientItem?.name;
   const same = (x: string | undefined) => !!x && x.trim().toLowerCase() === info.company.trim().toLowerCase();
+  const sameClient = same(clientName) || (!!info.companyId && linkedCompanyId(clientItem) === info.companyId);
   const setClient = () => {
     if (!clientDef?.list || !clientKey) return;
+    if (info.companyId) {
+      a.setTaskField(task.id, clientKey, a.clientForCompany(clientDef.list, { id: info.companyId, name: info.company }));
+      return;
+    }
     const existing = (m.lists.get(clientDef.list) ?? []).find((x) => same(x.name));
     a.setTaskField(task.id, clientKey, existing ? existing.id : a.createListItem(clientDef.list, info.company));
   };
   const company =
-    !info.company || same(clientName) ? null : clientName ? (
+    !info.company || sameClient ? null : clientName ? (
       <span className="muted" title={`The ticket's company in ConnectWise differs from this task's ${clientDef?.label.toLowerCase() ?? "client"}`}>
         CW: {info.company}
       </span>

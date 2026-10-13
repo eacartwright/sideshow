@@ -9,6 +9,7 @@ import { OP_TYPES, type OpEnvelope } from "@sideshow/shared";
 import { startBackups } from "./backup";
 import { openDb } from "./db";
 import { ConnectWiseClient, CwError, configFromEnv } from "./integrations/connectwise/client";
+import { CompanyCache } from "./integrations/connectwise/companies";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
 import { defaultsBackfill, loadProfile, profileListChanges } from "./profile";
 import { Store } from "./store";
@@ -56,6 +57,12 @@ const cw = (() => {
     return null;
   }
 })();
+// The company picker's copy of CW's companies: brought up to date at startup and every few hours.
+const companies = cw && profile.connectwise ? new CompanyCache(db, cw) : null;
+if (companies) {
+  void companies.sync();
+  setInterval(() => void companies.sync(), 4 * 3_600_000).unref();
+}
 // Pushing time entries also needs whose time it is (a CW member identifier, e.g. ecartwright).
 const CW_MEMBER = process.env.CW_MEMBER?.trim() || null;
 if (cw && profile.connectwise && !CW_MEMBER) console.log("ConnectWise push is off: set CW_MEMBER in .env");
@@ -98,12 +105,25 @@ app.get("/api/cw/tickets/:id", async (c) => {
   if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Not a ticket number" }, 400);
   try {
     const t = await cw.getTicket(id);
-    return c.json({ id: t.id, summary: t.summary, company: t.company?.name ?? "", closed: !!t.closedFlag });
+    return c.json({ id: t.id, summary: t.summary, company: t.company?.name ?? "", companyId: t.company?.id ?? null, closed: !!t.closedFlag });
   } catch (err) {
     if (err instanceof CwError && err.status === 404) return c.json({ error: `No ticket #${id}` }, 404);
     console.error(err);
     return c.json({ error: "ConnectWise lookup failed" }, 502);
   }
+});
+
+// Every CW company, duplicates marked, for the company picker. The client keeps a copy.
+app.get("/api/cw/companies", (c) => {
+  if (!companies) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  return c.json({ ...companies.status(), companies: companies.list() });
+});
+
+// Sync now (and answer once it's done). ?full=1 asks every company for its newest ticket again.
+app.post("/api/cw/companies/refresh", async (c) => {
+  if (!companies) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  await companies.sync(c.req.query("full") === "1");
+  return c.json({ ...companies.status(), companies: companies.list() });
 });
 
 // Push sessions to CW as time entries. The client sends its queued ops first, so the server's
