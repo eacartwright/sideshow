@@ -32,6 +32,7 @@ import {
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { api, SignedOut, sync, type Snapshot } from "./sync";
 import { showToast } from "./toast";
+import { getWeekly, refreshWeekly } from "./weekly";
 
 // Everything the UI reads (derived from the synced state) and every action it can take.
 
@@ -253,6 +254,11 @@ export function useNow(ms = 1000): number {
 export interface Actions {
   /** ▶ New. `alongside` keeps whatever is running going. Returns the new session id. */
   startNew(title?: string, alongside?: boolean, projectId?: Id | null): Id | undefined;
+  /**
+   * ▶ WRIT: this week's recurring internal ticket. Continues its task, or starts one with the
+   * ticket # (the lookup then fills the title and client). Focuses the notes, like ▶ New.
+   */
+  startWeekly(alongside?: boolean): void;
   /** ▶ on an existing task. */
   continueTask(taskId: Id, alongside?: boolean): void;
   /** Stop the clock but keep the task on the Now stack; everything running if none given. */
@@ -361,6 +367,30 @@ export function useActionsFactory(): Actions {
           mode: alongside ? "alongside" : "switch",
         });
         return sessionId;
+      },
+      startWeekly(alongside = false) {
+        const w = getWeekly();
+        const snap = sync.getSnapshot();
+        const field = snap.config.profile.connectwise?.ticketField;
+        if (!w || !field) {
+          void refreshWeekly();
+          showToast("This week's WRIT isn't known yet: check the connection and try again");
+          return;
+        }
+        const n = String(w.ticket);
+        const task = Object.values(snap.view.tasks)
+          .filter((t) => !t.deleted && ticketNumber(String(t.fields[field] ?? "")) === n)
+          .sort((x, y) => Number(x.status === "archived") - Number(y.status === "archived") || y.updatedAt - x.updatedAt)[0];
+        const taskId = task?.id ?? newId();
+        activate(taskId);
+        focusNotes(true);
+        sync.dispatch({
+          type: "task.start",
+          taskId,
+          sessionId: newId(),
+          ...(task ? {} : { newTask: { title: w.summary, fields: { [field]: n } } }),
+          mode: alongside ? "alongside" : "switch",
+        });
       },
       continueTask(taskId, alongside = false) {
         activate(taskId);

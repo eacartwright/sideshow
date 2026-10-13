@@ -8,6 +8,14 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 
 ## Inbox
 
+- **Moving and removing pushed time (2026-10-13, to flesh out together).** Move a session's
+  CW entry to another ticket (e.g. something done under the WRIT that belongs on a client
+  ticket), and delete or "remove from this ticket" so the CW entry goes too, in one or two
+  steps. Today: deleting or merging a pushed session leaves its CW entry; changing the task's
+  ticket and pushing Update… moves the entry (push.ts, "moved").
+- **WRIT follow-ups (maybe).** A default work type for the WRIT's sessions (Internal Technical /
+  Office?); archive last week's WRIT task once Evan closes its ticket in CW (after the timesheet).
+
 - **DEV badge (Evan to pick up 2026-10-14).** So the dev server can't be mistaken for the live
   site. Detect it with Vite's `import.meta.env.DEV` (true only under `npm run dev`; the built app
   on the mini PC never is), not by port or host (the mini PC's LAN address :8081 is the real
@@ -57,8 +65,6 @@ Items marked **(?)** need a word from Evan on what was meant before building.
 
 ## Soon — with the CW milestones (M4–M6)
 
-- **"WRIT" quick button (M5).** One tap to put a task on the catch-all ticket(s) instead of
-  looking up a ticket number. Needs the catch-all ticket number(s) stored in Settings.
 - **Travel quick buttons (M5).** One tap to add a travel session / set the travel work type.
   Pin down: does it add a separate session, and with which work type(s) and default length?
 

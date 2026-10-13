@@ -12,6 +12,7 @@ import { FileStore, MAX_FILE } from "./files";
 import { ConnectWiseClient, CwError, configFromEnv } from "./integrations/connectwise/client";
 import { CompanyCache } from "./integrations/connectwise/companies";
 import { CwDocuments } from "./integrations/connectwise/documents";
+import { WeeklyTickets } from "./integrations/connectwise/weekly";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
 import { TicketMaker, type NewTicket } from "./integrations/connectwise/tickets";
 import { defaultsBackfill, loadProfile, profileListChanges } from "./profile";
@@ -74,6 +75,20 @@ if (cw && profile.connectwise && !CW_MEMBER) console.log("ConnectWise push is of
 // A note's attachments go to the ticket its time is pushed to (once per ticket).
 const documents = cw ? new CwDocuments(db, files, cw) : undefined;
 const tickets = cw && profile.connectwise ? new TicketMaker(cw, store, profile, CW_MEMBER, documents) : null;
+// The weekly recurring internal ticket (WRIT): found by its summary and owner, looked for again
+// once a week (DESIGN.md §10). CW_WEEKLY_SUMMARY overrides the summary looked for.
+const weekly =
+  cw && profile.connectwise && CW_MEMBER && tickets
+    ? new WeeklyTickets(db, cw, CW_MEMBER, async () => {
+        if (process.env.CW_WEEKLY_SUMMARY) return process.env.CW_WEEKLY_SUMMARY;
+        const owner = await tickets.getOwner().catch(() => null);
+        return owner ? `Weekly Recurring Internal Ticket - ${owner.name}` : null;
+      })
+    : null;
+if (weekly) {
+  weekly.checkIfDue();
+  setInterval(() => weekly.checkIfDue(), 15 * 60_000).unref();
+}
 /**
  * A ticket's page in CW, with {id} for the number: the form of CW's own "Share" link, on the API
  * host without its "api-" prefix (api-na.myconnectwise.net → na.myconnectwise.net). Signed out,
@@ -102,6 +117,7 @@ app.get("/api/state", (c) =>
       profile,
       cw: cw !== null && !!profile.connectwise,
       cwPush: cw !== null && !!profile.connectwise && !!CW_MEMBER,
+      cwWeekly: weekly !== null,
       cwTicketUrl: profile.connectwise ? CW_TICKET_URL : null,
     },
   }),
@@ -132,6 +148,17 @@ app.post("/api/cw/companies/refresh", async (c) => {
   if (!companies) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
   await companies.sync(c.req.query("full") === "1");
   return c.json({ ...companies.status(), companies: companies.list() });
+});
+
+// This week's recurring internal ticket, for ▶ WRIT. Asking also looks again if it's due.
+app.get("/api/cw/weekly", (c) => {
+  if (!weekly) return c.json({ error: "ConnectWise push isn't set up on this server" }, 503);
+  weekly.checkIfDue();
+  return c.json({ weekly: weekly.current() });
+});
+app.post("/api/cw/weekly/refresh", async (c) => {
+  if (!weekly) return c.json({ error: "ConnectWise push isn't set up on this server" }, 503);
+  return c.json({ weekly: await weekly.check() });
 });
 
 // Rename a ticket: its summary in CW becomes the task's title (Task details' "Update ticket").

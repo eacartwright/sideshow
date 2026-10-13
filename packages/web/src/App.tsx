@@ -10,6 +10,7 @@ import { Switcher } from "./components/Switcher";
 import { TaskDetail } from "./components/TaskDetail";
 import { TaskList } from "./components/TaskList";
 import { syncText, useCompanies } from "./companies";
+import { useWeekly } from "./weekly";
 import { RefreshIcon } from "./components/icons";
 import { Spinner } from "./components/Spinner";
 import { ActionsContext, ModelContext, useActionsFactory, useModel, type Model } from "./model";
@@ -69,6 +70,11 @@ export function App() {
             if (e.shiftKey) actions.pause();
             else if (top) actions.pause(top.id);
           },
+          KeyW: () => {
+            if (!modelRef.current.config.cwWeekly) return;
+            setOverlay(null);
+            startWeekly(e.shiftKey);
+          },
           KeyI: () => setOverlay({ kind: "inbox" }),
           KeyE: () => setPage((p) => (p === "day" ? "now" : "day")),
         };
@@ -94,6 +100,16 @@ export function App() {
       setPage("now");
     }
     actions.startNew("", alongside);
+  }
+  // ▶ WRIT: the same, on this week's recurring internal ticket.
+  const weeklyOn = !!model.config.cwWeekly;
+  const weekly = useWeekly(weeklyOn);
+  function startWeekly(alongside: boolean) {
+    if (pageRef.current === "day") {
+      focusNotesOnNow.current = true;
+      setPage("now");
+    }
+    actions.startWeekly(alongside);
   }
   useEffect(() => {
     if (page === "now" && focusNotesOnNow.current) {
@@ -124,6 +140,19 @@ export function App() {
             >
               <span aria-hidden>▶</span> New
             </button>
+            {weeklyOn && (
+              <button
+                className="btn writ"
+                onClick={(e) => {
+                  if (e.timeStamp - lastNewTap.current < 700) return;
+                  lastNewTap.current = e.timeStamp;
+                  startWeekly(e.shiftKey);
+                }}
+                title={`This week's recurring internal ticket${weekly ? ` (#${weekly.ticket})` : ""} (Alt+W; Shift to run alongside)`}
+              >
+                <span aria-hidden>▶</span> WRIT
+              </button>
+            )}
             <button className="btn" onClick={() => setOverlay({ kind: "inbox" })} title="Add to inbox (Alt+I)">
               + Inbox
             </button>

@@ -263,6 +263,17 @@ export class ConnectWiseClient {
     return this.patch<CwTicket>(`/service/tickets/${id}`, { summary });
   }
 
+  /** The newest ticket matching CW conditions (with when it was entered), or null. */
+  async newestTicket(conditions: string) {
+    const [t] = await this.get<(CwTicket & { _info?: { dateEntered?: string } })[]>("/service/tickets", {
+      conditions,
+      orderBy: "id desc",
+      pageSize: 1,
+      fields: "id,summary,_info/dateEntered",
+    });
+    return t ?? null;
+  }
+
   /** e.g. `summary like "%TEST%"` or `company/id=20021`. Newest first. */
   findTickets(conditions: string, pageSize = 25) {
     return this.get<CwTicket[]>("/service/tickets", { conditions, pageSize, orderBy: "id desc" });

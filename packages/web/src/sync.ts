@@ -25,6 +25,8 @@ export interface Config {
   cwPush?: boolean;
   /** A ticket's page in CW, with {id} for the number. */
   cwTicketUrl?: string | null;
+  /** The server finds the weekly recurring internal ticket (▶ WRIT). */
+  cwWeekly?: boolean;
 }
 
 /** "signedout": the login in front of the server (Cloudflare Access) has expired. */

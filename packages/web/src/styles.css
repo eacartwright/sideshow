@@ -282,6 +282,19 @@ select:focus {
 .actionbar .new {
   font-size: 1.1rem;
 }
+/* With ▶ WRIT there are five: still one row on a phone, a little tighter. */
+@media (max-width: 899px) {
+  .actionbar:has(.writ) {
+    grid-template-columns: 1fr 1.2fr 1fr 1fr 1fr;
+    gap: 6px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  .actionbar:has(.writ) .btn {
+    padding: 0 4px;
+    font-size: 0.95rem;
+  }
+}
 
 .layout {
   display: grid;

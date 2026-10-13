@@ -718,6 +718,18 @@ its coordination ticket is then two clicks.
   (`POST /api/cw/tickets/:id/summary` → PATCH, recorded with `task.refInfo`). CW only changes on
   that click; ↻ instead puts CW's summary back as the title. The ticket # field shows "#106745"
   and edits as the bare number (stored without "#").
+- **▶ WRIT, the weekly recurring internal ticket** (2026-10-13): a CW template makes one per
+  tech every Monday around 06:15 UTC ("Weekly Recurring Internal Ticket - Evan Cartwright",
+  Internal board, Veritaz, owner = the tech, made by `template210`). Earlier weeks' stay open
+  until Evan closes them (after his timesheet), so the current one is the **newest** with that
+  summary and owner. The server finds it (`connectwise/weekly.ts`, kept in `meta`
+  `cw.weekly`) at startup and then only once the known one is over 6½ days old (at most hourly),
+  so a few requests on Monday morning. The summary comes from CW_MEMBER's name
+  (`CW_WEEKLY_SUMMARY` overrides). **▶ WRIT** (after ▶ New; Alt+W; Shift = alongside) continues
+  this week's WRIT task, or starts one with the ticket # (the lookup fills title and client),
+  and focuses the notes like ▶ New. Each week is its own task, so last week's unpushed time
+  still goes to last week's ticket. The browser keeps the current ticket (`web/src/weekly.ts`)
+  so the button works offline and inside the tap. Shown when CW push is set up.
 - **Ticket link**: the ticket # (Day page) and ↗ (Task details, running card) open the ticket
   in CW, in the form of CW's own Share link:
   `https://na.myconnectwise.net/v4_6_release/services/system_io/Service/fv_sr100_request.rails?service_recid={id}&companyName={CW_COMPANY_ID}`
