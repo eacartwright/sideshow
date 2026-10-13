@@ -52,7 +52,8 @@ can do and check.
 
 ## Everyday
 
-**Update after a push to `main`** (from the desktop). On the mini PC, admin PowerShell:
+**Update after a push to `main`** (from the desktop). On the mini PC, run the **Update sideshow**
+shortcut (Evan's; it runs `update.ps1` as admin). By hand, the same thing in an admin PowerShell:
 
 ```powershell
 cd C:\Apps\sideshow
