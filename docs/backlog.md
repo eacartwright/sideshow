@@ -14,10 +14,9 @@ under Status in [CLAUDE.md](../CLAUDE.md).
   `FontSetting`), per device. Later: self-host the two fonts so the installed app has them
   offline, and drop the tester (and `.backdrop:has(> .dialog.settings)`) once settled.
 
-- **Delete (2026-10-12).** A Delete button for inbox items, tasks, projects and notes (once M8
-  Notes exist). Today tasks and projects only Archive. Proposed: tombstones like
-  `session.delete` (a `deleted` flag, Undo toast); a task takes its sessions with it, warning
-  when any were pushed to CW; a project's tasks and subprojects move up to its parent.
+- **Delete, the rest (2026-10-12).** Tasks without a ticket # can be deleted (Task details).
+  Still to do: projects (proposed: their tasks and subprojects move up to the parent), tasks
+  with a ticket or pushed time (warn; their CW entries stay), and notes once M8 Notes exist.
 - **Ticket and project-ticket picker (2026-10-12, M5/M6), next.** See the
   Ticket search window and Track a CW project below.
 - **Rich text / Markdown in notes (2026-10-12).** Simple, like CW's own editor: toolbar

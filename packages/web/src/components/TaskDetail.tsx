@@ -3,6 +3,7 @@ import { useState } from "react";
 import { dayLabel, hm, timeOfDay } from "../format";
 import { sessionFieldTexts, useA, useM, useNow } from "../model";
 import { NewTicketButton } from "./CreateTicket";
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
 import { DraftInput, DraftTextarea, ProjectPicker, TaskFieldInputs, TicketInfo } from "./fields";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
@@ -19,10 +20,14 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
   const [edge, setEdge] = useState<number | null>(null);
   const [merging, setMerging] = useState(false);
   const [editingId, setEditingId] = useState<Id | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const info = m.tasks.get(taskId);
   if (!info) return null;
   const { task } = info;
   const running = m.running.find((s) => s.taskId === taskId);
+  // Only tasks not tied to a ticket yet: nothing in the other system points at them.
+  const ticketField = m.profile.connectwise?.ticketField;
+  const deletable = !(ticketField && task.fields[ticketField]) && !info.sessions.some((s) => s.ext?.cw?.entryId);
 
   // Selection is a range over the task's sessions in time order.
   const chrono = info.sessions;
@@ -122,6 +127,11 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
               }}
             >
               Archive
+            </button>
+          )}
+          {deletable && (
+            <button className="btn subtle danger" onClick={() => setConfirmDelete(true)} title="Delete this task and its time">
+              Delete
             </button>
           )}
         </div>
@@ -235,6 +245,26 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
           </section>
         ))}
       </div>
+      {confirmDelete && (
+        <ConfirmDialog
+          title="Delete task?"
+          confirm="Delete"
+          onCancel={() => setConfirmDelete(false)}
+          onConfirm={() => {
+            a.deleteTask(taskId);
+            onClose();
+          }}
+        >
+          <p>
+            Are you sure you want to delete <strong>{info.title}</strong>?
+          </p>
+          {chrono.length > 0 && (
+            <p className="muted">
+              Its {chrono.length === 1 ? "session" : `${chrono.length} sessions`} ({hm(chrono.reduce((t, s) => t + durationMs(s, now), 0))}) {chrono.length === 1 ? "goes" : "go"} with it.
+            </p>
+          )}
+        </ConfirmDialog>
+      )}
     </Dialog>
   );
 }

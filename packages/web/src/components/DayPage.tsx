@@ -32,6 +32,16 @@ import { defaultManualSpan, SessionEditor } from "./SessionEditor";
 type Mode = "day" | "todo";
 
 const CONTINUATION = "Continuation of previous work";
+
+/** Tasks whose sessions are hidden (collapsed) on this device. */
+const COLLAPSED_KEY = "sideshow:dayCollapsed";
+function loadCollapsed(): Set<Id> {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(COLLAPSED_KEY) ?? "[]") as Id[]);
+  } catch {
+    return new Set();
+  }
+}
 const TIMES = new Set(["date", "start", "end", "hours"]);
 const TIME_LABELS: Record<string, string> = { date: "Date", start: "Start", end: "End", hours: "Hours" };
 
@@ -75,6 +85,16 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
   const [pushing, setPushing] = useState<Id[] | null>(null);
   const { columns, target, taskDefs } = layout(m);
   const dayEnd = addDays(day, 1);
+  // Collapsed tasks show only their header row. Remembered on this device.
+  const [collapsed, setCollapsedState] = useState(loadCollapsed);
+  const setCollapsed = (next: Set<Id>) => {
+    setCollapsedState(next);
+    try {
+      localStorage.setItem(COLLAPSED_KEY, JSON.stringify([...next]));
+    } catch {
+      // Not remembered: fine for this visit.
+    }
+  };
 
   const all = Object.values(m.view.sessions)
     .filter((s) => !s.deleted && m.tasks.has(s.taskId))
@@ -111,6 +131,16 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
   // oldest entry, running-only ones last.
   const byTask = new Map<Id, Session[]>();
   for (const s of list) byTask.set(s.taskId, [...(byTask.get(s.taskId) ?? []), s]);
+  // Picking a session on the calendar opens its task's group.
+  const selectedTask = selectedId ? m.view.sessions[selectedId]?.taskId : undefined;
+  useEffect(() => {
+    if (selectedTask && collapsed.has(selectedTask)) {
+      const next = new Set(collapsed);
+      next.delete(selectedTask);
+      setCollapsed(next);
+    }
+  }, [selectedTask]);
+
   const groups = [...byTask.entries()]
     .map(([taskId, sessions]) => ({
       info: m.tasks.get(taskId)!,
@@ -120,6 +150,25 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
       const key = (g: typeof a) => (g.sessions[0]!.end === null ? Infinity : g.sessions[0]!.start);
       return key(a) - key(b);
     });
+
+  // One button: collapse every task shown, or (when they all are) expand them.
+  const shownTasks = groups.map((g) => g.info.task.id);
+  const allCollapsed = shownTasks.length > 0 && shownTasks.every((id) => collapsed.has(id));
+  const collapseAll = shownTasks.length > 1 && (
+    <button
+      className="btn subtle sm"
+      onClick={() => {
+        const next = new Set(collapsed);
+        for (const id of shownTasks) {
+          if (allCollapsed) next.delete(id);
+          else next.add(id);
+        }
+        setCollapsed(next);
+      }}
+    >
+      {allCollapsed ? "Expand all" : "Collapse all"}
+    </button>
+  );
 
   return (
     <section className="day-page" aria-label="Time entries">
@@ -150,12 +199,14 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
         )}
         {mode === "day" ? (
           <DayNav day={day} onDay={setDay} now={now}>
+            {collapseAll}
             {list.length > 0 && <span className="day-total">Total {hm(total)}</span>}
           </DayNav>
         ) : (
           <div className="day-nav">
             <span className="muted small">Everything not yet entered in {target}, oldest first.</span>
             <span className="spacer" />
+            {collapseAll}
             {list.length > 0 && <span className="day-total">Total {hm(total)}</span>}
           </div>
         )}
@@ -220,6 +271,12 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
                   checked={checked}
                   onCheck={toggleCheck}
                   onPush={setPushing}
+                  collapsed={collapsed.has(g.info.task.id)}
+                  onToggle={() => {
+                    const next = new Set(collapsed);
+                    if (!next.delete(g.info.task.id)) next.add(g.info.task.id);
+                    setCollapsed(next);
+                  }}
                 />
               ))}
             </table>
@@ -249,6 +306,8 @@ function EntryGroup({
   checked,
   onCheck,
   onPush,
+  collapsed,
+  onToggle,
 }: {
   info: TaskInfo;
   sessions: Session[];
@@ -262,6 +321,9 @@ function EntryGroup({
   onCheck: (ids: Id[], on: boolean) => void;
   /** Open the push preview for these sessions. */
   onPush: (ids: Id[]) => void;
+  /** Only the header row shows. */
+  collapsed: boolean;
+  onToggle: () => void;
 }) {
   const m = useM();
   const a = useA();
@@ -317,7 +379,7 @@ function EntryGroup({
   };
 
   return (
-    <tbody className={`entry-group ${enterable.length === 0 && entered ? "all-entered" : ""}`}>
+    <tbody className={`entry-group ${enterable.length === 0 && entered ? "all-entered" : ""} ${collapsed ? "collapsed" : ""}`}>
       <tr className="group-head">
         {canPush && (
           <td className="col-pick">
@@ -339,6 +401,17 @@ function EntryGroup({
         ))}
         <td colSpan={titleSpan} className="group-main">
           <div className="group-head-inner">
+            <button
+              className="group-toggle"
+              aria-expanded={!collapsed}
+              aria-label={collapsed ? `Show ${info.title}'s entries` : `Hide ${info.title}'s entries`}
+              title={collapsed ? "Show its entries" : "Hide its entries"}
+              onClick={onToggle}
+            >
+              <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden>
+                <path d="M4 6l4 4 4-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
             <button className="group-title" onClick={() => onOpenTask(info.task.id)} title={`${info.title}\nOpen task details`}>
               <span className="row-title">{info.title}</span>
             </button>
@@ -435,7 +508,7 @@ function EntryGroup({
         />
       ))}
 
-      {merging && (
+      {merging && !collapsed && (
         <tr className="group-foot">
           <td colSpan={span}>
             <div className="group-head-inner">

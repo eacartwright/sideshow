@@ -250,6 +250,7 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
       if (state.sessions[op.sessionId]) break; // already applied
 
       let task = state.tasks[op.taskId];
+      if (task?.deleted) break; // deleted on another device meanwhile
       if (!task) {
         if (!op.newTask) break; // continuing a task we don't know about
         task = {
@@ -429,7 +430,7 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
     }
 
     case "session.create": {
-      if (state.sessions[op.sessionId] || !state.tasks[op.taskId]) break;
+      if (state.sessions[op.sessionId] || !state.tasks[op.taskId] || state.tasks[op.taskId]!.deleted) break;
       if (!(op.end > op.start)) break;
       state.sessions[op.sessionId] = {
         id: op.sessionId,
@@ -455,6 +456,29 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
       s.deleted = !op.undo;
       s.updatedAt = at;
       t.sessions.add(s.id);
+      break;
+    }
+
+    case "task.delete": {
+      const task = state.tasks[op.taskId];
+      if (!task || !!task.deleted === !op.undo) break;
+      task.deleted = !op.undo;
+      task.updatedAt = at;
+      t.tasks.add(task.id);
+      for (const s of Object.values(state.sessions)) {
+        if (s.taskId !== task.id) continue;
+        if (!op.undo && !s.deleted) {
+          if (s.end === null) s.end = Math.max(at, s.start);
+          s.deleted = true;
+          s.deletedWithTask = true;
+        } else if (op.undo && s.deletedWithTask) {
+          s.deleted = false;
+          s.deletedWithTask = false;
+        } else continue;
+        s.updatedAt = at;
+        t.sessions.add(s.id);
+      }
+      if (!op.undo) setPaused(state, task.id, null, at, t);
       break;
     }
 

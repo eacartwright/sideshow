@@ -90,7 +90,7 @@ export class TicketMaker {
   companyFor(taskId: Id): { companyId: number; company: string } | { error: string } {
     const cw = this.profile.connectwise!;
     const task = this.store.state.tasks[taskId];
-    if (!task) return { error: "No such task" };
+    if (!task || task.deleted) return { error: "No such task" };
     if (ticketNumber(String(task.fields[cw.ticketField] ?? ""))) return { error: "This task already has a ticket" };
     if (!cw.clientField) return { error: "The profile has no client field" };
     const client = this.store.state.lists[String(task.fields[cw.clientField] ?? "")];

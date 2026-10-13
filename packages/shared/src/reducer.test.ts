@@ -748,3 +748,38 @@ describe("integration data (ext)", () => {
     expect(s.sessions[`A@${T0 + 2 * H}`]!.ext).toBeUndefined();
   });
 });
+
+describe("deleting a task", () => {
+  it("takes its sessions with it, stops it, and undo brings back only those", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    stop(s, T0 + H);
+    cont(s, T0 + 2 * H, "A");
+    run(s, T0 + 3 * H, { type: "timer.pause" });
+    const [first, second] = live(s, "A");
+    // Deleted on its own before the task was.
+    note(s, T0 + 3 * H, first!.id, "keep me");
+    run(s, T0 + 3 * H, { type: "session.delete", sessionId: first!.id });
+
+    run(s, T0 + 4 * H, { type: "task.delete", taskId: "A" });
+    expect(s.tasks.A).toMatchObject({ deleted: true, pausedAt: null });
+    expect(live(s, "A")).toEqual([]);
+    expect(s.sessions[second!.id]).toMatchObject({ deleted: true, deletedWithTask: true });
+    expect(s.sessions[first!.id]!.deletedWithTask).toBeFalsy();
+
+    run(s, T0 + 5 * H, { type: "task.delete", taskId: "A", undo: true });
+    expect(s.tasks.A!.deleted).toBe(false);
+    expect(live(s, "A").map((x) => x.id)).toEqual([second!.id]);
+  });
+
+  it("ends a running session, and nothing starts or adds time on a deleted task", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    run(s, T0 + H, { type: "task.delete", taskId: "A" });
+    expect(openTasks(s)).toEqual([]);
+    cont(s, T0 + 2 * H, "A");
+    run(s, T0 + 2 * H, { type: "session.create", sessionId: "late", taskId: "A", start: T0, end: T0 + M });
+    expect(openTasks(s)).toEqual([]);
+    expect(s.sessions.late).toBeUndefined();
+  });
+});

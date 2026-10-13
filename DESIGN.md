@@ -179,6 +179,7 @@ it as a task.
 | `doDate` / `dueDate` | When I intend to work on it / when it must be done. |
 | `description` | Optional context (see above). Low-prominence in the UI. |
 | `status` | `open` · `done` · `archived`. Whether it's running is *derived*, never stored here. |
+| `deleted` | **Delete** in Task details (after "Are you sure…?"), only while the task has no ticket # (nothing in CW points at it): a tombstone (`task.delete` op) that stops it and takes its sessions with it (`deletedWithTask`), with Undo, which brings back exactly those. |
 
 A task can have **any number of sessions over any number of days**. If you come back to a piece
 of work, start the same task again.
@@ -368,6 +369,12 @@ Day  ‹ Fri 10/09/2026 ›  Today                         [ Day | To enter ]   
 
 **Header:** the day picker (‹ date › Today, as in the task list's Day view), the day's total, and
 **Day | To enter**. To enter is the table alone, full width, across days, with a Date column.
+
+**Saving space** (2026-10-12): each task's header row has a ▾ / ▸ toggle that hides its
+session rows (they stay in the table, invisible, so the columns keep their widths), and the
+header has **Collapse all / Expand all**. Which tasks are collapsed is remembered per device;
+picking a session on the calendar opens its task. With a mouse, the table's text is a step
+smaller (14px); touch screens keep 16px so iOS doesn't zoom into inputs.
 
 **Calendar** (left, a custom component styled from the app's tokens):
 - A vertical timeline of the day, opening on the workday (about 7 AM–7 PM) and scrolling to the

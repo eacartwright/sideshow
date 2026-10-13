@@ -165,6 +165,7 @@ function derive(snap: Snapshot): Model {
   const byTask = sessionsByTask(v);
   const tasks = new Map<Id, TaskInfo>();
   for (const task of Object.values(v.tasks)) {
+    if (task.deleted) continue;
     const sessions = byTask.get(task.id) ?? [];
     const { text, derived } = displayTitle(task, sessions);
     const fields: Fields = task.fields ?? {};
@@ -281,6 +282,8 @@ export interface Actions {
   createTaskWithSession(title: string, start: number, end: number): Id;
   /** Delete a session, with an Undo toast. */
   deleteSession(sessionId: Id): void;
+  /** Delete a task and its sessions, with an Undo toast. */
+  deleteTask(taskId: Id): void;
   /** Add an item to one of the profile's lists (a new client). */
   createListItem(list: string, name: string): Id;
   /**
@@ -517,6 +520,14 @@ export function useActionsFactory(): Actions {
         showToast("Session deleted", {
           label: "Undo",
           run: () => sync.dispatch({ type: "session.delete", sessionId, undo: true }),
+        });
+      },
+      deleteTask(taskId) {
+        const info = sync.getSnapshot().view.tasks[taskId];
+        sync.dispatch({ type: "task.delete", taskId });
+        showToast(`Deleted ${info?.title.trim() ? `“${info.title.trim()}”` : "the task"}`, {
+          label: "Undo",
+          run: () => sync.dispatch({ type: "task.delete", taskId, undo: true }),
         });
       },
       createListItem(list, name) {

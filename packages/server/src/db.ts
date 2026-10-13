@@ -139,6 +139,11 @@ const MIGRATIONS: string[] = [
     gone INTEGER NOT NULL DEFAULT 0
   );
   `,
+  // Deleting a task (2026-10-12): a tombstone, and its sessions marked as deleted with it.
+  `
+  ALTER TABLE tasks ADD COLUMN deleted INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE sessions ADD COLUMN deleted_with_task INTEGER NOT NULL DEFAULT 0;
+  `,
 ];
 
 export type DB = DatabaseSync;
@@ -228,6 +233,7 @@ export function loadState(db: DB): State {
       description: r.description,
       status: r.status,
       pausedAt: r.paused_at,
+      deleted: !!r.deleted,
       refInfo: json(r.ref_info, null),
       createdAt: r.created_at,
       updatedAt: r.updated_at,
@@ -247,6 +253,7 @@ export function loadState(db: DB): State {
       enteredAt: r.entered_at,
       changedSinceEntered: !!r.changed_since_entered,
       deleted: !!r.deleted,
+      deletedWithTask: !!r.deleted_with_task,
       updatedAt: r.updated_at,
       rev: r.rev,
     };
@@ -257,12 +264,12 @@ export function loadState(db: DB): State {
 export function saveChanges(db: DB, c: Changes) {
   const l = db.prepare(`INSERT OR REPLACE INTO list_items (id, list, name, position, archived, defaults, ext, created_at, updated_at, rev)
     VALUES (@id, @list, @name, @position, @archived, @defaults, @ext, @createdAt, @updatedAt, @rev)`);
-  const t = db.prepare(`INSERT OR REPLACE INTO tasks (id, title, project_id, fields, ref_info, description, status, paused_at, created_at, updated_at, rev)
-    VALUES (@id, @title, @projectId, @fields, @refInfo, @description, @status, @pausedAt, @createdAt, @updatedAt, @rev)`);
+  const t = db.prepare(`INSERT OR REPLACE INTO tasks (id, title, project_id, fields, ref_info, description, status, paused_at, deleted, created_at, updated_at, rev)
+    VALUES (@id, @title, @projectId, @fields, @refInfo, @description, @status, @pausedAt, @deleted, @createdAt, @updatedAt, @rev)`);
   const p = db.prepare(`INSERT OR REPLACE INTO projects (id, title, parent_id, description, status, created_at, updated_at, rev)
     VALUES (@id, @title, @parentId, @description, @status, @createdAt, @updatedAt, @rev)`);
-  const s = db.prepare(`INSERT OR REPLACE INTO sessions (id, task_id, start, "end", deduct_min, notes, fields, ext, entered_at, changed_since_entered, deleted, updated_at, rev)
-    VALUES (@id, @taskId, @start, @end, @deductMin, @notes, @fields, @ext, @enteredAt, @changedSinceEntered, @deleted, @updatedAt, @rev)`);
+  const s = db.prepare(`INSERT OR REPLACE INTO sessions (id, task_id, start, "end", deduct_min, notes, fields, ext, entered_at, changed_since_entered, deleted, deleted_with_task, updated_at, rev)
+    VALUES (@id, @taskId, @start, @end, @deductMin, @notes, @fields, @ext, @enteredAt, @changedSinceEntered, @deleted, @deletedWithTask, @updatedAt, @rev)`);
   for (const x of c.lists) {
     l.run({
       ...x,
@@ -278,6 +285,7 @@ export function saveChanges(db: DB, c: Changes) {
       projectId: x.projectId ?? null,
       fields: JSON.stringify(x.fields ?? {}),
       pausedAt: x.pausedAt ?? null,
+      deleted: x.deleted ? 1 : 0,
       refInfo: x.refInfo ? JSON.stringify(x.refInfo) : null,
     } satisfies Record<keyof Task, unknown>);
   }
@@ -294,6 +302,7 @@ export function saveChanges(db: DB, c: Changes) {
       enteredAt: x.enteredAt ?? null,
       changedSinceEntered: x.changedSinceEntered ? 1 : 0,
       deleted: x.deleted ? 1 : 0,
+      deletedWithTask: x.deletedWithTask ? 1 : 0,
     } satisfies Record<keyof Session, unknown>);
   }
 }

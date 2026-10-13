@@ -77,6 +77,8 @@ export interface Task {
    * Cleared when it starts again or is stopped.
    */
   pausedAt?: Ms | null;
+  /** Deleted (with Undo). Kept as a tombstone so the change syncs; its sessions go with it. */
+  deleted?: boolean;
   createdAt: Ms;
   updatedAt: Ms;
   rev: number;
@@ -112,6 +114,8 @@ export interface Session {
   changedSinceEntered?: boolean;
   /** Merged into another session or discarded as a blip. Kept (not removed) so the change syncs. */
   deleted?: boolean;
+  /** Deleted because its task was: undoing the task's delete brings back these, and only these. */
+  deletedWithTask?: boolean;
   updatedAt: Ms;
   rev: number;
 }

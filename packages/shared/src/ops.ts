@@ -47,6 +47,8 @@ export type Op =
     }
   /** Delete a session (a tombstone), or bring it back with `undo`. */
   | { type: "session.delete"; sessionId: Id; undo?: boolean }
+  /** Delete a task and its sessions (stopping it if running); `undo` brings them back. */
+  | { type: "task.delete"; taskId: Id; undo?: boolean }
   /** Combine sessions of one task into the earliest of them. */
   | { type: "session.merge"; sessionIds: Id[] }
   | { type: "list.create"; itemId: Id; list: string; name: string; ext?: Ext }
@@ -88,6 +90,7 @@ export const OP_TYPES: ReadonlySet<string> = new Set([
   "project.create",
   "project.update",
   "settings.update",
+  "task.delete",
   "group.create",
   "group.update",
 ]);

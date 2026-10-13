@@ -2194,3 +2194,77 @@ p.picker-footer {
 .settings-tabs {
   margin-bottom: 8px;
 }
+
+/* With a mouse (desktop), the entries table's text is a step smaller to fit more; touch
+   screens keep 16px so iOS doesn't zoom into inputs. Controls inherit it. */
+@media (pointer: fine) {
+  .entries-table {
+    font-size: 0.875rem;
+  }
+  .entries-table .group-title .row-title {
+    font-size: 1.05em;
+  }
+  .entries-table .group-total {
+    font-size: 1em;
+  }
+}
+
+/* ▸ / ▾ on a task's header row: hide or show its sessions. */
+.group-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.group-toggle:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.group-toggle svg {
+  transition: transform 0.12s;
+}
+.group-toggle[aria-expanded="false"] svg {
+  transform: rotate(-90deg);
+}
+.collapsed-note {
+  white-space: nowrap;
+}
+/* A collapsed task's session rows stay in the table, invisible, so the columns keep their
+   widths when every task is collapsed. On a phone (rows as cards) they're simply gone. */
+.entry-group.collapsed tr:not(.group-head):not(.group-foot) {
+  visibility: collapse;
+}
+@media (max-width: 899px) {
+  .entry-group.collapsed tr:not(.group-head):not(.group-foot) {
+    display: none;
+  }
+}
+/* Rows' square backgrounds (a task's header row) would paint over the rounded corners: clip
+   them to the table's border. `clip`, not `hidden`, so the sticky header row still sticks. */
+.entries-table {
+  overflow: clip;
+}
+/* The last task collapsed: its header row is the table's last visible row, so its bottom line
+   would double the table's own border. */
+.entries-table tbody.collapsed:last-child tr.group-head td {
+  border-bottom: 0;
+}
+
+/* "Are you sure?" dialogs, and their destructive button. */
+.dialog.confirm {
+  width: min(100%, 420px);
+}
+.dialog.confirm p {
+  margin: 0;
+}
+.btn.danger-solid {
+  background: var(--warn);
+  border-color: var(--warn);
+  color: var(--on-paused);
+}
