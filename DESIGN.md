@@ -709,7 +709,16 @@ its coordination ticket is then two clicks.
     pushing again makes a new entry. Changes made to an entry inside CW aren't read back yet.
   - Not handled yet: deleting or merging pushed sessions in sideshow leaves their CW entries as
     they are.
-- **Ticket link**: the ticket # (Day page) and the ticket summary (Task details) open the ticket
+- **A linked task in Task details / the running card** (2026-10-13): the title *is* the ticket's
+  summary, so it isn't shown twice. **↗** beside the ticket # opens the ticket; **↻** (refresh
+  from CW) sits left of the dialog's ✕ (on the running card, beside ↗). The line under the
+  fields appears only when there's something to say: looking up / not found, closed, the CW
+  company differs from the client, or the title was changed here. Then it reads "In ConnectWise:
+  *summary* ↗ [Update ticket]": the button writes the title to the ticket as its summary
+  (`POST /api/cw/tickets/:id/summary` → PATCH, recorded with `task.refInfo`). CW only changes on
+  that click; ↻ instead puts CW's summary back as the title. The ticket # field shows "#106745"
+  and edits as the bare number (stored without "#").
+- **Ticket link**: the ticket # (Day page) and ↗ (Task details, running card) open the ticket
   in CW, in the form of CW's own Share link:
   `https://na.myconnectwise.net/v4_6_release/services/system_io/Service/fv_sr100_request.rails?service_recid={id}&companyName={CW_COMPANY_ID}`
   (the API host without `api-`; `CW_TICKET_URL` overrides). Tried first and failed on this

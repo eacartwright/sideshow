@@ -5,7 +5,7 @@ import { streamSSE } from "hono/streaming";
 import { existsSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { OP_TYPES, type OpEnvelope } from "@sideshow/shared";
+import { newId, OP_TYPES, type OpEnvelope } from "@sideshow/shared";
 import { startBackups } from "./backup";
 import { openDb } from "./db";
 import { FileStore, MAX_FILE } from "./files";
@@ -132,6 +132,47 @@ app.post("/api/cw/companies/refresh", async (c) => {
   if (!companies) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
   await companies.sync(c.req.query("full") === "1");
   return c.json({ ...companies.status(), companies: companies.list() });
+});
+
+// Rename a ticket: its summary in CW becomes the task's title (Task details' "Update ticket").
+// The new summary is recorded on the task like a lookup's, so every device sees it.
+app.post("/api/cw/tickets/:id/summary", async (c) => {
+  if (!cw || !profile.connectwise) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  const id = Number(c.req.param("id"));
+  const b = await c.req.json().catch(() => null);
+  const summary = typeof b?.summary === "string" ? b.summary.trim() : "";
+  const task = typeof b?.taskId === "string" ? store.state.tasks[b.taskId] : undefined;
+  if (!Number.isInteger(id) || id <= 0 || !summary || !task) return c.json({ error: "taskId, summary and a ticket number needed" }, 400);
+  if (summary.length > 100) return c.json({ error: "ConnectWise allows 100 characters in a summary" }, 400);
+  try {
+    const t = await cw.updateTicketSummary(id, summary);
+    const field = profile.connectwise.ticketField;
+    const at = Date.now();
+    store.apply([
+      {
+        id: newId(),
+        at,
+        op: {
+          type: "task.refInfo",
+          taskId: task.id,
+          field,
+          ref: String(id),
+          info: {
+            summary: t.summary ?? summary,
+            company: t.company?.name ?? task.refInfo?.company ?? "",
+            ...(t.company?.id ? { companyId: t.company.id } : {}),
+            closed: !!t.closedFlag,
+            fetchedAt: at,
+          },
+        },
+      },
+    ]);
+    return c.json({ summary: t.summary ?? summary });
+  } catch (err) {
+    console.error(err);
+    if (err instanceof CwError && err.status === 404) return c.json({ error: `No ticket #${id}` }, 404);
+    return c.json({ error: "Couldn't update the ticket in ConnectWise" }, 502);
+  }
 });
 
 // What a new ticket can be: boards with their types and statuses, and who it's assigned to.

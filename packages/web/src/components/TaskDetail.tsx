@@ -5,7 +5,7 @@ import { sessionFieldTexts, useA, useM, useNow } from "../model";
 import { NewTicketButton } from "./CreateTicket";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
-import { DraftInput, ProjectPicker, TaskFieldInputs, TicketInfo } from "./fields";
+import { DraftInput, ProjectPicker, TaskFieldInputs, TicketInfo, TicketLinks, TicketRefresh, ticketUrl } from "./fields";
 import { NoteView } from "./NoteView";
 import { RichNotes } from "./RichNotes";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
@@ -59,7 +59,7 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
   }
 
   return (
-    <Dialog title="Task" onClose={onClose} className="detail">
+    <Dialog title="Task" onClose={onClose} className="detail" actions={ticketUrl(m, task) && <TicketRefresh task={task} />}>
       <div className="stack">
         <DraftInput
           className="title-input"
@@ -70,11 +70,12 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
           onValue={(title) => a.updateTask(taskId, { title })}
         />
         <div className="row-actions">
-          <ProjectPicker value={task.projectId ?? null} onChange={(projectId) => a.updateTask(taskId, { projectId })} />
           <TaskFieldInputs task={task} />
+          <TicketLinks task={task} />
           {m.profile.connectwise && !task.fields[m.profile.connectwise.ticketField] && <NewTicketButton taskId={taskId} />}
+          <ProjectPicker value={task.projectId ?? null} onChange={(projectId) => a.updateTask(taskId, { projectId })} />
         </div>
-        <TicketInfo task={task} />
+        <TicketInfo task={task} refreshButton={false} />
         <RichNotes
           className="description"
           value={task.description}
@@ -223,15 +224,21 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
                 return (
                   <li key={s.id}>
                     <button
-                      className={`session ${on || editing ? "selected" : ""}`}
+                      className={`session ${on || editing ? "selected" : ""} ${editing ? "open" : ""}`}
                       aria-pressed={merging ? on : editing}
+                      title={editing ? "Close" : undefined}
                       onClick={() => (merging ? tap(i) : setEditingId(editing ? null : s.id))}
                     >
                       <span className="muted small">
                         {timeOfDay(s.start)}–{s.end ? timeOfDay(s.end) : "now"} · {hm(durationMs(s, now))}
                         {sessionFieldTexts(m, s).map((x) => ` · ${x}`)}
                       </span>
-                      {s.notes.trim() ? <NoteView markdown={s.notes} /> : <span className="muted">Continuation of previous work</span>}
+                      {/* Open: the editor below has the notes, so the row shrinks to its header line. */}
+                      {editing ? null : s.notes.trim() ? (
+                        <NoteView markdown={s.notes} />
+                      ) : (
+                        <span className="muted">Continuation of previous work</span>
+                      )}
                       {s.enteredAt ? (
                         <span className="entered-label small">✓ Entered</span>
                       ) : (

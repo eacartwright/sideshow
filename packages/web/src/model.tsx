@@ -267,6 +267,8 @@ export interface Actions {
   lookupTicket(taskId: Id): Promise<string | null>;
   /** Ask CW which of these pushed sessions' entries were deleted there (they go back to To enter). Resolves to how many, or null if CW couldn't be asked. */
   checkCw(sessionIds: Id[]): Promise<number | null>;
+  /** Write the task's title to its CW ticket as the summary. Resolves to an error message, or null. */
+  updateTicketSummary(taskId: Id): Promise<string | null>;
   /** What a new CW ticket can be: boards, and who it's assigned to. */
   cwBoards(): Promise<{ boards: CwBoard[]; owner: { id: number; name: string } | null } | { error: string }>;
   /** Make a CW ticket for a task; the server puts its number on the task. */
@@ -449,6 +451,25 @@ export function useActionsFactory(): Actions {
           return removed.length;
         } catch {
           return null;
+        }
+      },
+      async updateTicketSummary(taskId) {
+        const snap = sync.getSnapshot();
+        const cw = snap.config.profile.connectwise;
+        const task = snap.view.tasks[taskId];
+        const n = task && cw ? ticketNumber(String(task.fields[cw.ticketField] ?? "")) : "";
+        if (!task || !n) return "No ticket #";
+        if (!(await sync.sendNow())) return "Couldn't send your latest changes to the server first";
+        try {
+          await api(`/api/cw/tickets/${n}/summary`, {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ taskId, summary: task.title.trim() }),
+          });
+          return null;
+        } catch (err) {
+          if (err instanceof SignedOut) return "Signed out: reload to sign in";
+          return (err as Error).message === "400" ? "ConnectWise allows 100 characters in a summary" : "Couldn't update the ticket in ConnectWise";
         }
       },
       async cwBoards() {

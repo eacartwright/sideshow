@@ -13,6 +13,7 @@ import {
 } from "@sideshow/shared";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { syncText, useCompanies } from "../companies";
+import { showToast } from "../toast";
 import { RefreshIcon } from "./icons";
 import { Spinner } from "./Spinner";
 import { useA, useM } from "../model";
@@ -437,6 +438,7 @@ export function FieldInput({
         </button>
       );
     case "text":
+      if (def.prefix) return <PrefixedInput def={def} value={value ? String(value) : ""} onChange={onChange} resetKey={resetKey} />;
       return (
         <DraftInput
           className="ref-input"
@@ -448,6 +450,44 @@ export function FieldInput({
         />
       );
   }
+}
+
+/**
+ * A text field with a prefix (the ticket #): shows "#106745", but while you're in it just the
+ * number, and saves it without the "#" (typed or pasted ones are dropped).
+ */
+function PrefixedInput({
+  def,
+  value,
+  onChange,
+  resetKey,
+}: {
+  def: FieldDef;
+  value: string;
+  onChange: (v: FieldValue | null) => void;
+  resetKey?: unknown;
+}) {
+  const [editing, setEditing] = useState(false);
+  const prefix = def.prefix!;
+  const bare = (v: string) => {
+    let t = v.trim();
+    while (t.startsWith(prefix)) t = t.slice(prefix.length).trimStart();
+    return t;
+  };
+  const shown = bare(value);
+  return (
+    <DraftInput
+      className="ref-input"
+      value={editing || !shown ? shown : prefix + shown}
+      placeholder={def.label}
+      aria-label={def.label}
+      // Switching between "#106745" and "106745" replaces the text, focused or not.
+      resetKey={`${String(resetKey)}:${editing}`}
+      onFocus={() => setEditing(true)}
+      onBlur={() => setEditing(false)}
+      onValue={(v) => onChange(bare(v))}
+    />
+  );
 }
 
 /** All of the profile's task fields for one task. */
@@ -551,11 +591,14 @@ export function TicketInfo({
   task,
   compact = false,
   onRefresh,
+  refreshButton = true,
 }: {
   task: Task;
   compact?: boolean;
   /** Also run on ↻ (the Day page checks its pushed entries). */
   onRefresh?: () => void;
+  /** ↻ on this line. Off where it sits elsewhere (Task details' header, TicketLinks). */
+  refreshButton?: boolean;
 }) {
   const m = useM();
   const a = useA();
@@ -565,6 +608,7 @@ export function TicketInfo({
   const info = task.refInfo?.ref === n ? task.refInfo : null;
   // The last lookup this field ran, so a number that wasn't found isn't retried on every render.
   const [tried, setTried] = useState<{ n: string; busy: boolean; error: string | null } | null>(null);
+  const [renaming, setRenaming] = useState<{ busy: boolean; error: string | null } | null>(null);
 
   const lookup = async () => {
     setTried({ n, busy: true, error: null });
@@ -625,17 +669,36 @@ export function TicketInfo({
         )}
       </>
     );
-  // Next to the task's title (the Day page), the summary would say the same thing again.
-  const showSummary = !compact || info.summary.trim() !== task.title.trim();
+  // The summary is the task's title: shown only once the title has been changed here, with
+  // (in Task details) a button to make it the ticket's summary in CW too.
+  const differs = info.summary.trim() !== task.title.trim() && !!task.title.trim();
+  const rename = async () => {
+    setRenaming({ busy: true, error: null });
+    const error = await a.updateTicketSummary(task.id);
+    setRenaming(error ? { busy: false, error } : null);
+  };
+  const url = ticketUrl(m, task);
+  const summary = !differs ? null : url ? (
+    <a className="ticket-summary ticket-link" href={url} target="_blank" rel="noreferrer" title="Open the ticket in ConnectWise">
+      {info.summary} ↗
+    </a>
+  ) : (
+    <span className="ticket-summary">{info.summary}</span>
+  );
+  if (!summary && !company && !info.closed && !refreshButton) return null;
   return (
     <p className={`ticket small ${compact ? "compact" : ""}`}>
       <span className="ticket-text">
-        {!showSummary ? null : ticketUrl(m, task) ? (
-          <a className="ticket-summary ticket-link" href={ticketUrl(m, task)!} target="_blank" rel="noreferrer" title="Open the ticket in ConnectWise">
-            {info.summary} ↗
-          </a>
+        {summary && !compact ? (
+          <span className="ticket-rename">
+            <span className="muted">In ConnectWise:</span> {summary}
+            <button className="btn subtle sm" disabled={renaming?.busy} onClick={() => void rename()} title={`Make “${task.title.trim()}” the ticket's summary in ConnectWise`}>
+              {renaming?.busy ? "Updating…" : "Update ticket"}
+            </button>
+            {renaming?.error && <span className="warn">{renaming.error}</span>}
+          </span>
         ) : (
-          <span className="ticket-summary">{info.summary}</span>
+          summary
         )}
         {(company || info.closed) && (
           <span className="ticket-company">
@@ -644,7 +707,7 @@ export function TicketInfo({
           </span>
         )}
       </span>
-      <button
+      {refreshButton && <button
         className="btn subtle ticket-refresh"
         onClick={() => {
           void lookup();
@@ -654,8 +717,49 @@ export function TicketInfo({
         aria-label="Refresh ticket from ConnectWise"
       >
         <RefreshIcon size={compact ? 15 : 17} />
-      </button>
+      </button>}
     </p>
+  );
+}
+
+/**
+ * Beside the ticket field once a task has a ticket: ↗ opens it in CW, and (where there's no
+ * header to put it in, the running card) ↻ looks it up again.
+ */
+export function TicketLinks({ task, refresh = false }: { task: Task; refresh?: boolean }) {
+  const m = useM();
+  const url = ticketUrl(m, task);
+  if (!url) return null;
+  const n = ticketNumber(String(task.fields[m.profile.connectwise!.ticketField] ?? ""));
+  return (
+    <span className="ticket-links">
+      <a className="btn icon ticket-open" href={url} target="_blank" rel="noreferrer" title={`Open #${n} in ConnectWise`} aria-label={`Open ticket #${n} in ConnectWise`}>
+        ↗
+      </a>
+      {refresh && <TicketRefresh task={task} />}
+    </span>
+  );
+}
+
+/** ↻: look the task's ticket up in CW again (summary, company, closed). */
+export function TicketRefresh({ task }: { task: Task }) {
+  const a = useA();
+  const [busy, setBusy] = useState(false);
+  return (
+    <button
+      className="btn icon ticket-refresh"
+      disabled={busy}
+      title="Refresh from ConnectWise"
+      aria-label="Refresh ticket from ConnectWise"
+      onClick={async () => {
+        setBusy(true);
+        const error = await a.lookupTicket(task.id);
+        setBusy(false);
+        if (error) showToast(error);
+      }}
+    >
+      <RefreshIcon size={17} />
+    </button>
   );
 }
 

@@ -137,32 +137,24 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-10-12)
+## Status (2026-10-13)
 
 - **Live** at https://sideshow.evans.tools on the mini PC; hosting, updates and restores are in
-  [docs/runbook.md](docs/runbook.md). Done: M1 core app, M2 projects & profiles, M4's ticket
-  lookup, the backlog quick wins. Each milestone's status: DESIGN.md §12. History: `git log`.
-- **Done: M3, the Day page** (DESIGN.md §7 "Day page"; desktop-first, §2 principle 7). Step 1
-  done: `DayPage.tsx` (a page in `App`'s `page` state, not an overlay) with the entries table
-  (one `<tbody>` per task; columns from `entryFormat`) and the segmented choice input
-  (`"input": "segmented"`, `short` labels). Step 2 done: `DayCalendar.tsx` beside the table in
-  Day mode (layout in `calendar.ts`: overlap columns, gaps; selection shared with the table).
-  Step 3 done: drag to move/resize (mouse and pen; the math is `dragTimes` in `calendar.ts`,
-  tested). Step 4 done: drag across empty space → `Switcher` with a `span` → `session.create`
-  (or `createTaskWithSession`). M3 is done on the desktop; touch dragging is in the backlog.
-- **M4 CW write built** (2026-10-10, DESIGN.md §10 "Pushing time entries"; M4 and M5 swapped):
-  push from the Day page through `PushDialog`, Notes to / Email per entry, Update after edits,
-  ticket links, entries deleted in CW go back to To enter. First live push done 2026-10-10 (test
-  ticket #106745). Day page table layout settled the same night (DESIGN.md §7).
-- **Company picker built (2026-10-12)**, DESIGN.md §10 "Company picker": CW company cache with
-  duplicates sorted out by last ticket date, CW companies in the Client field, linked clients
-  (chain), Settings › Clients… (link, unlink, remove). Not yet run against live CW from the app
-  (the first sync on the live server takes a minute or two).
-- **Create a CW ticket from a task built (2026-10-12)**, DESIGN.md §10. Tested against a fake CW
-  only: the first live ticket should go on Veritaz IT Solutions (19300), Internal board.
-- **Next (Evan's order, 2026-10-12):** the ticket / project-ticket picker, then a CW-style notes editor (B/I/U, lists, link,
-  images; Markdown) with pasted screenshots pushed to the ticket. Delete for tasks/projects/inbox
-  is small and can go in anywhere. Backlog Inbox has the details.
+  [docs/runbook.md](docs/runbook.md) (Evan deploys with his "Update sideshow" shortcut). Done:
+  M1 core app, M2 projects & profiles, M3 Day page (desktop; touch dragging in the backlog), M4
+  CW push. Each milestone's status: DESIGN.md §12. History: `git log`.
+- **Built 2026-10-12/13** (DESIGN.md §10 unless noted): the CW company picker and linked clients
+  (Settings › Clients…; the ticket's company becomes the task's client); **New ticket…** from a
+  task (pushes its time too); delete tasks without a ticket (§5); collapsible Day page groups
+  (§7); **rich notes** with attachments pushed to the ticket as documents (§7 "Rich notes");
+  Now buttons in the session editor; ↗ / ↻ and "Update ticket" (rename the CW summary) for
+  linked tasks. Tried against a fake CW; live so far: company sync, ticket creation, pushes.
+- **Next, Evan's pick (2026-10-13): the task description.** Backlog Inbox, "Task description":
+  keep it sideshow-only scratch space (recommended), say so in its placeholder and in New
+  ticket…, maybe show the ticket's own initial description read-only.
+- **Then:** the ticket / project-ticket picker (M5/M6, backlog). Still to check live: ▶ New
+  raising the iPhone keyboard (notes are now an editor), an attachment push to #106745, the
+  first real "Update ticket". The iPhone layout pass Evan asked for (desktop first).
 - **Before that (2026-10-11).** Day page improvements from the first real day (Oct 7 on the
   live site), Evan to choose the order; suggested 1 and 2 first:
   1. Overlapping sessions: ⚠ on rows and calendar blocks, warn in the push preview, one-click

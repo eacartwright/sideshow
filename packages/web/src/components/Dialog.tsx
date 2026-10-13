@@ -5,11 +5,14 @@ export function Dialog({
   onClose,
   children,
   className = "",
+  actions,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   className?: string;
+  /** Buttons in the header, left of ✕. */
+  actions?: ReactNode;
 }) {
   const backdrop = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -27,6 +30,7 @@ export function Dialog({
       <div className={`dialog ${className}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="dialog-head">
           <h2>{title}</h2>
+          {actions && <span className="dialog-actions">{actions}</span>}
           <button className="btn icon" onClick={onClose} aria-label="Close">
             ✕
           </button>

@@ -123,7 +123,9 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
         {hm(durationMs(s, now))} · {(durationMs(s, now) / 3_600_000).toFixed(2)} h
         {s.end !== null && s.end - s.start >= DAY && <span className="warn"> · longer than a day?</span>}
       </div>
-      <SessionFieldInputs session={s} />
+      <div className="session-fields">
+        <SessionFieldInputs session={s} />
+      </div>
       <RichNotes
         className="description"
         value={s.notes}

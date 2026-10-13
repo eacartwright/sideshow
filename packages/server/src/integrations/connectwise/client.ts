@@ -258,6 +258,11 @@ export class ConnectWiseClient {
     return this.get<CwTicket>(`/service/tickets/${id}`);
   }
 
+  /** Change a ticket's summary (its title in CW). Service and project tickets both answer here. */
+  updateTicketSummary(id: number, summary: string) {
+    return this.patch<CwTicket>(`/service/tickets/${id}`, { summary });
+  }
+
   /** e.g. `summary like "%TEST%"` or `company/id=20021`. Newest first. */
   findTickets(conditions: string, pageSize = 25) {
     return this.get<CwTicket[]>("/service/tickets", { conditions, pageSize, orderBy: "id desc" });

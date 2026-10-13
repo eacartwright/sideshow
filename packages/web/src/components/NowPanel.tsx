@@ -3,7 +3,7 @@ import { useState } from "react";
 import { clock, dayLabel, hm, timeOfDay } from "../format";
 import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
 import { at, timeValue } from "./SessionEditor";
-import { DraftInput, ProjectPicker, SessionFieldInputs, TaskFieldInputs, TicketInfo } from "./fields";
+import { DraftInput, ProjectPicker, SessionFieldInputs, TaskFieldInputs, TicketInfo, TicketLinks } from "./fields";
 import { NoteView } from "./NoteView";
 import { RichNotes } from "./RichNotes";
 
@@ -147,11 +147,12 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
         onValue={(title) => a.updateTask(info.task.id, { title })}
       />
       <div className="now-meta">
-        <ProjectPicker value={info.task.projectId ?? null} onChange={(projectId) => a.updateTask(info.task.id, { projectId })} />
         <TaskFieldInputs task={info.task} />
+        <TicketLinks task={info.task} refresh />
         <SessionFieldInputs session={session} />
+        <ProjectPicker value={info.task.projectId ?? null} onChange={(projectId) => a.updateTask(info.task.id, { projectId })} />
       </div>
-      <TicketInfo task={info.task} />
+      <TicketInfo task={info.task} refreshButton={false} />
     </>
   );
 }
