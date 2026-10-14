@@ -254,13 +254,27 @@ export class ConnectWiseClient {
 
   // ---- Tickets ----
 
+  /**
+   * A service or project ticket. Some instances (ours) answer 404 on /service/tickets for a
+   * project ticket, so that falls back to /project/tickets, and the result says ProjectTicket.
+   */
   getTicket(id: number) {
-    return this.get<CwTicket>(`/service/tickets/${id}`);
+    return this.serviceOrProject(id, (kind) => this.get<CwTicket>(`/${kind}/tickets/${id}`));
   }
 
-  /** Change a ticket's summary (its title in CW). Service and project tickets both answer here. */
+  /** Change a ticket's summary (its title in CW), service or project. */
   updateTicketSummary(id: number, summary: string) {
-    return this.patch<CwTicket>(`/service/tickets/${id}`, { summary });
+    return this.serviceOrProject(id, (kind) => this.patch<CwTicket>(`/${kind}/tickets/${id}`, { summary }));
+  }
+
+  private async serviceOrProject(id: number, call: (kind: "service" | "project") => Promise<CwTicket>) {
+    try {
+      return await call("service");
+    } catch (err) {
+      if (!(err instanceof CwError) || err.status !== 404) throw err;
+      const t = await call("project");
+      return { ...t, recordType: t.recordType ?? "ProjectTicket" };
+    }
   }
 
   /** The newest ticket matching CW conditions (with when it was entered), or null. */
@@ -328,20 +342,10 @@ export class ConnectWiseClient {
     });
   }
 
-  /**
-   * Whether a ticket number is a service or a project ticket (time entries need to know).
-   * /service/tickets also returns project tickets, with recordType saying which; the project
-   * endpoint is the fallback for instances where it doesn't.
-   */
+  /** Whether a ticket number is a service or a project ticket (time entries need to know). */
   async ticketKind(id: number): Promise<"ServiceTicket" | "ProjectTicket"> {
-    try {
-      const t = await this.getTicket(id);
-      return t.recordType === "ProjectTicket" || t.recordType === "ProjectIssue" ? "ProjectTicket" : "ServiceTicket";
-    } catch (err) {
-      if (!(err instanceof CwError) || err.status !== 404) throw err;
-      await this.get<CwTicket>(`/project/tickets/${id}`);
-      return "ProjectTicket";
-    }
+    const t = await this.getTicket(id);
+    return t.recordType === "ProjectTicket" || t.recordType === "ProjectIssue" ? "ProjectTicket" : "ServiceTicket";
   }
 
   /**
