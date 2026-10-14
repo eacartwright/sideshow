@@ -2267,6 +2267,13 @@ p.picker-footer {
 .dialog.confirm p {
   margin: 0;
 }
+/* Centred, so it doesn't line up with the top of a dialog it's asked from (Task details). */
+@media (min-width: 900px) {
+  .backdrop:has(> .dialog.confirm) {
+    align-items: center;
+    padding-bottom: 8vh;
+  }
+}
 .btn.danger-solid {
   background: var(--warn);
   border-color: var(--warn);
@@ -2301,6 +2308,10 @@ p.picker-footer {
 }
 .rich.notes .rich-content {
   padding: 12px;
+}
+/* Room for about four lines under the toolbar (.description's 4rem was sized for a bare textarea). */
+.rich.description {
+  min-height: 10rem;
 }
 .rich-content p {
   margin: 0;
