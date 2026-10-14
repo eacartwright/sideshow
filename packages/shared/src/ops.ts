@@ -17,6 +17,13 @@ export type Op =
       sessionId: Id;
       newTask?: { title: string; projectId?: Id | null; fields?: Fields };
       mode?: StartMode;
+      /**
+       * A new entry: always a new session, never reopening one within the resume gap. If the
+       * task is running then, its session ends at that moment (travel ends, onsite begins).
+       */
+      fresh?: boolean;
+      /** Patched onto the new session's carried-over fields (the next entry's work type). */
+      sessionFields?: FieldsPatch;
     }
   /**
    * Stop a session and/or a task, taking it off the Now stack (running or paused).

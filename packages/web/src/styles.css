@@ -2506,3 +2506,18 @@ p.picker-footer {
   align-items: center;
   gap: 4px 8px;
 }
+
+/* Changing the work type of a running entry: new entry from now, or fix this one? */
+.new-entry-ask {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+}
+.new-entry-q {
+  flex-basis: 100%;
+}

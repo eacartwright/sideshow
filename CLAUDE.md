@@ -96,7 +96,10 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   add alongside; Shift inverts.
 - Blips (< `settings.blipSec`, default 30 s; no notes; not the task's only session) are discarded
   when they end.
-- Continuing a task within `settings.resumeGapMin` (default 10) of its last session reopens it.
+- Continuing a task within `settings.resumeGapMin` (default 10) of its last session reopens it,
+  unless `task.start` has `fresh` (New entry): that always makes a new session, ending the task's
+  running one at the same instant, with `sessionFields` patched on. Changing a profile field
+  marked `newEntry` (work type) on a running session ≥ 1 min old asks: new entry or fix this one.
 - `session.create` (manual time, end > start), `session.delete` (tombstone; `undo` restores).
   Editing start/end/notes/deduct or a field of an entered session clears `enteredAt` and sets
   `changedSinceEntered`; re-marking entered clears it.
@@ -154,6 +157,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - **Next, Evan's pick (2026-10-13): the task description.** Backlog Inbox, "Task description":
   keep it sideshow-only scratch space (recommended), say so in its placeholder and in New
   ticket…, maybe show the ticket's own initial description read-only.
+- **New entry built (2026-10-13)**, for Evan to try on 2026-10-14: split a running session when
+  the work type changes (DESIGN.md §5 Session). Ask how it went before building anything else.
 - **▶ WRIT built (2026-10-13)**: finds this week's recurring internal ticket, one tap to work on it
   (DESIGN.md §10). Moving/removing pushed time between tickets is in the backlog, to design with
   Evan.

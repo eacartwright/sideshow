@@ -425,6 +425,91 @@ describe("late ops (phone was offline)", () => {
   });
 });
 
+describe("new entry (fresh start)", () => {
+  const fresh = (s: State, at: number, taskId: string, sessionFields?: Record<string, string>) =>
+    run(s, at, { type: "task.start", taskId, sessionId: `${taskId}@${at}`, mode: "alongside", fresh: true, sessionFields });
+  const workType = (s: State, at: number, sessionId: string, workType: string) =>
+    run(s, at, { type: "session.update", sessionId, patch: { fields: { workType } } });
+
+  it("ends the running session and starts a new one at the same moment, with the new work type", () => {
+    const s = emptyState();
+    run(s, T0, { type: "list.create", itemId: "onsite", list: "workTypes", name: "Onsite" });
+    run(s, T0, { type: "list.update", itemId: "onsite", patch: { defaults: { billing: "Billable" } } });
+    startNew(s, T0, "A");
+    workType(s, T0, `A@${T0}`, "travel");
+    run(s, T0, { type: "session.update", sessionId: `A@${T0}`, patch: { fields: { billing: "Do Not Bill", noteTo: "Internal" } } });
+    fresh(s, T0 + 30 * M, "A", { workType: "onsite" });
+    expect(span(s, `A@${T0}`)).toEqual([T0, T0 + 30 * M]);
+    expect(span(s, `A@${T0 + 30 * M}`)).toEqual([T0 + 30 * M, null]);
+    expect(s.sessions[`A@${T0}`]!.fields.workType).toBe("travel");
+    // The work type's billing comes with it; the rest carries over.
+    expect(s.sessions[`A@${T0 + 30 * M}`]!.fields).toEqual({ workType: "onsite", billing: "Billable", noteTo: "Internal" });
+    expect(s.sessions[`A@${T0 + 30 * M}`]!.notes).toBe("");
+  });
+
+  it("leaves other running tasks alone", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    startNew(s, T0, "B", "alongside");
+    fresh(s, T0 + H, "A");
+    expect(openTasks(s)).toEqual(["A", "B"]);
+    expect(span(s, `B@${T0}`)).toEqual([T0, null]);
+  });
+
+  it("doesn't reopen a session within the resume gap", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    workType(s, T0, `A@${T0}`, "comms");
+    run(s, T0 + 10 * M, { type: "timer.pause", sessionId: `A@${T0}` });
+    fresh(s, T0 + 12 * M, "A", { workType: "remote" });
+    expect(span(s, `A@${T0}`)).toEqual([T0, T0 + 10 * M]);
+    expect(span(s, `A@${T0 + 12 * M}`)).toEqual([T0 + 12 * M, null]);
+    expect(s.tasks.A!.pausedAt ?? null).toBeNull();
+  });
+
+  it("splitting off a blip discards it, even when it was the task's only session", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    workType(s, T0, `A@${T0}`, "travel");
+    fresh(s, T0 + 10 * S, "A", { workType: "onsite" });
+    expect(live(s, "A").map((x) => x.id)).toEqual([`A@${T0 + 10 * S}`]);
+  });
+
+  it("the next entry carries over a discarded blip's fields, not older ones", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    workType(s, T0, `A@${T0}`, "travel");
+    fresh(s, T0 + H, "A", { workType: "onsite" });
+    workType(s, T0 + H + 5 * S, `A@${T0 + H}`, "remote"); // changed its mind
+    fresh(s, T0 + H + 10 * S, "A");
+    expect(live(s, "A").map((x) => [x.id, x.fields.workType])).toEqual([
+      [`A@${T0}`, "travel"],
+      [`A@${T0 + H + 10 * S}`, "remote"],
+    ]);
+  });
+
+  it("arriving late inside a session that has since ended, it ends where that one did", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    stop(s, T0 + 2 * H);
+    fresh(s, T0 + H, "A"); // the phone, offline
+    expect(span(s, `A@${T0}`)).toEqual([T0, T0 + H]);
+    expect(span(s, `A@${T0 + H}`)).toEqual([T0 + H, T0 + 2 * H]);
+    expect(openTasks(s)).toEqual([]);
+  });
+
+  it("is safe to apply twice", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    fresh(s, T0 + H, "A");
+    fresh(s, T0 + H, "A");
+    expect(live(s, "A").map((x) => span(s, x.id))).toEqual([
+      [T0, T0 + H],
+      [T0 + H, null],
+    ]);
+  });
+});
+
 describe("titles", () => {
   it("uses the first line of the notes until the task is named", () => {
     const s = emptyState();

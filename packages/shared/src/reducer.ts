@@ -291,7 +291,16 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
           endSession(state, s, at, t);
         }
       }
-      if (covering.some((s) => s.taskId === taskId)) break; // already running then
+      const mine = covering.find((s) => s.taskId === taskId);
+      if (mine && !op.fresh) break; // already running then
+      // Before a split-off blip is discarded: its fields are the ones to carry over.
+      const carried = inheritedFields(state, taskId, at);
+      if (mine) {
+        // A new entry: this one ends here and the new one runs as long as it would have.
+        const wasEnd = mine.end;
+        endSession(state, mine, at, t);
+        if (wasEnd !== null && (end === null || end > wasEnd)) end = wasEnd;
+      }
 
       const own = taskSessions(state, taskId);
       const laterOwn = own.find((s) => s.start > at);
@@ -300,7 +309,7 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
       // Back on it shortly after stopping: keep going in the same session
       // (unless it's already been entered elsewhere; that entry shouldn't change under you).
       const prev = [...own].reverse().find((s) => s.start <= at);
-      if (prev && prev.end !== null && !prev.enteredAt && at - prev.end <= settingsOf(state).resumeGapMin * 60_000) {
+      if (!op.fresh && prev && prev.end !== null && !prev.enteredAt && at - prev.end <= settingsOf(state).resumeGapMin * 60_000) {
         prev.end = end;
         prev.updatedAt = at;
         t.sessions.add(prev.id);
@@ -314,11 +323,16 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
         end,
         deductMin: 0,
         notes: "",
-        fields: inheritedFields(state, taskId, at),
+        fields: carried,
         deleted: false,
         updatedAt: at,
         rev: 0,
       };
+      if (op.sessionFields) setFields(state, state.sessions[op.sessionId]!.fields, op.sessionFields);
+      // A blip it split off goes now that it's no longer the task's only session.
+      if (mine && !mine.deleted && mine.end! - mine.start < settingsOf(state).blipSec * 1000 && !mine.notes.trim()) {
+        mine.deleted = true;
+      }
       t.sessions.add(op.sessionId);
       break;
     }

@@ -16,6 +16,7 @@ import {
   ticketNumber,
   type FieldDef,
   type Fields,
+  type FieldsPatch,
   type FieldValue,
   type Id,
   type ListItem,
@@ -263,6 +264,11 @@ export interface Actions {
   continueTask(taskId: Id, alongside?: boolean): void;
   /** Stop the clock but keep the task on the Now stack; everything running if none given. */
   pause(sessionId?: Id): void;
+  /**
+   * End a running session now and start a new one on its task (travel ends, onsite begins),
+   * with `fields` patched onto the carried-over ones. Returns the new session id.
+   */
+  newEntry(sessionId: Id, fields?: FieldsPatch): Id | undefined;
   /** Stop a task (its running session, if any) and take it off the Now stack; everything if none given. */
   stop(target?: { sessionId?: Id; taskId?: Id }): void;
   addInbox(title: string, projectId: Id | null, fields?: Fields): void;
@@ -399,6 +405,20 @@ export function useActionsFactory(): Actions {
       },
       pause(sessionId) {
         sync.dispatch({ type: "timer.pause", sessionId });
+      },
+      newEntry(sessionId, fields) {
+        const s = sync.getSnapshot().view.sessions[sessionId];
+        if (!s || s.deleted || s.end !== null) return;
+        const id = newId();
+        sync.dispatch({
+          type: "task.start",
+          taskId: s.taskId,
+          sessionId: id,
+          mode: "alongside",
+          fresh: true,
+          ...(fields ? { sessionFields: fields } : {}),
+        });
+        return id;
       },
       stop(target) {
         sync.dispatch({ type: "timer.stop", ...target });

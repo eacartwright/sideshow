@@ -217,6 +217,17 @@ Derived: **duration** = end − start − deduct.
   and the server apply the same rule: discard under Off/10/30/60/120 s, default 30 s; resume within
   Off/2/5/10/15/30/60 min, default 10 min. Stored as `state.settings`, changed with the
   `settings.update` op.)
+- **New entry** (2026-10-13): the work type belongs to the whole session, so different work on
+  the same task (an email, then remoting in; travel, then onsite) needs a new session, and the
+  resume rule kept reopening the old one. **New entry** on the running card ends the session now
+  and starts the next one on the same task at the same moment, never reopening one; fields carry
+  over as usual and the work type picker gets focus. Changing the work type itself on a running
+  session that already has one and has run a minute or more asks: **New entry from <now>**
+  (the old work type up to now, the new one from now) or **Change this whole entry** (a wrong
+  pick, or one set late), or Cancel. Which fields do this is the profile's `newEntry` flag (the CW
+  profile: work type). Op: `task.start` with `fresh` (and `sessionFields` for the next entry's
+  values); other running tasks are untouched. A split-off blip is discarded, and the next entry
+  takes its fields. To try on a real day (2026-10-14) before settling.
 - **Merge**: in task details, tap one session and then another. Everything between them is
   selected. Merging keeps the earliest start and the latest end, and joins the notes (empty
   "continuation" notes are skipped). Merges are same-day only, since each CW entry is for one day.
@@ -314,6 +325,7 @@ kept three copies of "what's running," and they drifted apart. Here there is onl
 | **▶ Continue** | Start (or resume) a session on an existing task. The ▶ on a list row or in task details **adds it alongside** whatever is running (Shift+click switches instead). Picking a task in the switcher **switches** (Shift+Enter adds alongside). |
 | **Alongside** | "+ Also working on…" (phone), or Shift with ▶ New / the switcher (desktop). |
 | **❚❚ Pause** | The everyday way out of a task, so it's the prominent button on a running card (Alt+P pauses the top one, Alt+Shift+P pauses all). The clock stops, but the task **stays on the Now stack** as a compact paused card with ▶ Resume, which adds it back alongside whatever is running (Shift switches, pausing the others). Switching to another task pauses the old one the same way. Resuming within 10 min reopens the same session. |
+| **New entry** | On a running card, next to its work type: end this session now and start another on the same task (travel → onsite). Changing the work type of a running session asks whether to do the same. See §5 Session, "New entry". |
 | **■ Stop** | Per card (quiet ■ button), task details, or "Stop all". Stops the clock **and takes the task off the Now stack**. Stop all also clears paused tasks. **❚❚ Pause all** (shown when 2+ are running) pauses everything running. |
 | **+ Inbox** | Add an unstarted task (title, optional client) without touching the clock. |
 

@@ -348,7 +348,10 @@ function SelectField({
   value,
   options,
   onChange,
+  field,
 }: {
+  /** The field's key, as data-field (so the running card can focus the work type). */
+  field?: string;
   label: string;
   value: string | null;
   options: { value: string; text: string }[];
@@ -360,6 +363,7 @@ function SelectField({
       value={value ?? ""}
       onChange={(e) => onChange(e.target.value || null)}
       aria-label={label}
+      data-field={field}
     >
       <option value="">{label}…</option>
       {options.map((o) => (
@@ -412,6 +416,7 @@ export function FieldInput({
       if (def.input === "search") return <ListPicker def={def} value={value ? String(value) : null} onChange={onChange} />;
       return (
         <SelectField
+          field={def.key}
           label={def.label}
           value={value ? String(value) : null}
           options={(m.lists.get(def.list!) ?? []).map((x) => ({ value: x.id, text: x.name }))}
@@ -424,6 +429,7 @@ export function FieldInput({
       if (def.input === "segmented") return <Segmented def={def} value={value ? String(value) : null} onChange={onChange} />;
       return (
         <SelectField
+          field={def.key}
           label={def.label}
           value={value ? String(value) : null}
           options={(def.options ?? []).map((o) => ({ value: o, text: o }))}
@@ -511,8 +517,14 @@ export function TaskFieldInputs({ task }: { task: Task }) {
   );
 }
 
-/** All of the profile's session fields for one session. */
-export function SessionFieldInputs({ session }: { session: Session }) {
+/** All of the profile's session fields for one session. `onChange` replaces saving the change. */
+export function SessionFieldInputs({
+  session,
+  onChange,
+}: {
+  session: Session;
+  onChange?: (def: FieldDef, value: FieldValue | null) => void;
+}) {
   const m = useM();
   const a = useA();
   return (
@@ -525,7 +537,7 @@ export function SessionFieldInputs({ session }: { session: Session }) {
             def={d}
             value={session.fields[d.key]}
             resetKey={session.id}
-            onChange={(v) => a.setSessionField(session.id, d.key, v)}
+            onChange={(v) => (onChange ? onChange(d, v) : a.setSessionField(session.id, d.key, v))}
           />
         ))}
     </>

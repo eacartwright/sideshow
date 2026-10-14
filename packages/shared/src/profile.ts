@@ -29,6 +29,12 @@ export interface FieldDef {
   prefix?: string;
   /** The value when none is set: shown as chosen, and used as such ("Internal" for where notes go). */
   default?: FieldValue;
+  /**
+   * A session field whose change usually means different work (the work type): changing it on
+   * a running session that has a value offers a new entry from now, and the running card's
+   * New entry button lets you pick it for the next one.
+   */
+  newEntry?: boolean;
 }
 
 /** A list entry in the profile: a name, optionally with the values it fills in when chosen. */
@@ -93,6 +99,7 @@ export function profileProblems(p: Profile): string[] {
     if (f.type === "choice" && !f.options?.length) out.push(`${at}: a choice field needs "options"`);
     if (f.input === "search" && f.type !== "list") out.push(`${at}: "input": "search" is for list fields`);
     if (f.input === "segmented" && f.type !== "choice") out.push(`${at}: "input": "segmented" is for choice fields`);
+    if (f.newEntry && f.on !== "session") out.push(`${at}: "newEntry" is for session fields`);
     if (f.short && f.short.length !== f.options?.length) out.push(`${at}: "short" needs one label per option`);
     if (f.default !== undefined && f.type === "choice" && !f.options?.includes(String(f.default)))
       out.push(`${at}: default "${f.default}" isn't one of its options`);

@@ -1,4 +1,4 @@
-import { durationMs, firstLine, startOfDay, type Id, type Session } from "@sideshow/shared";
+import { durationMs, firstLine, startOfDay, type FieldDef, type FieldValue, type Id, type Session } from "@sideshow/shared";
 import { useState } from "react";
 import { clock, dayLabel, hm, timeOfDay } from "../format";
 import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
@@ -59,7 +59,7 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
   const running = session && info ? { session, info } : null;
 
   return (
-    <section className={`now ${running ? "is-running" : "is-idle"} ${top ? "" : "compact"}`} aria-label="Now">
+    <section className={`now ${running ? "is-running" : "is-idle"} ${top ? "" : "compact"}`} aria-label="Now" data-session={session?.id}>
       {running ? <RunningHead {...running} now={now} /> : <IdleHead />}
 
       <RichNotes
@@ -114,8 +114,44 @@ function IdleHead() {
   );
 }
 
+/** How long a session runs before changing its work type asks "new entry, or fix this one?". */
+const ASK_AFTER_MS = 60_000;
+
 function RunningHead({ session, info, now }: { session: Session; info: TaskInfo; now: number }) {
+  const m = useM();
   const a = useA();
+  // A work type change waiting on "new entry from now, or fix this entry?".
+  const [ask, setAsk] = useState<{ sessionId: Id; def: FieldDef; value: FieldValue } | null>(null);
+  const asking = ask?.sessionId === session.id ? ask : null;
+  const splitField = m.profile.fields.find((d) => d.on === "session" && d.newEntry);
+
+  const newEntry = () => {
+    const id = a.newEntry(session.id);
+    setAsk(null);
+    if (!id || !splitField) return;
+    // Straight to the next entry's work type.
+    requestAnimationFrame(() => {
+      const el = document.querySelector<HTMLSelectElement>(`[data-session="${id}"] select[data-field="${splitField.key}"]`);
+      if (!el) return;
+      el.focus();
+      try {
+        el.showPicker();
+      } catch {
+        // Not every browser opens a select this way; focused is enough.
+      }
+    });
+  };
+  const onField = (def: FieldDef, value: FieldValue | null) => {
+    const had = session.fields[def.key];
+    if (def.newEntry && value !== null && value !== "" && had !== undefined && had !== value && now - session.start >= ASK_AFTER_MS) {
+      setAsk({ sessionId: session.id, def, value });
+    } else {
+      a.setSessionField(session.id, def.key, value);
+    }
+  };
+  const valueName = (def: FieldDef, v: FieldValue) =>
+    (def.list ? m.lists.get(def.list)?.find((x) => x.id === v)?.name : undefined) ?? String(v);
+
   return (
     <>
       <div className="now-top">
@@ -149,9 +185,52 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
       <div className="now-meta">
         <TaskFieldInputs task={info.task} />
         <TicketLinks task={info.task} refresh />
-        <SessionFieldInputs session={session} />
+        <SessionFieldInputs session={session} onChange={onField} />
+        <button
+          className="btn subtle"
+          onClick={newEntry}
+          title={`End this entry now and start another on the same task${splitField ? `, then pick its ${splitField.label.toLowerCase()}` : ""}`}
+        >
+          New entry
+        </button>
         <ProjectPicker value={info.task.projectId ?? null} onChange={(projectId) => a.updateTask(info.task.id, { projectId })} />
       </div>
+      {asking && (
+        <div
+          className="new-entry-ask"
+          role="group"
+          aria-label={`${asking.def.label}: ${valueName(asking.def, asking.value)}`}
+          onKeyDown={(e) => e.key === "Escape" && setAsk(null)}
+        >
+          <span className="new-entry-q">
+            {asking.def.label}: <strong>{valueName(asking.def, asking.value)}</strong>
+          </span>
+          <button
+            className="btn primary"
+            autoFocus
+            onClick={() => {
+              a.newEntry(session.id, { [asking.def.key]: asking.value });
+              setAsk(null);
+            }}
+            title={`Keep ${valueName(asking.def, session.fields[asking.def.key]!)} until now; a new entry starts now`}
+          >
+            New entry from {timeOfDay(now)}
+          </button>
+          <button
+            className="btn"
+            onClick={() => {
+              a.setSessionField(session.id, asking.def.key, asking.value);
+              setAsk(null);
+            }}
+            title={`Change it for this whole entry, since ${timeOfDay(session.start)}`}
+          >
+            Change this whole entry
+          </button>
+          <button className="btn subtle" onClick={() => setAsk(null)}>
+            Cancel
+          </button>
+        </div>
+      )}
       <TicketInfo task={info.task} refreshButton={false} />
     </>
   );
