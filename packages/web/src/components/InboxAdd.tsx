@@ -63,6 +63,7 @@ export function InboxAdd({ onClose, projectId: inProject }: { onClose: () => voi
                 key={d.key}
                 def={d}
                 value={fields[d.key]}
+                clearable
                 onChange={(v) =>
                   setFields(({ [d.key]: _, ...rest }) => (v === null || v === "" || v === false ? rest : { ...rest, [d.key]: v }))
                 }

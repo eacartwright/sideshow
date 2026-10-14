@@ -2127,6 +2127,28 @@ a.ticket-link:hover {
   background: var(--surface-2);
   color: var(--text);
 }
+/* A set picker chip with a ✕: the name opens the picker, the ✕ clears it. */
+.clear-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 0;
+  overflow: visible;
+}
+.chip-open {
+  min-height: 33px;
+  padding: 0 4px 0 14px;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .check-row {
   display: flex;
   align-items: flex-start;

@@ -109,6 +109,8 @@ export function ComboPicker({
   options: optionsFor,
   empty = "Type a name to add one",
   footer,
+  onClear,
+  clearLabel = "Clear",
 }: {
   chip: ReactNode;
   /** Tooltip for the chip. */
@@ -120,6 +122,9 @@ export function ComboPicker({
   empty?: string;
   /** Below the list (a "show duplicates" box). */
   footer?: ReactNode;
+  /** Shows a ✕ on the chip while it's set, which calls this. */
+  onClear?: () => void;
+  clearLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -137,6 +142,18 @@ export function ComboPicker({
     close();
   };
 
+  if (!open && set && onClear) {
+    return (
+      <span className="chip chip-set clear-chip">
+        <button type="button" className="chip-open" title={chipTitle} onClick={() => setOpen(true)}>
+          {chip}
+        </button>
+        <button type="button" className="chip-x" onClick={onClear} aria-label={clearLabel} title={clearLabel}>
+          ✕
+        </button>
+      </span>
+    );
+  }
   if (!open) {
     return (
       <button type="button" className={`chip ${set ? "chip-set" : ""}`} title={chipTitle} onClick={() => setOpen(true)}>
@@ -254,7 +271,7 @@ export function ItemName({ item }: { item: ListItem }) {
  * CW companies not linked yet, without their older duplicates unless asked. Picking a company
  * links it to a client of the same name, or adds one.
  */
-function ClientPicker({ def, value, onChange }: { def: FieldDef; value: Id | null; onChange: (id: Id | null) => void }) {
+function ClientPicker({ def, value, onChange, clearable }: ListPickerProps) {
   const m = useM();
   const a = useA();
   const cw = useCompanies(true);
@@ -267,6 +284,8 @@ function ClientPicker({ def, value, onChange }: { def: FieldDef; value: Id | nul
     <ComboPicker
       chip={current ? <ItemName item={current} /> : `+ ${def.label}`}
       set={!!current}
+      onClear={clearable ? () => onChange(null) : undefined}
+      clearLabel={`No ${label}`}
       placeholder={`Find ${label}…`}
       empty={!cw.companies.length && (cw.busy || cw.syncing) ? "Loading ConnectWise companies…" : "No match"}
       options={(query, typed) => {
@@ -310,14 +329,16 @@ function ClientPicker({ def, value, onChange }: { def: FieldDef; value: Id | nul
   );
 }
 
+type ListPickerProps = { def: FieldDef; value: Id | null; onChange: (id: Id | null) => void; clearable?: boolean };
+
 /** Pick an item of a long list (clients), or type a new name to add one. */
-function ListPicker({ def, value, onChange }: { def: FieldDef; value: Id | null; onChange: (id: Id | null) => void }) {
+function ListPicker(props: ListPickerProps) {
   const m = useM();
-  if (m.config.cw && def.key === m.profile.connectwise?.clientField) return <ClientPicker def={def} value={value} onChange={onChange} />;
-  return <PlainListPicker def={def} value={value} onChange={onChange} />;
+  if (m.config.cw && props.def.key === m.profile.connectwise?.clientField) return <ClientPicker {...props} />;
+  return <PlainListPicker {...props} />;
 }
 
-function PlainListPicker({ def, value, onChange }: { def: FieldDef; value: Id | null; onChange: (id: Id | null) => void }) {
+function PlainListPicker({ def, value, onChange, clearable }: ListPickerProps) {
   const m = useM();
   const a = useA();
   const items = [...(m.lists.get(def.list!) ?? [])].sort((x, y) => x.name.localeCompare(y.name));
@@ -327,6 +348,8 @@ function PlainListPicker({ def, value, onChange }: { def: FieldDef; value: Id | 
     <ComboPicker
       chip={current ? current.name : `+ ${def.label}`}
       set={!!current}
+      onClear={clearable ? () => onChange(null) : undefined}
+      clearLabel={`No ${label}`}
       placeholder={`Find or add ${label}…`}
       options={(query, typed) => [
         ...items
@@ -403,17 +426,20 @@ export function FieldInput({
   value,
   onChange,
   resetKey,
+  clearable,
 }: {
   def: FieldDef;
   value: FieldValue | undefined;
   onChange: (v: FieldValue | null) => void;
   /** Which record it edits, so a text draft resets when that changes. */
   resetKey?: unknown;
+  /** A ✕ on a set list chip, to clear it in one tap. */
+  clearable?: boolean;
 }) {
   const m = useM();
   switch (def.type) {
     case "list":
-      if (def.input === "search") return <ListPicker def={def} value={value ? String(value) : null} onChange={onChange} />;
+      if (def.input === "search") return <ListPicker def={def} value={value ? String(value) : null} onChange={onChange} clearable={clearable} />;
       return (
         <SelectField
           field={def.key}
