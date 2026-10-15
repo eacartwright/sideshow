@@ -8,6 +8,15 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 
 ## Inbox
 
+- **CW sites (2026-10-14, Evan noticed; to think through).** Some companies have several sites
+  in CW. A time entry is on a ticket, and the ticket already has the site, so pushing needs
+  nothing. Where it matters: **New ticket…** (CW uses the company's default site; offer a site
+  picker when the company has more than one: `GET /company/companies/{id}/sites`), and maybe
+  showing the ticket's site on the Day page (Evan's thought: the entries screen). Check what
+  the WRIT and onsite work types expect before building.
+- **Denser everywhere, next steps (2026-10-14).** First pass done (36 px buttons, 34 px fields,
+  running card trimmed). Look at the Day page rows, Task details and the header the same way.
+
 - **Moving and removing pushed time (2026-10-13, to flesh out together).** Move a session's
   CW entry to another ticket (e.g. something done under the WRIT that belongs on a client
   ticket), and delete or "remove from this ticket" so the CW entry goes too, in one or two

@@ -55,3 +55,8 @@ export function entryHours(ms: Ms, format: EntryFormat["hours"]): string {
   const m = Math.max(0, Math.round(ms / 60_000));
   return `${Math.floor(m / 60)}:${pad(m % 60)}`;
 }
+
+/** A field label's plural: "Clients", "Companies". */
+export function plural(word: string): string {
+  return /[^aeiou]y$/i.test(word) ? `${word.slice(0, -1)}ies` : `${word}s`;
+}

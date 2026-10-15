@@ -40,7 +40,16 @@ export type Op =
    * changed since. Fills the title if the task is still untitled, and each of `fill` that's
    * still unset (the client, from the ticket's company).
    */
-  | { type: "task.refInfo"; taskId: Id; field: string; ref: string; info: RefLookup; fill?: Fields }
+  | {
+      type: "task.refInfo";
+      taskId: Id;
+      field: string;
+      ref: string;
+      info: RefLookup;
+      fill?: Fields;
+      /** A refresh (on load): a title renamed here since the last lookup of this ticket stays. */
+      keepTitle?: boolean;
+    }
   | { type: "session.update"; sessionId: Id; patch: SessionPatch }
   /** Add time after the fact (no timer was running). Fields default to the task's previous session's. */
   | {
@@ -52,6 +61,12 @@ export type Op =
       fields?: Fields;
       notes?: string;
     }
+  /**
+   * Move a session to another task (▶ WRIT on the running card). Fields it lacks come from that
+   * task's earlier sessions. A task ▶ New made for it alone goes. Ignored if it's running and
+   * the other task is too.
+   */
+  | { type: "session.move"; sessionId: Id; taskId: Id }
   /** Delete a session (a tombstone), or bring it back with `undo`. */
   | { type: "session.delete"; sessionId: Id; undo?: boolean }
   /** Delete a task and its sessions (stopping it if running); `undo` brings them back. */
@@ -92,6 +107,7 @@ export const OP_TYPES: ReadonlySet<string> = new Set([
   "session.create",
   "session.delete",
   "session.merge",
+  "session.move",
   "list.create",
   "list.update",
   "project.create",

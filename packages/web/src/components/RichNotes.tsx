@@ -3,6 +3,7 @@ import { EditorContent, useEditor, useEditorState, type Editor } from "@tiptap/r
 import { useLayoutEffect, useRef } from "react";
 import { noteExtensions, parseNote, serializeNote } from "../markdown";
 import { linkTitle, openLink } from "../links";
+import { showPicture } from "./Lightbox";
 import { showToast } from "../toast";
 import { upload } from "../uploads";
 
@@ -63,6 +64,18 @@ export function RichNotes({
     return true;
   };
 
+  // Ctrl+click on a link or picture, or a double click on a picture: a link opens in a new tab,
+  // a picture over the page.
+  const open = (event: MouseEvent) => {
+    const el = (event.target as HTMLElement).closest("a, img");
+    const href = el instanceof HTMLAnchorElement ? el.getAttribute("href") : el instanceof HTMLImageElement ? el.getAttribute("src") : null;
+    if (!href) return false;
+    event.preventDefault();
+    if (el instanceof HTMLImageElement) showPicture(href, el.getAttribute("alt") ?? "");
+    else openLink(href);
+    return true;
+  };
+
   const editor = useEditor({
     extensions: [...noteExtensions(), Placeholder.configure({ placeholder: () => placeholderRef.current })],
     content: parseNote(value),
@@ -70,22 +83,19 @@ export function RichNotes({
       attributes: { class: "rich-content", "aria-label": label, role: "textbox", "aria-multiline": "true" },
       handlePaste: (_view, event) => attach(event.clipboardData?.files),
       handleDrop: (_view, event) => attach((event as DragEvent).dataTransfer?.files),
-      // A click edits (puts the cursor in the link's text); Ctrl+click (⌘ on a Mac) opens it,
-      // or a picture full size. Hovering says which, and where the link goes.
+      // A click edits (puts the cursor in the link's text, selects a picture); Ctrl+click (⌘ on
+      // a Mac) opens a link, and it or a double click shows a picture over the page. Hovering
+      // says which, and where the link goes.
       handleClick: (_view, _pos, event) => {
         if (!(event.ctrlKey || event.metaKey)) return false;
-        const el = (event.target as HTMLElement).closest("a, img");
-        const href = el instanceof HTMLAnchorElement ? el.getAttribute("href") : el instanceof HTMLImageElement ? el.getAttribute("src") : null;
-        if (!href) return false;
-        event.preventDefault();
-        openLink(href);
-        return true;
+        return open(event);
       },
+      handleDoubleClick: (_view, _pos, event) => (event.target instanceof HTMLImageElement ? open(event) : false),
       handleDOMEvents: {
         mouseover: (_view, event) => {
           const el = (event.target as HTMLElement).closest("a, img");
           if (el instanceof HTMLAnchorElement) el.title = `${linkTitle(el.getAttribute("href") ?? "")}\nCtrl+click to open`;
-          if (el instanceof HTMLImageElement) el.title = `${linkTitle(el.getAttribute("src") ?? "")}\nCtrl+click to open full size`;
+          if (el instanceof HTMLImageElement) el.title = `${linkTitle(el.getAttribute("src") ?? "")}\nDouble-click or Ctrl+click to view`;
           return false;
         },
       },

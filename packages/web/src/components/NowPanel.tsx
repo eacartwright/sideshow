@@ -1,11 +1,12 @@
-import { durationMs, firstLine, startOfDay, type FieldDef, type FieldValue, type Id, type Session } from "@sideshow/shared";
+import { durationMs, firstLine, startOfDay, ticketNumber, type FieldDef, type FieldValue, type Id, type Session } from "@sideshow/shared";
 import { useState } from "react";
 import { clock, dayLabel, hm, timeOfDay } from "../format";
 import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
 import { at, timeValue } from "./SessionEditor";
-import { DraftInput, ProjectPicker, SessionFieldInputs, TaskFieldInputs, TicketInfo, TicketLinks } from "./fields";
+import { DraftInput, SessionFieldInputs, TaskFieldInputs, TicketInfo, TicketLinks } from "./fields";
 import { NoteView } from "./NoteView";
 import { RichNotes } from "./RichNotes";
+import { useWeekly } from "../weekly";
 
 // The top of the app: one card per running task, most recently started on top,
 // then a compact card per paused task. Pausing (or switching away) keeps a task here;
@@ -124,6 +125,10 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
   const [ask, setAsk] = useState<{ sessionId: Id; def: FieldDef; value: FieldValue } | null>(null);
   const asking = ask?.sessionId === session.id ? ask : null;
   const splitField = m.profile.fields.find((d) => d.on === "session" && d.newEntry);
+  // WRIT: this was really this week's recurring internal ticket.
+  const weekly = useWeekly(!!m.config.cwWeekly);
+  const ticketField = m.profile.connectwise?.ticketField;
+  const isWeekly = !!weekly && !!ticketField && ticketNumber(String(info.task.fields[ticketField] ?? "")) === String(weekly.ticket);
 
   const newEntry = () => {
     const id = a.newEntry(session.id);
@@ -184,8 +189,17 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
       />
       <div className="now-meta">
         <TaskFieldInputs task={info.task} />
-        <TicketLinks task={info.task} refresh />
+        <TicketLinks task={info.task} />
         <SessionFieldInputs session={session} onChange={onField} />
+        {m.config.cwWeekly && !isWeekly && (
+          <button
+            className="btn subtle"
+            onClick={() => a.moveToWeekly(session.id)}
+            title={`Move this entry, notes and all, to this week's recurring internal ticket${weekly ? ` (#${weekly.ticket})` : ""} (Alt+W)`}
+          >
+            WRIT
+          </button>
+        )}
         <button
           className="btn subtle"
           onClick={newEntry}
@@ -193,7 +207,6 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
         >
           New entry
         </button>
-        <ProjectPicker value={info.task.projectId ?? null} onChange={(projectId) => a.updateTask(info.task.id, { projectId })} />
       </div>
       {asking && (
         <div

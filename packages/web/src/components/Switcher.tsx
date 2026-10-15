@@ -1,6 +1,6 @@
 import { matchesQuery } from "@sideshow/shared";
 import { useEffect, useRef, useState } from "react";
-import { hm, timeOfDay, whenLabel } from "../format";
+import { hm, plural, timeOfDay, whenLabel } from "../format";
 import { taskTotals, useA, useM, type TaskInfo } from "../model";
 import { Dialog } from "./Dialog";
 
@@ -71,7 +71,7 @@ export function Switcher({
         className="search"
         autoFocus
         value={q}
-        placeholder="Search tasks, projects, clients, notes… or type a new task"
+        placeholder={`Search tasks, projects, ${m.groupBy ? `${plural(m.groupBy.label.toLowerCase())}, ` : ""}notes… or type a new task`}
         aria-label="Search tasks"
         onChange={(e) => {
           setQ(e.target.value);

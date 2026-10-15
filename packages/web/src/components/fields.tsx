@@ -12,9 +12,9 @@ import {
   type Task,
 } from "@sideshow/shared";
 import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
-import { syncText, useCompanies } from "../companies";
+import { refreshCompanies, syncText, useCompanies } from "../companies";
 import { showToast } from "../toast";
-import { RefreshIcon } from "./icons";
+import { ChatIcon, LockIcon, RefreshIcon } from "./icons";
 import { Spinner } from "./Spinner";
 import { useA, useM } from "../model";
 
@@ -209,23 +209,7 @@ export function ComboPicker({
   );
 }
 
-/** A green chain: this client is linked to a ConnectWise company. */
-export function LinkedIcon({ title = "Linked to a ConnectWise company" }: { title?: string }) {
-  return (
-    <svg className="linked-icon" viewBox="0 0 16 16" width="14" height="14" role="img" aria-label={title}>
-      <title>{title}</title>
-      <path
-        d="M6.6 9.4a2.6 2.6 0 0 0 3.7 0l2.4-2.4a2.6 2.6 0 0 0-3.7-3.7l-.9.9M9.4 6.6a2.6 2.6 0 0 0-3.7 0L3.3 9a2.6 2.6 0 0 0 3.7 3.7l.9-.9"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
-/** The CW company a list item is linked to, if any. */
+/** The CW company a list item stands for (a company picked for a task), if any. */
 export const linkedCompanyId = (item: ListItem | undefined): number | undefined => {
   const id = item?.ext?.cw?.companyId;
   return typeof id === "number" ? id : undefined;
@@ -244,70 +228,64 @@ export function companyNote(c: CompanyInfo): string {
 }
 
 /** A CW company as a picker row: its name, and what sets it apart. */
-export function CompanyLabel({ c, linkedTo }: { c: CompanyInfo; linkedTo?: string }) {
+export function CompanyLabel({ c }: { c: CompanyInfo }) {
   return (
     <span className="company-option">
       <span>{c.name}</span>
-      <span className="muted small">
-        {companyNote(c)}
-        {linkedTo ? ` · linked to ${linkedTo}` : ""}
-      </span>
-    </span>
-  );
-}
-
-/** A list item's name, with the chain if it's linked to a CW company. */
-export function ItemName({ item }: { item: ListItem }) {
-  return (
-    <span className="item-name">
-      {item.name}
-      {linkedCompanyId(item) !== undefined && <LinkedIcon />}
+      <span className="muted small">{companyNote(c)}</span>
     </span>
   );
 }
 
 /**
- * The client field with ConnectWise: your clients first (a chain on the linked ones), then
- * CW companies not linked yet, without their older duplicates unless asked. Picking a company
- * links it to a client of the same name, or adds one.
+ * The company field with ConnectWise: a ConnectWise company, nothing else. With nothing typed,
+ * the ones on your recent tasks; typed, the matching companies (yours first), without their
+ * older duplicates unless asked. A picked company is kept as an item of the field's list
+ * (`ext.cw.companyId`) so tasks can point at it.
  */
-function ClientPicker({ def, value, onChange, clearable }: ListPickerProps) {
+function CompanyPicker({ def, value, onChange, clearable }: ListPickerProps) {
   const m = useM();
   const a = useA();
   const cw = useCompanies(true);
   const [dups, setDups] = useState(false);
-  const items = [...(m.lists.get(def.list!) ?? [])].sort((x, y) => x.name.localeCompare(y.name));
-  const linked = new Set(items.map(linkedCompanyId).filter((x) => x !== undefined));
   const current = value ? m.view.lists[value] : undefined;
   const label = def.label.toLowerCase();
+  // Companies on recent tasks, most recent first.
+  const recent: ListItem[] = [];
+  for (const t of m.recent) {
+    const item = m.view.lists[String(t.task.fields[def.key] ?? "")];
+    if (item && !item.archived && linkedCompanyId(item) !== undefined && !recent.includes(item)) recent.push(item);
+    if (recent.length >= 8) break;
+  }
+  const used = new Set(recent.map(linkedCompanyId));
   return (
     <ComboPicker
-      chip={current ? <ItemName item={current} /> : `+ ${def.label}`}
+      chip={current ? current.name : `+ ${def.label}`}
+      chipTitle={current ? `${def.label}: ${current.name}` : undefined}
       set={!!current}
       onClear={clearable ? () => onChange(null) : undefined}
       clearLabel={`No ${label}`}
       placeholder={`Find ${label}…`}
-      empty={!cw.companies.length && (cw.busy || cw.syncing) ? "Loading ConnectWise companies…" : "No match"}
+      empty={!cw.companies.length && (cw.busy || cw.syncing) ? "Loading ConnectWise companies…" : query0(cw.companies.length)}
       options={(query, typed) => {
-        const mine = items.filter((x) => x.name.toLowerCase().includes(query)).slice(0, query ? 6 : 8);
-        const theirs = query ? searchCompanies(cw.companies, typed, { withDuplicates: dups, limit: 8 }).filter((c) => !linked.has(c.id)) : [];
+        const found = query
+          ? searchCompanies(cw.companies, typed, { withDuplicates: dups, limit: 10 }).sort((x, y) => Number(used.has(y.id)) - Number(used.has(x.id)))
+          : [];
         return [
-          ...mine.map((x) => ({
-            key: x.id,
-            text: x.name,
-            label: <ItemName item={x} />,
-            section: query ? `Your ${label}s` : undefined,
-            pick: () => onChange(x.id),
-          })),
-          ...theirs.map((c) => ({
-            key: `cw${c.id}`,
-            text: c.name,
-            label: <CompanyLabel c={c} />,
-            section: "From ConnectWise",
-            pick: () => onChange(a.clientForCompany(def.list!, c)),
-          })),
-          ...(query && !items.some((x) => x.name.toLowerCase() === query)
-            ? [{ key: "+", text: `Add “${typed}” (not in ConnectWise)`, pick: () => onChange(a.createListItem(def.list!, typed)) }]
+          ...(query
+            ? found.map((c) => ({
+                key: `cw${c.id}`,
+                text: c.name,
+                label: <CompanyLabel c={c} />,
+                pick: () => onChange(a.clientForCompany(def.list!, c)),
+              }))
+            : recent.map((x) => ({ key: x.id, text: x.name, section: "Recent", pick: () => onChange(x.id) }))),
+          // Made in CW since the last sync (every 4 hours)?
+          ...(query && found.length < 3 && !cw.syncing
+            ? [{ key: "sync", text: "Not there? Check ConnectWise for new companies", pick: () => {
+                  void refreshCompanies();
+                  showToast("Checking ConnectWise for new companies…");
+                } }]
             : []),
           ...(value ? [{ key: "-", text: `No ${label}`, pick: () => onChange(null) }] : []),
         ];
@@ -329,12 +307,14 @@ function ClientPicker({ def, value, onChange, clearable }: ListPickerProps) {
   );
 }
 
+const query0 = (n: number) => (n ? "No match" : "Type to find a ConnectWise company");
+
 type ListPickerProps = { def: FieldDef; value: Id | null; onChange: (id: Id | null) => void; clearable?: boolean };
 
-/** Pick an item of a long list (clients), or type a new name to add one. */
+/** Pick an item of a long list (companies), or type a new name to add one. */
 function ListPicker(props: ListPickerProps) {
   const m = useM();
-  if (m.config.cw && props.def.key === m.profile.connectwise?.clientField) return <ClientPicker {...props} />;
+  if (m.config.cw && props.def.key === m.profile.connectwise?.clientField) return <CompanyPicker {...props} />;
   return <PlainListPicker {...props} />;
 }
 
@@ -398,7 +378,12 @@ function SelectField({
   );
 }
 
-/** A choice field as a row of buttons, `B | NB | NC`; the full option names are the tooltips. */
+const FIELD_ICON = { lock: LockIcon, chat: ChatIcon };
+
+/**
+ * A choice field as a row of buttons, `B | NB | NC` (or icons: 🔒 | 💬); the full option names
+ * are the tooltips.
+ */
 function Segmented({ def, value, onChange }: { def: FieldDef; value: string | null; onChange: (v: string) => void }) {
   const options = def.options ?? [];
   return (
@@ -413,7 +398,7 @@ function Segmented({ def, value, onChange }: { def: FieldDef; value: string | nu
           aria-label={o}
           onClick={() => value !== o && onChange(o)}
         >
-          {def.short?.[i] ?? o}
+          {def.icons?.[i] ? FIELD_ICON[def.icons[i]]({}) : (def.short?.[i] ?? o)}
         </button>
       ))}
     </span>
@@ -760,11 +745,8 @@ export function TicketInfo({
   );
 }
 
-/**
- * Beside the ticket field once a task has a ticket: ↗ opens it in CW, and (where there's no
- * header to put it in, the running card) ↻ looks it up again.
- */
-export function TicketLinks({ task, refresh = false }: { task: Task; refresh?: boolean }) {
+/** Beside the ticket field once a task has a ticket: ↗ opens it in CW. */
+export function TicketLinks({ task }: { task: Task }) {
   const m = useM();
   const url = ticketUrl(m, task);
   if (!url) return null;
@@ -774,7 +756,6 @@ export function TicketLinks({ task, refresh = false }: { task: Task; refresh?: b
       <a className="btn icon ticket-open" href={url} target="_blank" rel="noreferrer" title={`Open #${n} in ConnectWise`} aria-label={`Open ticket #${n} in ConnectWise`}>
         ↗
       </a>
-      {refresh && <TicketRefresh task={task} />}
     </span>
   );
 }

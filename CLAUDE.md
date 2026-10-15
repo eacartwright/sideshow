@@ -50,10 +50,11 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   `config.cwPush` is false and the UI shows Mark entered only). Ticket lookup: entering a ticket #
   fetches it once the number settles and records it with the `task.refInfo` op, which is ignored
   if the ref changed since, and replaces the title with the ticket's summary. The ticket's company
-  then **replaces** the task's client (the client linked to it, found, linked or added; linked
-  clients take CW's name).
-  Changing the ref clears `refInfo`. A client links to a CW company with `ext.cw.companyId` on its
-  list item (green chain); Settings › Clients… links, unlinks and removes (DESIGN.md §10).
+  then **replaces** the task's company. Changing the ref clears `refInfo`. Tasks on the Now
+  stack are looked up again on every load (`keepTitle`: a renamed title stays).
+  The **Company** field (profile key still `client`, list `clients`) picks CW companies only;
+  each picked one is a list item with `ext.cw.companyId`. No linking UI since 2026-10-14
+  (DESIGN.md §10).
 - **Profiles** (DESIGN.md §4): job fields are declared in `packages/server/profiles/<name>.json`,
   chosen with `PROFILE` in `.env` (no PROFILE = no job fields; stored values stay, hidden). Types
   and validation in `shared/src/profile.ts`; the server loads it at startup (`server/src/profile.ts`,
@@ -96,6 +97,9 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   add alongside; Shift inverts.
 - Blips (< `settings.blipSec`, default 30 s; no notes; not the task's only session) are discarded
   when they end.
+- A task ▶ New made, stopped (`timer.stop`, not pause) with its only session note-less, is
+  dropped (`dropIfEmpty`), however long it ran. Inbox tasks, descriptions, entered/pushed stay.
+- `session.move` moves a session to another task (WRIT on the running card); the task it leaves goes the same way.
 - Continuing a task within `settings.resumeGapMin` (default 10) of its last session reopens it,
   unless `task.start` has `fresh` (New entry): that always makes a new session, ending the task's
   running one at the same instant, with `sessionFields` patched on. Changing a profile field
@@ -122,7 +126,9 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   Dark tokens are keyed on `html[data-theme="dark"]`, which `theme.ts` sets from the per-device
   Colors setting (System / Light / Dark, in localStorage); an inline script in `index.html`
   sets it before the first paint. Never use a `prefers-color-scheme` query in CSS directly.
-- Tap targets ≥ 44px; inputs 16px (prevents iOS zoom). Focus states always visible.
+- Buttons `--tap` (36px), fields beside them `--control` (34px), one shared height and radius
+  (Evan chose denser, phone too, 2026-10-14); inputs 16px text (prevents iOS zoom). Focus
+  states always visible.
 - The top running card's notes editor must stay mounted (cards are keyed by position) and its
   editable element (`notesRef`) be focused synchronously in the tap handler — that's what raises
   the iPhone keyboard. (Was a `<textarea>` until 2026-10-13; check it on the iPhone after
@@ -142,14 +148,14 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-10-13)
+## Status (2026-10-14)
 
 - **Live** at https://sideshow.evans.tools on the mini PC; hosting, updates and restores are in
   [docs/runbook.md](docs/runbook.md) (Evan deploys with his "Update sideshow" shortcut). Done:
   M1 core app, M2 projects & profiles, M3 Day page (desktop; touch dragging in the backlog), M4
   CW push. Each milestone's status: DESIGN.md §12. History: `git log`.
-- **Built 2026-10-12/13** (DESIGN.md §10 unless noted): the CW company picker and linked clients
-  (Settings › Clients…; the ticket's company becomes the task's client); **New ticket…** from a
+- **Built 2026-10-12/13** (DESIGN.md §10 unless noted): the CW company picker (the ticket's
+  company becomes the task's company); **New ticket…** from a
   task (pushes its time too); delete tasks without a ticket (§5); collapsible Day page groups
   (§7); **rich notes** with attachments pushed to the ticket as documents (§7 "Rich notes");
   Now buttons in the session editor; ↗ / ↻ and "Update ticket" (rename the CW summary) for
@@ -159,8 +165,10 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   ticket…, maybe show the ticket's own initial description read-only.
 - **New entry built (2026-10-13)**, for Evan to try on 2026-10-14: split a running session when
   the work type changes (DESIGN.md §5 Session). Ask how it went before building anything else.
-- **▶ WRIT built (2026-10-13)**: finds this week's recurring internal ticket, one tap to work on it
-  (DESIGN.md §10). Moving/removing pushed time between tickets is in the backlog, to design with
+- **▶ WRIT built (2026-10-13)**: finds this week's recurring internal ticket (DESIGN.md §10).
+  Since 2026-10-14 it's **WRIT** on the running card (moves the session there), not a header
+  button. Same day: empty new tasks are dropped on Stop (§5), note pictures open in an overlay
+  (§7, `Lightbox.tsx`). Moving/removing pushed time between tickets is in the backlog, to design with
   Evan.
 - **Also queued for 2026-10-14:** the DEV badge (backlog Inbox; the design is settled there).
 - **Then:** the ticket / project-ticket picker (M5/M6, backlog). Still to check live: ▶ New

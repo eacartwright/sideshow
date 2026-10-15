@@ -13,6 +13,8 @@ import { settingsOf, type Changes, type Ext, type ExtPatch, type Fields, type Fi
 //   that session instead of adding a new fragment.
 // - A session under settings.blipSec with no notes is discarded when it ends,
 //   unless it's the task's only session.
+// - A task started new (▶ New) that's stopped with its only session note-less is dropped:
+//   there's no previous work for "continuation of previous work" to mean.
 //
 // Start/stop use timeline semantics (what was running *at the op's time*), so an
 // op that reaches the server late because the phone had no signal still lands
@@ -241,6 +243,31 @@ function endSession(state: State, s: Session, at: Ms, t: Touched) {
   }
 }
 
+/**
+ * Drop a task ▶ New made that's left with nothing written: no notes in its one session (or no
+ * session at all), no description, nothing entered or pushed. Tasks made beforehand (Inbox)
+ * stay, so do running ones.
+ */
+function dropIfEmpty(state: State, taskId: Id, at: Ms, t: Touched) {
+  const task = state.tasks[taskId];
+  if (!task || task.deleted || task.description.trim()) return;
+  const own = taskSessions(state, taskId);
+  const s = own[0];
+  if (own.length > 1 || (s && (s.end === null || s.notes.trim() || s.enteredAt || Object.keys(s.ext ?? {}).length))) return;
+  // Made by the start itself (the start may since have been moved earlier).
+  if (s && task.createdAt < s.start) return;
+  task.deleted = true;
+  task.pausedAt = null;
+  task.updatedAt = at;
+  t.tasks.add(taskId);
+  if (s) {
+    s.deleted = true;
+    s.deletedWithTask = true;
+    s.updatedAt = at;
+    t.sessions.add(s.id);
+  }
+}
+
 export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()): Touched {
   const at = env.at;
   const op = upgradeOp(state, env.op);
@@ -345,10 +372,22 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
           for (const o of sessionsAt(state, at)) if (o.taskId === op.taskId) endSession(state, o, at, t);
         }
         const taskId = op.taskId ?? s?.taskId;
-        if (taskId) setPaused(state, taskId, null, at, t);
+        if (taskId) {
+          setPaused(state, taskId, null, at, t);
+          dropIfEmpty(state, taskId, at, t);
+        }
       } else {
-        for (const s of sessionsAt(state, at)) endSession(state, s, at, t);
-        for (const task of Object.values(state.tasks)) if (task.pausedAt) setPaused(state, task.id, null, at, t);
+        const stopped = new Set<Id>();
+        for (const s of sessionsAt(state, at)) {
+          endSession(state, s, at, t);
+          stopped.add(s.taskId);
+        }
+        for (const task of Object.values(state.tasks)) {
+          if (!task.pausedAt) continue;
+          setPaused(state, task.id, null, at, t);
+          stopped.add(task.id);
+        }
+        for (const id of stopped) dropIfEmpty(state, id, at, t);
       }
       break;
     }
@@ -407,10 +446,13 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
       const n = ticketNumber(op.ref);
       // A lookup that finishes after the field was changed (here or on another device) is stale.
       if (!task || !n || ticketNumber(String(task.fields[op.field] ?? "")) !== n) break;
+      // A linked ticket names the task: its summary replaces the title (unless, on a refresh,
+      // it was renamed here: that's waiting for "Update ticket"). Other fields (the client)
+      // are only filled while empty, so one set meanwhile is never replaced.
+      const was = task.refInfo?.ref === n ? task.refInfo.summary.trim() : null;
+      const renamed = was !== null && !!task.title.trim() && task.title.trim() !== was;
       task.refInfo = { ...op.info, field: op.field, ref: n };
-      // A linked ticket names the task: its summary replaces the title. Other fields (the
-      // client) are only filled while empty, so one set meanwhile is never replaced.
-      if (op.info.summary.trim()) task.title = op.info.summary.trim();
+      if (op.info.summary.trim() && !(op.keepTitle && renamed)) task.title = op.info.summary.trim();
       for (const [k, v] of Object.entries(op.fill ?? {})) if (!(k in task.fields) && !unset(v)) task.fields[k] = v;
       task.updatedAt = at;
       t.tasks.add(task.id);
@@ -459,6 +501,36 @@ export function applyOp(state: State, env: OpEnvelope, t: Touched = newTouched()
         rev: 0,
       };
       t.sessions.add(op.sessionId);
+      break;
+    }
+
+    case "session.move": {
+      const s = state.sessions[op.sessionId];
+      const from = s && state.tasks[s.taskId];
+      const to = state.tasks[op.taskId];
+      if (!s || s.deleted || !to || to.deleted || s.taskId === to.id) break;
+      // A task has at most one open session.
+      if (s.end === null && openSessions(state).some((o) => o.taskId === to.id)) break;
+      // Fields it doesn't have come from the new task's earlier sessions.
+      for (const [k, v] of Object.entries(inheritedFields(state, to.id, s.start))) if (!(k in s.fields)) s.fields[k] = v;
+      s.taskId = to.id;
+      if (s.enteredAt) {
+        s.enteredAt = null;
+        s.changedSinceEntered = true;
+      }
+      s.updatedAt = at;
+      t.sessions.add(s.id);
+      if (s.end === null) {
+        if (to.status !== "open") to.status = "open";
+        to.pausedAt = null;
+        to.updatedAt = at;
+        t.tasks.add(to.id);
+      }
+      // The task it came from, if ▶ New made it just for this.
+      if (from) {
+        if (s.end === null) setPaused(state, from.id, null, at, t);
+        dropIfEmpty(state, from.id, at, t);
+      }
       break;
     }
 

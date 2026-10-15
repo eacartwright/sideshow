@@ -1,11 +1,11 @@
 {
   "name": "Veritaz / ConnectWise",
   "fields": [
-    { "key": "client", "label": "Client", "on": "task", "type": "list", "list": "clients", "input": "search", "groupBy": true },
+    { "key": "client", "label": "Company", "on": "task", "type": "list", "list": "clients", "input": "search", "groupBy": true },
     { "key": "ticket", "label": "Ticket #", "on": "task", "type": "text", "prefix": "#" },
     { "key": "workType", "label": "Work Type", "on": "session", "type": "list", "list": "workTypes", "newEntry": true },
     { "key": "billing", "label": "Billing", "on": "session", "type": "choice", "options": ["Billable", "Do Not Bill", "No Charge"], "input": "segmented", "short": ["B", "NB", "NC"] },
-    { "key": "noteTo", "label": "Notes to", "on": "session", "type": "choice", "options": ["Internal", "Discussion"], "input": "segmented", "default": "Internal" }
+    { "key": "noteTo", "label": "Notes to", "on": "session", "type": "choice", "options": ["Internal", "Discussion"], "input": "segmented", "icons": ["lock", "chat"], "default": "Internal" }
   ],
   "lists": {
     "workTypes": [

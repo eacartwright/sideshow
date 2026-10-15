@@ -211,6 +211,12 @@ Derived: **duration** = end − start − deduct.
 - **Manual sessions**: add a session after the fact without having run a timer.
 - **Blips are discarded**: a session under 30 seconds with no notes is dropped when it stops,
   unless it's the task's only session. Tapping the wrong task doesn't leave junk behind.
+- **Empty new tasks are dropped** (2026-10-14): "continuation of previous work" means nothing
+  for a task with no previous work. A task ▶ New made whose only session has no notes is
+  deleted (task and session, as a tombstone) when it's **stopped**, however long it ran, with no
+  Undo (Evan's call). Pausing or switching away doesn't drop it (it stays on the Now stack to
+  come back to), but stopping it later does. Kept: tasks made beforehand (Inbox: created before
+  the session started), ones with a description, and sessions entered or pushed.
 - **Resume, don't fragment**: continuing a task within 10 minutes of its last session ending
   reopens that session instead of starting a new one, so bouncing between tasks doesn't produce a
   pile of tiny entries. (Both thresholds are **Settings** (⚙ in the header), synced so every device
@@ -251,8 +257,12 @@ toolbar shows only while typing there). Underline is stored as `++text++`.
   backup folder's `files/` hourly, never pruned.
 - Where a note is previewed (Task details' session list, earlier sessions on the running card) it
   shows **formatted** (`NoteView`: the editor's schema to HTML, links checked; pictures as
-  thumbnails). Clicking a link there opens it in a new tab (a picture full size), not the
-  session; in the editor a click edits and **Ctrl+click** opens. Hovering a link shows where it
+  thumbnails). Clicking a link there opens it in a new tab, not the session; in the editor a
+  click edits and **Ctrl+click** opens. A **picture** opens over the page instead (2026-10-14,
+  `Lightbox.tsx`; a new tab is a separate window in the installed app): a click in a preview, a
+  double click or Ctrl+click in the editor. Fitted to the screen (small ones up to 2×), a click
+  zooms in 2× where you clicked, ↗ Open still opens it on its own; Esc, ✕ or a click beside it
+  closes it. Hovering a link shows where it
   goes (an attachment: its file name). Where notes must be one line of text (titles from
   notes, tooltips, the push preview) they go through `plainNote` (shared): marks dropped,
   pictures and files as "[name]".
@@ -440,7 +450,8 @@ smaller (14px); touch screens keep 16px so iOS doesn't zoom into inputs.
   2026-10-10: a row can't show them usefully): they're on ✎'s tooltip, in the push preview and
   in Task details.
 - **Billing** is a segmented control, `B | NB | NC`: the profile gives a choice field short
-  labels and `"input": "segmented"`; the full names show as tooltips.
+  labels and `"input": "segmented"`; the full names show as tooltips. `"icons"` (one per
+  option, from `FIELD_ICONS` in `shared/src/profile.ts`) shows an icon instead (Notes to: 🔒 | 💬).
 - What's missing (ticket, client, work type) is flagged in the row, as today.
 
 **Phone:** the table as stacked rows with the calendar below, long-press to drag. It has to
@@ -481,7 +492,12 @@ would put the end before the start (or the start after the end).
 
 - High contrast, readable at arm's length and in sunlight.
 - Obvious focus states. It should always be clear which field or button is active.
-- Large tap targets (≥ 44 pt). The primary action on each screen is unmistakable.
+- Tap targets: buttons 36 px and the fields beside them 34 px (`--tap`, `--control`), phone
+  too (2026-10-14, Evan: things were getting crowded; was ≥ 44 pt). Inputs keep 16 px text so
+  iOS doesn't zoom. The primary action on each screen is unmistakable.
+- Every field control (pickers, selects, small inputs, segmented choices) has the same height
+  and corners (`--control-radius`); pickers used to be pills, which said "button that opens a
+  list" but just looked inconsistent next to the inputs.
 - Light and dark themes from one set of design tokens. Settings → Colors picks System, Light
   or Dark per device (not synced).
 
@@ -630,8 +646,8 @@ its coordination ticket is then two clicks.
   waits as long as CW asks (Retry-After or the message, 1–60 s) and tries again, up to 3 times;
   the first sync asks 4 companies at a time, and boards load one at a time.
 - **Sync feedback**: while the server syncs companies, the header shows a spinner and "Syncing
-  ConnectWise companies… 312 of 745" ("CW sync 312/745" on a phone), as do the client picker
-  and Settings › Clients; the browser asks for progress every 3 s. Until the first sync is done,
+  ConnectWise companies… 312 of 745" ("CW sync 312/745" on a phone), as does the company
+  picker; the browser asks for progress every 3 s. Until the first sync is done,
   ticket dates (and so which duplicate wins) are incomplete. Loading boards and creating a ticket
   have spinners too.
 - **Testing against the live instance**: test tickets go on **Veritaz IT Solutions** (CW company
@@ -675,32 +691,28 @@ its coordination ticket is then two clicks.
   same-name group (`companyKey` in `shared/src/companies.ts`) one record is **the** company:
   newest ticket, then Client > Lead/Prospect > Former Client > other, then non-Customer, then
   lowest id. The rest are **older duplicates**, hidden unless "Show older duplicates" is ticked.
-  - The **Client** field, with CW on, lists your clients first (a green chain on linked ones),
-    then **From ConnectWise**: matching companies not linked yet, clients before leads before
-    former clients, each with its tag and last ticket month. Picking a company links it to the
-    unlinked client of the same name, or adds a new linked client. "Add “…” (not in
-    ConnectWise)" still adds a plain one.
-  - A client's link is `ext.cw.companyId` on its list item (`list.update` merges `ext` like a
-    session's). The link is the manual override: linking a client to an older duplicate is
-    allowed, from the Clients dialog with "Show older duplicates" ticked.
-  - **Settings › Clients…** lists your clients: link / change / unlink each, **Remove** (archived,
-    so tasks keep their value; Undo, and Restore under Removed), "Update now", and a one-click
-    **Link all** for unlinked clients whose name is a company's.
-  - **The ticket decides the client** (2026-10-12): a ticket lookup sets the task's client to
-    the ticket's CW company, **replacing** whatever was there ("Veritaz" → "Veritaz IT
-    Solutions"): the client linked to that company, else an unlinked one of the same name
-    (`companyKey`, which gets linked), else a new linked one. Skipped if the ticket # changed
-    while the lookup ran. Creating a ticket needs a linked client.
-  - **A linked client takes its company's CW name**, when linked (picker, Link…, Link all) or
-    looked up. Settings › Clients offers **Use the ConnectWise names** for clients linked
-    before that, and **Merge** when several clients are linked to one company: the one with the
-    company's name (else the most-used) stays, every task on the others moves to it, and the
-    others are removed (archived). Task fields only; sessions aren't touched.
+  - **The Company field is a CW company, nothing else** (2026-10-14; it was "Client", with
+    clients linked to companies by a green chain, a Settings › Clients… dialog to link, merge
+    and rename them, and non-CW clients allowed). Evan: match CW's language, and the linking
+    was only scaffolding. With nothing typed the picker shows the companies on recent tasks;
+    typed, matching companies (ones you've used first), clients before leads before former
+    clients, each with its tag and last ticket month, older duplicates only if ticked. "Not
+    there? Check ConnectWise for new companies" syncs now. Settings › Companies… is shown only
+    without CW (remove / restore).
+  - Underneath, a picked company is still an item of the `clients` list with
+    `ext.cw.companyId` (tasks point at list items; the profile's key stays `client`, only its
+    label changed). Old clients without a company stay on their tasks but can't be picked.
+  - **The ticket decides the company** (2026-10-12): a ticket lookup sets the task's company to
+    the ticket's CW company, **replacing** whatever was there: the list item for that company
+    (it takes CW's current name), else an old one of the same name (`companyKey`), which gets
+    the id, else a new one. Skipped if the ticket # changed while the lookup ran. Creating a
+    ticket needs a company from CW.
 - **Pushing time entries** (M4, built 2026-10-10). From the Day page: a row's **Push…**, a
   ticket group's **Push all N…**, or tick rows and **Push N selected…**. Every push goes through
   a preview (ticket, date, times, hours, work type, billing, where the notes go, who gets
   emailed, what can't go yet and why), then shows each entry's result. Per entry:
-  - **Notes to** `Internal | Discussion` (a profile field, `noteTo`, default Internal; carries
+  - **Notes to** `🔒 | 💬` (Internal | Discussion; icons since 2026-10-14, the profile's
+    `icons`; a profile field, `noteTo`, default Internal; carries
     over to the task's next session like other fields).
   - **Email** off/on (on = CW emails the ticket's contact, CCs and resources). Off by default and
     **never carried over**: it lives in the session's integration data (`ext.cw.email`), not in
@@ -723,7 +735,9 @@ its coordination ticket is then two clicks.
     they are.
 - **A linked task in Task details / the running card** (2026-10-13): the title *is* the ticket's
   summary, so it isn't shown twice. **↗** beside the ticket # opens the ticket; **↻** (refresh
-  from CW) sits left of the dialog's ✕ (on the running card, beside ↗). The line under the
+  from CW) sits left of the dialog's ✕. The running card has no ↻ (2026-10-14): tasks on the
+  Now stack are looked up again each time the app loads, so the header's ↻ (reload) refreshes
+  them; that refresh (`task.refInfo` with `keepTitle`) keeps a title renamed here. The line under the
   fields appears only when there's something to say: looking up / not found, closed, the CW
   company differs from the client, or the title was changed here. Then it reads "In ConnectWise:
   *summary* ↗ [Update ticket]": the button writes the title to the ticket as its summary
@@ -737,11 +751,16 @@ its coordination ticket is then two clicks.
   summary and owner. The server finds it (`connectwise/weekly.ts`, kept in `meta`
   `cw.weekly`) at startup and then only once the known one is over 6½ days old (at most hourly),
   so a few requests on Monday morning. The summary comes from CW_MEMBER's name
-  (`CW_WEEKLY_SUMMARY` overrides). **▶ WRIT** (after ▶ New; Alt+W; Shift = alongside) continues
-  this week's WRIT task, or starts one with the ticket # (the lookup fills title and client),
-  and focuses the notes like ▶ New. Each week is its own task, so last week's unpushed time
+  (`CW_WEEKLY_SUMMARY` overrides). **WRIT** on the running card, left of New entry (2026-10-14; it was ▶ WRIT
+  in the header): you start with ▶ New and it turns out to be WRIT work, so it **moves that
+  session**, notes and all, onto this week's WRIT task (made with the ticket # if there's none
+  yet; the lookup fills title and client). The task ▶ New made goes; one with other time, or
+  from the Inbox, keeps its other time. Fields the session hasn't set come from the WRIT's
+  earlier sessions. Hidden when the card already is the WRIT; refused if the WRIT is running
+  too. Op: `session.move`. **Alt+W** does it to the top card, or with nothing running starts
+  the WRIT (Shift = alongside). Each week is its own task, so last week's unpushed time
   still goes to last week's ticket. The browser keeps the current ticket (`web/src/weekly.ts`)
-  so the button works offline and inside the tap. Shown when CW push is set up.
+  so it works offline. Shown when CW push is set up.
 - **Ticket link**: the ticket # (Day page) and ↗ (Task details, running card) open the ticket
   in CW, in the form of CW's own Share link:
   `https://na.myconnectwise.net/v4_6_release/services/system_io/Service/fv_sr100_request.rails?service_recid={id}&companyName={CW_COMPANY_ID}`

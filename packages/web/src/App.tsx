@@ -15,6 +15,7 @@ import { RefreshIcon } from "./components/icons";
 import { Spinner } from "./components/Spinner";
 import { ActionsContext, ModelContext, useActionsFactory, useModel, type Model } from "./model";
 import { dismissToast, useToast } from "./toast";
+import { Lightbox } from "./components/Lightbox";
 
 type Overlay =
   | { kind: "switcher"; alongside?: boolean }
@@ -71,9 +72,12 @@ export function App() {
             else if (top) actions.pause(top.id);
           },
           KeyW: () => {
+            // The top running entry goes to this week's WRIT; with nothing running, start it.
             if (!modelRef.current.config.cwWeekly) return;
             setOverlay(null);
-            startWeekly(e.shiftKey);
+            const top = modelRef.current.running[0];
+            if (top) actions.moveToWeekly(top.id);
+            else startWeekly(e.shiftKey);
           },
           KeyI: () => setOverlay({ kind: "inbox" }),
           KeyE: () => setPage((p) => (p === "day" ? "now" : "day")),
@@ -101,9 +105,19 @@ export function App() {
     }
     actions.startNew("", alongside);
   }
-  // ▶ WRIT: the same, on this week's recurring internal ticket.
-  const weeklyOn = !!model.config.cwWeekly;
-  const weekly = useWeekly(weeklyOn);
+  // Ticket info (summary, company, closed) for what's on the Now stack is looked up again each
+  // time the app loads, so the header's ↻ refreshes it too. A title renamed here stays.
+  const refreshedTickets = useRef(false);
+  useEffect(() => {
+    if (refreshedTickets.current || !model.loaded || !model.config.cw) return;
+    refreshedTickets.current = true;
+    const ids = new Set([...model.running.map((s) => s.taskId), ...model.paused.map((t) => t.task.id)]);
+    for (const id of ids) void actions.lookupTicket(id, { keepTitle: true });
+  }, [model.loaded, model.config.cw, model.running, model.paused, actions]);
+
+  // Alt+W with nothing running: the same, on this week's recurring internal ticket.
+  // (Asking for it here keeps it fresh for the running card's WRIT.)
+  useWeekly(!!model.config.cwWeekly);
   function startWeekly(alongside: boolean) {
     if (pageRef.current === "day") {
       focusNotesOnNow.current = true;
@@ -140,19 +154,6 @@ export function App() {
             >
               <span aria-hidden>▶</span> New
             </button>
-            {weeklyOn && (
-              <button
-                className="btn writ"
-                onClick={(e) => {
-                  if (e.timeStamp - lastNewTap.current < 700) return;
-                  lastNewTap.current = e.timeStamp;
-                  startWeekly(e.shiftKey);
-                }}
-                title={`This week's recurring internal ticket${weekly ? ` (#${weekly.ticket})` : ""} (Alt+W; Shift to run alongside)`}
-              >
-                <span aria-hidden>▶</span> WRIT
-              </button>
-            )}
             <button className="btn" onClick={() => setOverlay({ kind: "inbox" })} title="Add to inbox (Alt+I)">
               + Inbox
             </button>
@@ -208,6 +209,8 @@ export function App() {
         {overlay?.kind === "detail" && (
           <TaskDetail taskId={overlay.taskId} onClose={() => setOverlay(overlay.back ?? null)} />
         )}
+        {/* Last, so it's the top layer over any dialog (Esc closes it first). */}
+        <Lightbox />
       </ActionsContext.Provider>
     </ModelContext.Provider>
   );

@@ -1,3 +1,4 @@
+import { plural } from "../format";
 import { DEFAULT_SETTINGS } from "@sideshow/shared";
 import { useState } from "react";
 import { useA, useM } from "../model";
@@ -75,17 +76,14 @@ function GeneralSettings({ onClients }: { onClients: () => void }) {
 
       <h3 className="settings-group">On every device</h3>
 
-      {m.groupBy?.list && (
+      {/* With ConnectWise the field picks CW companies: nothing to tend. */}
+      {m.groupBy?.list && !m.config.cw && (
         <section className="setting">
-          <span className="setting-label">{m.groupBy.label}s</span>
+          <span className="setting-label">{plural(m.groupBy.label)}</span>
           <button className="btn setting-select" onClick={onClients}>
-            {m.groupBy.label}s…
+            {plural(m.groupBy.label)}…
           </button>
-          <p className="muted small setting-help">
-            {m.config.cw
-              ? `Link each ${m.groupBy.label.toLowerCase()} to its ConnectWise company, or remove ones you don't use.`
-              : `Remove ${m.groupBy.label.toLowerCase()}s you don't use.`}
-          </p>
+          <p className="muted small setting-help">Remove {plural(m.groupBy.label.toLowerCase())} you don't use.</p>
         </section>
       )}
 

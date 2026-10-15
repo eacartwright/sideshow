@@ -96,9 +96,9 @@ export class TicketMaker {
     if (ticketNumber(String(task.fields[cw.ticketField] ?? ""))) return { error: "This task already has a ticket" };
     if (!cw.clientField) return { error: "The profile has no client field" };
     const client = this.store.state.lists[String(task.fields[cw.clientField] ?? "")];
-    if (!client) return { error: "Pick the client first" };
+    if (!client) return { error: "Pick the company first" };
     const companyId = Number(client.ext?.cw?.companyId) || 0;
-    if (!companyId) return { error: `${client.name} isn't linked to a ConnectWise company` };
+    if (!companyId) return { error: `${client.name} isn't a ConnectWise company` };
     return { companyId, company: client.name };
   }
 

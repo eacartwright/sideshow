@@ -21,8 +21,16 @@
   --focus: #1747c9;
   --block-bg: #e2e9fb;
   --block-edge: #1747c9;
+  --lightbox-scrim: rgb(10 12 16 / 0.94);
+  --lightbox-text: #f3f5f8;
+  --lightbox-edge: rgb(243 245 248 / 0.4);
   --radius: 10px;
-  --tap: 44px;
+  /* Buttons, and the fields beside them (pickers, selects, small inputs, B|NB|NC). One
+     height so a row of them lines up. Smaller than the usual 44px tap target (2026-10-14,
+     Evan's call: denser everywhere, phone too). */
+  --tap: 36px;
+  --control: 34px;
+  --control-radius: 8px;
   /* Loaded in index.html. Settings › Experimental can try others, per device (fonts.ts). */
   --font: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-brand: "Unbounded", var(--font);
@@ -52,6 +60,9 @@
   --focus: #8fb6ff;
   --block-bg: #1a2640;
   --block-edge: #6ea0ff;
+  --lightbox-scrim: rgb(0 0 0 / 0.94);
+  --lightbox-text: #f3f5f8;
+  --lightbox-edge: rgb(243 245 248 / 0.4);
 }
 
 * {
@@ -122,7 +133,7 @@ select:focus {
 /* ---- buttons ---- */
 .btn {
   min-height: var(--tap);
-  padding: 0 16px;
+  padding: 0 14px;
   border-radius: var(--radius);
   border: 1.5px solid var(--border-strong);
   background: var(--surface);
@@ -181,9 +192,9 @@ select:focus {
 }
 
 .chip {
-  min-height: 36px;
-  padding: 0 14px;
-  border-radius: 999px;
+  min-height: var(--control);
+  padding: 0 12px;
+  border-radius: var(--control-radius);
   border: 1.5px dashed var(--border-strong);
   background: transparent;
   color: var(--muted);
@@ -201,9 +212,9 @@ select:focus {
 }
 
 .select {
-  min-height: 36px;
-  padding: 0 10px;
-  border-radius: 8px;
+  min-height: var(--control);
+  padding: 0 8px;
+  border-radius: var(--control-radius);
   border: 1.5px solid var(--border-strong);
   background: var(--surface);
   max-width: 100%;
@@ -276,24 +287,11 @@ select:focus {
 }
 .actionbar .btn {
   justify-content: center;
-  min-height: 52px;
+  min-height: 44px;
   padding: 0 8px;
 }
 .actionbar .new {
   font-size: 1.1rem;
-}
-/* With ▶ WRIT there are five: still one row on a phone, a little tighter. */
-@media (max-width: 899px) {
-  .actionbar:has(.writ) {
-    grid-template-columns: 1fr 1.2fr 1fr 1fr 1fr;
-    gap: 6px;
-    padding-left: 8px;
-    padding-right: 8px;
-  }
-  .actionbar:has(.writ) .btn {
-    padding: 0 4px;
-    font-size: 0.95rem;
-  }
 }
 
 .layout {
@@ -483,9 +481,18 @@ select:focus {
 }
 .now-meta {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
   align-items: center;
+}
+/* Its buttons (WRIT, New entry) are as tall as the fields beside them. */
+.now-meta .btn {
+  min-height: var(--control);
+  padding: 0 10px;
+}
+/* A ticket # is six digits: no need for more room. */
+.now-meta .ref-input {
+  width: 6.5rem;
 }
 
 .notes {
@@ -887,10 +894,10 @@ select:focus {
   flex-wrap: wrap;
 }
 .ref-input {
-  min-height: 36px;
+  min-height: var(--control);
   width: 9rem;
-  padding: 0 10px;
-  border-radius: 8px;
+  padding: 0 8px;
+  border-radius: var(--control-radius);
   border: 1.5px solid var(--border-strong);
   background: var(--surface);
 }
@@ -1482,8 +1489,9 @@ select:focus {
 }
 .segmented {
   display: inline-flex;
+  min-height: var(--control);
   border: 1.5px solid var(--border-strong);
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   overflow: hidden;
   background: var(--surface);
 }
@@ -1492,15 +1500,20 @@ select:focus {
   border-color: var(--warn);
 }
 .seg {
-  min-width: 40px;
-  min-height: 36px;
-  padding: 0 10px;
+  min-width: 36px;
+  /* Fills the group (as tall as the fields beside it). */
+  min-height: 0;
+  padding: 0 8px;
   border: 0;
   border-left: 1.5px solid var(--border);
   background: none;
   color: var(--muted);
   font-weight: 700;
   cursor: pointer;
+}
+.seg svg {
+  display: block;
+  margin: auto;
 }
 .seg:first-child {
   border-left: 0;
@@ -1779,7 +1792,7 @@ select:focus {
   min-height: 32px;
   padding: 0 10px;
   border: 1.5px solid var(--border);
-  border-radius: 999px;
+  border-radius: var(--control-radius);
   background: none;
   color: var(--muted);
   font-weight: 700;
@@ -2115,8 +2128,8 @@ a.ticket-link:hover {
   padding-right: 4px;
 }
 .chip-x {
-  min-width: 30px;
-  min-height: 30px;
+  min-width: 28px;
+  min-height: 28px;
   border: none;
   border-radius: 999px;
   background: transparent;
@@ -2136,10 +2149,10 @@ a.ticket-link:hover {
   overflow: visible;
 }
 .chip-open {
-  min-height: 33px;
-  padding: 0 4px 0 14px;
+  min-height: calc(var(--control) - 3px);
+  padding: 0 4px 0 12px;
   border: none;
-  border-radius: 999px;
+  border-radius: var(--control-radius);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -2486,6 +2499,54 @@ p.picker-footer {
   cursor: zoom-in;
 }
 
+/* A note's picture over the page (Lightbox.tsx). Above dialogs, since it opens from them. */
+.backdrop.lightbox {
+  z-index: 60;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  background: var(--lightbox-scrim);
+  flex-direction: column;
+  align-items: stretch;
+}
+.lightbox-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: var(--lightbox-text);
+}
+.lightbox-bar .btn {
+  color: var(--lightbox-text);
+  background: transparent;
+  border-color: var(--lightbox-edge);
+  text-decoration: none;
+}
+.lightbox-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lightbox-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: auto;
+  padding: 16px;
+}
+.lightbox-body img {
+  /* Centred, but still scrollable to every edge once it's bigger than the screen. */
+  margin: auto;
+  flex: none;
+  border-radius: 6px;
+}
+.lightbox-body img.zoom-in {
+  cursor: zoom-in;
+}
+.lightbox-body img.zoom-out {
+  cursor: zoom-out;
+}
+
 /* A session open for editing in Task details: just its header line (the editor below has the notes). */
 .session.open {
   flex-direction: row;
@@ -2525,10 +2586,10 @@ p.picker-footer {
 }
 /* As tall as the chips and the ticket box beside it. */
 .ticket-links .btn.icon {
-  width: 36px;
-  min-height: 36px;
-  height: 36px;
-  border-radius: 8px;
+  width: var(--control);
+  min-height: var(--control);
+  height: var(--control);
+  border-radius: var(--control-radius);
 }
 .ticket-open {
   text-decoration: none;

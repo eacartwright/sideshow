@@ -338,6 +338,7 @@ describe("editing", () => {
   it("editing an entered session puts it back to enter, flagged; re-marking clears the flag", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + H);
     enter(s, T0 + 2 * H, `A@${T0}`);
     run(s, T0 + 3 * H, { type: "session.update", sessionId: `A@${T0}`, patch: { start: T0 - 15 * M } });
@@ -350,6 +351,7 @@ describe("editing", () => {
   it("re-saving the same value doesn't count as a change", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + H);
     enter(s, T0 + 2 * H, `A@${T0}`);
     run(s, T0 + 3 * H, { type: "session.update", sessionId: `A@${T0}`, patch: { start: T0 } });
@@ -359,6 +361,7 @@ describe("editing", () => {
   it("adds a manual session with the task's work type", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     run(s, T0 + M, { type: "session.update", sessionId: `A@${T0}`, patch: { fields: { workType: "remote" } } });
     stop(s, T0 + H);
     run(s, T0 + 5 * H, { type: "session.create", sessionId: "m1", taskId: "A", start: T0 + 2 * H, end: T0 + 3 * H });
@@ -417,6 +420,7 @@ describe("late ops (phone was offline)", () => {
   it("a late switch inside a later-paused session keeps the pause time", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + 2 * H);
     startNew(s, T0 + H, "B"); // late
     expect(span(s, `A@${T0}`)).toEqual([T0, T0 + H]);
@@ -491,6 +495,7 @@ describe("new entry (fresh start)", () => {
   it("arriving late inside a session that has since ended, it ends where that one did", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + 2 * H);
     fresh(s, T0 + H, "A"); // the phone, offline
     expect(span(s, `A@${T0}`)).toEqual([T0, T0 + H]);
@@ -546,6 +551,19 @@ describe("ticket lookup", () => {
     expect(s.tasks.A!.fields).toEqual({ ticket: "#123 ", client: "acme" });
   });
 
+  it("a refresh (keepTitle) keeps a title renamed since, but follows a renamed ticket", () => {
+    const s = withTask();
+    lookup(s, "123");
+    run(s, T0 + 2 * M, { type: "task.update", taskId: "A", patch: { title: "Printer offline at FD2" } });
+    const refresh = (summary: string) =>
+      run(s, T0 + 3 * M, { type: "task.refInfo", taskId: "A", field: "ticket", ref: "123", info: { ...info, summary }, keepTitle: true });
+    refresh("Printer offline (CW)");
+    expect(s.tasks.A).toMatchObject({ title: "Printer offline at FD2", refInfo: { summary: "Printer offline (CW)" } });
+    run(s, T0 + 4 * M, { type: "task.update", taskId: "A", patch: { title: "Printer offline (CW)" } });
+    refresh("Printer replaced");
+    expect(s.tasks.A!.title).toBe("Printer replaced");
+  });
+
   it("replaces the title with the ticket's summary, but never a client set meanwhile", () => {
     const s = withTask("My title");
     run(s, T0, { type: "task.update", taskId: "A", patch: { fields: { client: "other" } } });
@@ -593,6 +611,7 @@ describe("fields", () => {
   it("a new session inherits each field from the latest earlier session that has it", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     run(s, T0 + M, { type: "session.update", sessionId: `A@${T0}`, patch: { fields: { workType: "remote", billing: "No Charge" } } });
     stop(s, T0 + H);
     cont(s, T0 + 2 * H, "A");
@@ -605,6 +624,7 @@ describe("fields", () => {
   it("changing a field of an entered session flags it; setting the same value doesn't", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + H);
     const id = `A@${T0}`;
     run(s, T0 + H, { type: "session.update", sessionId: id, patch: { fields: { workType: "remote" }, enteredAt: T0 + H } });
@@ -617,6 +637,7 @@ describe("fields", () => {
   it("a merge takes each field from the earliest part that has it", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + H);
     cont(s, T0 + 2 * H, "A");
     stop(s, T0 + 3 * H);
@@ -669,6 +690,7 @@ describe("ops queued before profiles", () => {
   it("a manual session's categoryId: undefined inherits, null means none", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     run(s, T0 + M, { type: "session.update", sessionId: `A@${T0}`, patch: { fields: { workType: "remote" } } });
     stop(s, T0 + H);
     legacy(s, T0 + 5 * H, { type: "session.create", sessionId: "m1", taskId: "A", start: T0 + 2 * H, end: T0 + 3 * H });
@@ -757,6 +779,7 @@ describe("list item defaults", () => {
     run(s, T0, { type: "list.update", itemId: "remote", patch: { defaults: { billing: "Billable" } } });
     run(s, T0, { type: "list.update", itemId: "travel", patch: { defaults: { billing: "Do Not Bill" } } });
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     return s;
   };
   const id = `A@${T0}`;
@@ -802,6 +825,7 @@ describe("integration data (ext)", () => {
   it("merges per integration, key by key; null removes a key", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + H);
     const id = `A@${T0}`;
     run(s, T0 + H, { type: "session.update", sessionId: id, patch: { ext: { cw: { email: true } } } });
@@ -814,6 +838,7 @@ describe("integration data (ext)", () => {
   it("changing it doesn't count as editing an entered session", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + H);
     const id = `A@${T0}`;
     pushed(s, T0 + 2 * H, id, 501);
@@ -838,6 +863,7 @@ describe("deleting a task", () => {
   it("takes its sessions with it, stops it, and undo brings back only those", () => {
     const s = emptyState();
     startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "work"); // a new task stopped with no notes would be dropped
     stop(s, T0 + H);
     cont(s, T0 + 2 * H, "A");
     run(s, T0 + 3 * H, { type: "timer.pause" });
@@ -877,5 +903,98 @@ describe("notes as plain text", () => {
     );
     expect(firstLine("**Printer** offline\nmore")).toBe("Printer offline");
     expect(plainNote("2 * 3 * 4")).toBe("2 * 3 * 4");
+  });
+});
+
+describe("dropping an empty new task", () => {
+  it("a new task stopped with no notes goes, however long it ran", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    stop(s, T0 + 2 * H);
+    expect(s.tasks.A!.deleted).toBe(true);
+    expect(live(s, "A")).toHaveLength(0);
+  });
+
+  it("stop all drops it too, paused or running", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    startNew(s, T0 + H, "B"); // switching pauses A; that alone doesn't drop it
+    expect(s.tasks.A!.deleted).toBeFalsy();
+    stop(s, T0 + 2 * H);
+    expect([s.tasks.A!.deleted, s.tasks.B!.deleted]).toEqual([true, true]);
+  });
+
+  it("pausing doesn't drop it", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    run(s, T0 + H, { type: "timer.pause" });
+    expect(s.tasks.A!.deleted).toBeFalsy();
+    expect(s.tasks.A!.pausedAt).toBe(T0 + H);
+  });
+
+  it("keeps it with notes, a description, or more than one session", () => {
+    const s = emptyState();
+    startNew(s, T0, "A");
+    note(s, T0, `A@${T0}`, "did a thing");
+    startNew(s, T0 + H, "B");
+    run(s, T0 + H, { type: "task.update", taskId: "B", patch: { description: "plan" } });
+    startNew(s, T0 + 2 * H, "C");
+    note(s, T0 + 2 * H, `C@${T0 + 2 * H}`, "first");
+    stop(s, T0 + 3 * H);
+    cont(s, T0 + 5 * H, "C");
+    stop(s, T0 + 6 * H);
+    expect([s.tasks.A!.deleted, s.tasks.B!.deleted, s.tasks.C!.deleted]).toEqual([undefined, undefined, undefined]);
+  });
+
+  it("keeps a task made beforehand (Inbox), even when its start is moved earlier for a new one", () => {
+    const s = emptyState();
+    run(s, T0, { type: "task.create", taskId: "A", title: "Planned" });
+    cont(s, T0 + H, "A");
+    stop(s, T0 + 2 * H);
+    expect(s.tasks.A!.deleted).toBeFalsy();
+    startNew(s, T0 + 3 * H, "B");
+    run(s, T0 + 3 * H, { type: "session.update", sessionId: `B@${T0 + 3 * H}`, patch: { start: T0 + 150 * M } });
+    stop(s, T0 + 4 * H);
+    expect(s.tasks.B!.deleted).toBe(true);
+  });
+});
+
+describe("moving a session (▶ WRIT on the running card)", () => {
+  it("moves the running session and drops the empty task it came from", () => {
+    const s = emptyState();
+    startNew(s, T0, "W");
+    note(s, T0, `W@${T0}`, "timesheet");
+    run(s, T0, { type: "session.update", sessionId: `W@${T0}`, patch: { fields: { workType: "admin", billing: "No Charge" } } });
+    stop(s, T0 + H);
+    startNew(s, T0 + 2 * H, "A");
+    run(s, T0 + 2 * H, { type: "session.update", sessionId: `A@${T0 + 2 * H}`, patch: { notes: "emails", fields: { workType: "remote" } } });
+    run(s, T0 + 2 * H + M, { type: "session.move", sessionId: `A@${T0 + 2 * H}`, taskId: "W" });
+    const moved = s.sessions[`A@${T0 + 2 * H}`]!;
+    expect(moved).toMatchObject({ taskId: "W", end: null, notes: "emails", fields: { workType: "remote", billing: "No Charge" } });
+    expect(s.tasks.A!.deleted).toBe(true);
+    expect(moved.deleted).toBe(false);
+    expect(openTasks(s)).toEqual(["W"]);
+  });
+
+  it("keeps the old task if it has other time", () => {
+    const s = emptyState();
+    startNew(s, T0, "W");
+    note(s, T0, `W@${T0}`, "x");
+    stop(s, T0 + H);
+    startNew(s, T0 + 2 * H, "A");
+    note(s, T0 + 2 * H, `A@${T0 + 2 * H}`, "x");
+    stop(s, T0 + 3 * H);
+    cont(s, T0 + 5 * H, "A");
+    run(s, T0 + 5 * H + M, { type: "session.move", sessionId: `A@${T0 + 5 * H}`, taskId: "W" });
+    expect(s.tasks.A!.deleted).toBeFalsy();
+    expect(live(s, "A")).toHaveLength(1);
+  });
+
+  it("won't give a task two open sessions", () => {
+    const s = emptyState();
+    startNew(s, T0, "W");
+    startNew(s, T0 + H, "A", "alongside");
+    run(s, T0 + 2 * H, { type: "session.move", sessionId: `A@${T0 + H}`, taskId: "W" });
+    expect(s.sessions[`A@${T0 + H}`]!.taskId).toBe("A");
   });
 });

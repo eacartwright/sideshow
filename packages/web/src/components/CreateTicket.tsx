@@ -100,7 +100,7 @@ export function CreateTicketDialog({ taskId, onClose }: { taskId: Id; onClose: (
     : !client
       ? `Pick the ${clientDef?.label.toLowerCase() ?? "client"} first.`
       : !linked
-        ? `${client.name} isn't linked to a ConnectWise company yet: pick it again from the list to link it.`
+        ? `${client.name} isn't a ConnectWise company: pick the ${clientDef?.label.toLowerCase() ?? "company"} again from the list.`
         : !summary.trim()
           ? "The ticket needs a summary."
           : null;

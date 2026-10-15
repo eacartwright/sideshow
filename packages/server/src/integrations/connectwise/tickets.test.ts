@@ -90,12 +90,12 @@ describe("creating a CW ticket from a task", () => {
     expect(made[0].ownerId).toBeUndefined();
   });
 
-  it("refuses a task that has a ticket, an unlinked client, and a long summary", async () => {
+  it("refuses a task that has a ticket, a company not from CW, and a long summary", async () => {
     const { made, maker } = setup();
     await maker.create({ taskId: "A", summary: "x", boardId: 1, assign: true });
     expect(await maker.create({ taskId: "A", summary: "again", boardId: 1, assign: true })).toEqual({ error: "This task already has a ticket" });
     expect(await maker.create({ taskId: "B", summary: "x", boardId: 1, assign: true })).toEqual({
-      error: "Acme isn't linked to a ConnectWise company",
+      error: "Acme isn't a ConnectWise company",
     });
     expect(await maker.create({ taskId: "A", summary: "y".repeat(101), boardId: 1, assign: true })).toMatchObject({ error: expect.stringMatching(/100/) });
     expect(made).toHaveLength(1);

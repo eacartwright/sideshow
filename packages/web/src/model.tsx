@@ -260,6 +260,11 @@ export interface Actions {
    * ticket # (the lookup then fills the title and client). Focuses the notes, like ▶ New.
    */
   startWeekly(alongside?: boolean): void;
+  /**
+   * WRIT on the running card: move this session to this week's WRIT task (made if there's none
+   * yet). The task it was on goes if ▶ New made it just for this.
+   */
+  moveToWeekly(sessionId: Id): void;
   /** ▶ on an existing task. */
   continueTask(taskId: Id, alongside?: boolean): void;
   /** Stop the clock but keep the task on the Now stack; everything running if none given. */
@@ -276,7 +281,7 @@ export interface Actions {
   /** Set (or with null, clear) one of a task's fields. */
   setTaskField(taskId: Id, key: string, value: FieldValue | null): void;
   /** Fetch the CW ticket behind the task's ticket field and record it. Resolves to an error message, or null. */
-  lookupTicket(taskId: Id): Promise<string | null>;
+  lookupTicket(taskId: Id, opts?: { keepTitle?: boolean }): Promise<string | null>;
   /** Ask CW which of these pushed sessions' entries were deleted there (they go back to To enter). Resolves to how many, or null if CW couldn't be asked. */
   checkCw(sessionIds: Id[]): Promise<number | null>;
   /** Write the task's title to its CW ticket as the summary. Resolves to an error message, or null. */
@@ -306,13 +311,6 @@ export interface Actions {
    * company's CW name.
    */
   clientForCompany(list: string, company: { id: number; name: string }): Id;
-  /** Link a list item to a CW company (and give it the company's name), or with null unlink it. */
-  linkListItem(itemId: Id, company: { id: number; name: string } | null): void;
-  /**
-   * Fold list items into one: every task using one of `itemIds` (in a task field of that list)
-   * uses `keepId` instead, and the others are removed (archived).
-   */
-  mergeListItems(keepId: Id, itemIds: Id[]): void;
   /** Take an item out of its list (archived, so records using it keep their value), with an Undo toast. */
   removeListItem(itemId: Id): void;
   restoreListItem(itemId: Id): void;
@@ -358,6 +356,24 @@ export function useActionsFactory(): Actions {
       if (force || !coarse()) el.focus({ preventScroll: true });
       el.scrollIntoView({ block: "center", behavior: "smooth" });
     };
+    // This week's WRIT ticket and the task for it, if there is one (the newest, unarchived first).
+    const findWeekly = () => {
+      const w = getWeekly();
+      const snap = sync.getSnapshot();
+      const field = snap.config.profile.connectwise?.ticketField;
+      if (!w || !field) {
+        void refreshWeekly();
+        showToast("This week's WRIT isn't known yet: check the connection and try again");
+        return null;
+      }
+      const n = String(w.ticket);
+      const task = Object.values(snap.view.tasks)
+        .filter((t) => !t.deleted && ticketNumber(String(t.fields[field] ?? "")) === n)
+        .sort((x, y) => Number(x.status === "archived") - Number(y.status === "archived") || y.updatedAt - x.updatedAt)[0];
+      return { w, field, n, task };
+    };
+    const openSessionOf = (taskId: Id) =>
+      Object.values(sync.getSnapshot().view.sessions).some((s) => !s.deleted && s.end === null && s.taskId === taskId);
     return {
       notesRef,
       startNew(title = "", alongside = false, projectId = null) {
@@ -375,18 +391,9 @@ export function useActionsFactory(): Actions {
         return sessionId;
       },
       startWeekly(alongside = false) {
-        const w = getWeekly();
-        const snap = sync.getSnapshot();
-        const field = snap.config.profile.connectwise?.ticketField;
-        if (!w || !field) {
-          void refreshWeekly();
-          showToast("This week's WRIT isn't known yet: check the connection and try again");
-          return;
-        }
-        const n = String(w.ticket);
-        const task = Object.values(snap.view.tasks)
-          .filter((t) => !t.deleted && ticketNumber(String(t.fields[field] ?? "")) === n)
-          .sort((x, y) => Number(x.status === "archived") - Number(y.status === "archived") || y.updatedAt - x.updatedAt)[0];
+        const weekly = findWeekly();
+        if (!weekly) return;
+        const { w, field, n, task } = weekly;
         const taskId = task?.id ?? newId();
         activate(taskId);
         focusNotes(true);
@@ -397,6 +404,21 @@ export function useActionsFactory(): Actions {
           ...(task ? {} : { newTask: { title: w.summary, fields: { [field]: n } } }),
           mode: alongside ? "alongside" : "switch",
         });
+      },
+      moveToWeekly(sessionId) {
+        const weekly = findWeekly();
+        const s = sync.getSnapshot().view.sessions[sessionId];
+        if (!weekly || !s || s.deleted) return;
+        const { w, field, n, task } = weekly;
+        if (task?.id === s.taskId) return;
+        if (task && s.end === null && openSessionOf(task.id)) {
+          showToast("This week's WRIT is already running");
+          return;
+        }
+        const taskId = task?.id ?? newId();
+        if (!task) sync.dispatch({ type: "task.create", taskId, title: w.summary, projectId: null, fields: { [field]: n } });
+        activate(taskId);
+        sync.dispatch({ type: "session.move", sessionId, taskId });
       },
       continueTask(taskId, alongside = false) {
         activate(taskId);
@@ -432,7 +454,7 @@ export function useActionsFactory(): Actions {
       setTaskField(taskId, key, value) {
         sync.dispatch({ type: "task.update", taskId, patch: { fields: { [key]: value } } }, 600);
       },
-      async lookupTicket(taskId) {
+      async lookupTicket(taskId, opts) {
         const snap = sync.getSnapshot();
         const cw = snap.config.profile.connectwise;
         const task = snap.view.tasks[taskId];
@@ -473,6 +495,7 @@ export function useActionsFactory(): Actions {
               fetchedAt: Date.now(),
             },
             fill,
+            ...(opts?.keepTitle ? { keepTitle: true } : {}),
           });
           return null;
         } catch (err) {
@@ -607,27 +630,6 @@ export function useActionsFactory(): Actions {
         return itemId;
       },
       clientForCompany: clientFor,
-      linkListItem(itemId, company) {
-        sync.dispatch({
-          type: "list.update",
-          itemId,
-          patch: company ? { name: company.name.trim(), ext: { cw: { companyId: company.id } } } : { ext: { cw: { companyId: null } } },
-        });
-      },
-      mergeListItems(keepId, itemIds) {
-        const snap = sync.getSnapshot();
-        const keep = snap.view.lists[keepId];
-        if (!keep) return;
-        const gone = new Set(itemIds.filter((id) => id !== keepId));
-        // Task fields only: changing a session's field would flag entered sessions as edited.
-        const keys = snap.config.profile.fields.filter((f) => f.on === "task" && f.list === keep.list).map((f) => f.key);
-        for (const task of Object.values(snap.view.tasks)) {
-          const patch: Record<string, Id> = {};
-          for (const k of keys) if (gone.has(String(task.fields[k] ?? ""))) patch[k] = keepId;
-          if (Object.keys(patch).length) sync.dispatch({ type: "task.update", taskId: task.id, patch: { fields: patch } });
-        }
-        for (const id of gone) sync.dispatch({ type: "list.update", itemId: id, patch: { archived: true } });
-      },
       removeListItem(itemId) {
         const name = sync.getSnapshot().view.lists[itemId]?.name ?? "";
         sync.dispatch({ type: "list.update", itemId, patch: { archived: true } });

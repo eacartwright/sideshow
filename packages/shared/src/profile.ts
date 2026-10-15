@@ -6,6 +6,10 @@ import type { Fields, FieldValue } from "./types";
 
 export type FieldType = "text" | "choice" | "list" | "bool";
 
+/** Icons a choice field's options can show (drawn in the web app's fields.tsx). */
+export const FIELD_ICONS = ["lock", "chat"] as const;
+export type FieldIcon = (typeof FIELD_ICONS)[number];
+
 export interface FieldDef {
   /** Where the value is stored in a task's or session's `fields`. Never reuse a key for something else. */
   key: string;
@@ -23,6 +27,8 @@ export interface FieldDef {
   options?: string[];
   /** `choice`: a short label per option, in the same order ("B" for Billable), for compact controls. */
   short?: string[];
+  /** `choice`: an icon per option instead of the label (FIELD_ICONS), in the same order. */
+  icons?: FieldIcon[];
   /** A `list` field that gets its own filter chips (and later a sidebar view and page). */
   groupBy?: boolean;
   /** Put in front of the value when shown ("#" for a ticket number). */
@@ -101,6 +107,8 @@ export function profileProblems(p: Profile): string[] {
     if (f.input === "segmented" && f.type !== "choice") out.push(`${at}: "input": "segmented" is for choice fields`);
     if (f.newEntry && f.on !== "session") out.push(`${at}: "newEntry" is for session fields`);
     if (f.short && f.short.length !== f.options?.length) out.push(`${at}: "short" needs one label per option`);
+    if (f.icons && f.icons.length !== f.options?.length) out.push(`${at}: "icons" needs one icon per option`);
+    for (const i of f.icons ?? []) if (!FIELD_ICONS.includes(i)) out.push(`${at}: no icon "${i}" (there's ${FIELD_ICONS.join(", ")})`);
     if (f.default !== undefined && f.type === "choice" && !f.options?.includes(String(f.default)))
       out.push(`${at}: default "${f.default}" isn't one of its options`);
   }
