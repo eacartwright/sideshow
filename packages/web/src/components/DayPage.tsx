@@ -343,6 +343,9 @@ function EntryGroup({
   const entered = sessions.filter((s) => s.enteredAt).length;
   const enterable = sessions.filter((s) => !s.enteredAt && s.end !== null);
   const pickedList = sessions.filter((s) => picked.has(s.id));
+  // Edited after going to CW: pushed ones can be updated from here; ones entered by hand can't.
+  const changed = sessions.filter((s) => s.changedSinceEntered && !s.enteredAt && !s.ext?.cw?.removedAt);
+  const updatable = (s: Session) => canPush && isUpdate(s);
   const pickedSameDay = pickedList.every((s) => startOfDay(s.start) === startOfDay(pickedList[0]!.start));
   const missingSession = columns
     .map(def)
@@ -533,10 +536,14 @@ function EntryGroup({
           </td>
         </tr>
       )}
-      {sessions.some((s) => s.changedSinceEntered && !s.enteredAt) && (
+      {changed.length > 0 && (
         <tr className="group-foot">
           <td colSpan={span} className="warn small">
-            ⚠ Changed after you entered it: update the entry in {target}, then mark it again.
+            {changed.every(updatable)
+              ? `⚠ Changed after you pushed it: Update… sends the change to the same entry in ${target}.`
+              : changed.some(updatable)
+                ? `⚠ Changed after it went to ${target}: Update… sends pushed ones to the same entry; ones you entered yourself, fix in ${target} and mark again.`
+                : `⚠ Changed after you entered it: update the entry in ${target}, then mark it again.`}
           </td>
         </tr>
       )}
@@ -675,7 +682,10 @@ function SessionRows({
                   </span>
                 )}
                 {s.changedSinceEntered && !s.enteredAt && !s.ext?.cw?.removedAt && (
-                  <span className="warn" title={`Changed after you entered it; update it in ${target}`}>
+                  <span
+                    className="warn"
+                    title={canPush && inCw ? `Changed after you pushed it; Update… sends the change to entry #${String(s.ext!.cw!.entryId)}` : `Changed after you entered it; update it in ${target}`}
+                  >
                     ⚠
                   </span>
                 )}
