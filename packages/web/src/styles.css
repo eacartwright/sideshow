@@ -2817,3 +2817,24 @@ p.picker-footer {
 .ws-add .search {
   flex: 1 1 12rem;
 }
+
+/* ---- Settings › Connections ---- */
+.conn-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 8px;
+}
+.conn-field {
+  display: grid;
+  gap: 4px;
+}
+.conn-status {
+  margin: 8px 0 0;
+  font-weight: 700;
+  color: var(--muted);
+}
+.conn-status.on,
+.conn-ok {
+  color: var(--running);
+  font-weight: 600;
+}

@@ -35,6 +35,10 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   with `processNotifications: false`. Test tickets/notes only on company **19300 Veritaz IT
   Solutions** (`veritasitsolutions`; DESIGN.md §10); the standing test ticket is **#106745**.
   Ids on this instance: boards Tier 1 = 1, Internal = 30; Evan = member 192 (`ecartwright`). Page with `orderBy=id asc` (name ordering repeats records).
+  Settings › Connections edits the `CW_*` lines (`connection.ts`, `envfile.ts`;
+  `GET /api/connections`, `POST /api/connections/cw[/test]`; the private key never goes to the
+  browser, and is kept only while site/company/public key are unchanged; JSON +
+  `Sec-Fetch-Site` only). `SIDESHOW_ENV_FILE` points a scratch server at a scratch `.env`.
   CW is optional: the server enables it only when `CW_SITE` is set and the profile has a
   `connectwise` section (`config.cw` in `/api/state`; the UI hides CW features otherwise). `npm run dev` loads the root `.env`. Endpoint so far:
   `GET /api/cw/tickets/:id` → `{summary, company, companyId, closed}`;
@@ -162,7 +166,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   §4); the Entries table **edited in place** with CW (dates, times, hours, ticket #, company;
   click-to-copy without an integration); the Day tab's company filter beside the date. Check
   on the mini PC after the update: no `workspaces.json` = just main, nothing changes until a
-  workspace is made. Next asked for: a **Connections** tab for the CW settings (backlog).
+  workspace is made. Also **Settings › Connections** (the CW settings, edited in `.env`; DESIGN.md
+  §10).
 
 - **Built 2026-10-19** from Evan's list (DESIGN.md §7): company filter on the task list (a
   searchable picker, not chips); **Move to…** in the session editor (any task or a new one);

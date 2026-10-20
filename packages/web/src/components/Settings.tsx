@@ -7,6 +7,7 @@ import { ALL_SANS } from "../fonts-sans";
 import { setThemePref, themePref, type ThemePref } from "../theme";
 import { Dialog } from "./Dialog";
 import { WorkspaceSettings } from "./WorkspaceSettings";
+import { ConnectionSettings } from "./ConnectionSettings";
 
 // Two kinds of settings. Appearance belongs to this device (localStorage). The reducer's
 // tunable rules are synced (every device and the server must apply the same thresholds),
@@ -21,11 +22,12 @@ const THEMES: { value: ThemePref; label: string }[] = [
 const BLIP_OPTIONS = [0, 10, 30, 60, 120];
 const GAP_OPTIONS = [0, 2, 5, 10, 15, 30, 60];
 
-export type SettingsTab = "general" | "workspaces" | "experimental";
+export type SettingsTab = "general" | "workspaces" | "connections" | "experimental";
 type Tab = SettingsTab;
 const TABS: { value: Tab; label: string }[] = [
   { value: "general", label: "General" },
   { value: "workspaces", label: "Workspaces" },
+  { value: "connections", label: "Connections" },
   { value: "experimental", label: "Experimental" },
 ];
 
@@ -49,7 +51,7 @@ export function SettingsDialog({ onClose, onClients, initialTab = "general" }: {
         ))}
       </div>
       <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>
-        {tab === "general" ? <GeneralSettings onClients={onClients} /> : tab === "workspaces" ? <WorkspaceSettings /> : <ExperimentalSettings />}
+        {tab === "general" ? <GeneralSettings onClients={onClients} /> : tab === "workspaces" ? <WorkspaceSettings /> : tab === "connections" ? <ConnectionSettings /> : <ExperimentalSettings />}
       </div>
     </Dialog>
   );

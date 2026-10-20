@@ -160,10 +160,11 @@ export class Workspace {
       this.store.seed({ lists: listChanges, projects: [], tasks, sessions });
       console.log(`[${this.id}] profile lists: ${listChanges.length} items updated, defaults filled on ${tasks.length + sessions.length} records`);
     }
-    this.startCw();
+    this.restartCw();
   }
 
-  private startCw() {
+  /** (Re)start the CW parts with the server's current connection (Settings › Connections changes it). */
+  restartCw() {
     for (const t of this.timers) clearInterval(t);
     this.timers = [];
     this.cwParts = null;

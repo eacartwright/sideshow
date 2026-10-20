@@ -439,6 +439,11 @@ export class ConnectWiseClient {
     return this.getAll<CwRef & { defaultFlag?: boolean; inactiveFlag?: boolean }>(`/service/boards/${boardId}/types`);
   }
 
+  /** The CW version and whether these keys work (any signed-in request would do; this one is small). */
+  systemInfo() {
+    return this.get<{ version?: string }>("/system/info");
+  }
+
   /** e.g. `identifier="ecartwright"` or `firstName="Evan"`. */
   findMembers(conditions: string) {
     return this.get<CwMember[]>("/system/members", { conditions, pageSize: 25 });

@@ -3,6 +3,9 @@ dist
 *.log
 *.local
 .env
+# Settings › Connections keeps the previous .env (with the keys) beside it
+.env.bak
+.env.tmp
 
 # SQLite database and backups
 data/

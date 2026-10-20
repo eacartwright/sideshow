@@ -667,6 +667,18 @@ its coordination ticket is then two clicks.
 
 ### ConnectWise (first integration)
 
+**The connection** (Settings › Connections, 2026-10-20): site, company, public and private key,
+client id and member, for the whole server (each workspace uses it if its profile has a
+`connectwise` section). Kept as the `CW_*` lines of the server's `.env`, which the tab rewrites
+in place (other lines untouched, the previous file kept as `.env.bak`), so they're never in the
+synced state, the database or its backups. Saving tests the settings first (signs in, finds
+the member) and applies them without a restart. The private key is never sent back to the
+browser: leaving it empty keeps the saved one, but only while the site, company and public key
+are unchanged, so a saved key is never sent somewhere new. Changes are taken only as JSON from
+the app's own pages (`Sec-Fetch-Site`), so another site can't post them through the browser.
+No site turns ConnectWise off (the key stays in `.env`). The port and the data and backup
+folders stay `.env`-only: a wrong value there locks you out.
+
 | CW | Core |
 |---|---|
 | Project | Project (linked) |

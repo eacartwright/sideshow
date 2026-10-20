@@ -1,17 +1,19 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { streamSSE } from "hono/streaming";
 import { existsSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { newId, OP_TYPES, type OpEnvelope } from "@sideshow/shared";
 import { FileStore, MAX_FILE } from "./files";
-import { ConnectWiseClient, CwError, configFromEnv } from "./integrations/connectwise/client";
+import { ConnectWiseClient, CwError } from "./integrations/connectwise/client";
+import { ENV_KEYS, resolve, settingsFromEnv, shown, testConnection, type CwSettings } from "./integrations/connectwise/connection";
+import { updateEnvFile } from "./envfile";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
 import type { NewTicket } from "./integrations/connectwise/tickets";
 import { listProfiles } from "./profile";
-import { MAIN, Workspaces, type Workspace } from "./workspaces";
+import { MAIN, Workspaces, type Workspace, type WorkspaceContext } from "./workspaces";
 
 const PORT = Number(process.env.PORT ?? 8787);
 // The app was called fieldtime until 2026-10: FIELDTIME_* settings still work.
@@ -32,48 +34,67 @@ function defaultDbFile(): string {
 }
 const WEB_DIST = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
-// ConnectWise is optional: without the CW_* settings in .env, ticket lookup is off. A workspace
-// uses it when its profile has a connectwise section.
-const cw = (() => {
-  if (!process.env.CW_SITE) return null;
-  try {
-    return new ConnectWiseClient(configFromEnv());
-  } catch (err) {
-    console.error(`ConnectWise is off: ${(err as Error).message}`);
+// The server's .env, where Settings › Connections saves the ConnectWise settings.
+const ENV_FILE = setting("ENV_FILE") ?? fileURLToPath(new URL("../../../.env", import.meta.url));
+
+// ConnectWise is optional: without the CW_* settings, ticket lookup is off. A workspace uses it
+// when its profile has a connectwise section. Settings › Connections can change it while the
+// server runs (useCw).
+let cwSettings = settingsFromEnv(process.env);
+function cwClient(s: CwSettings): ConnectWiseClient | null {
+  if (!s.site) return null;
+  const missing = (["companyId", "clientId", "publicKey", "privateKey"] as const).filter((k) => !s[k]).map((k) => ENV_KEYS[k]);
+  if (missing.length) {
+    console.error(`ConnectWise is off: missing ${missing.join(", ")}`);
     return null;
   }
-})();
-// Pushing time entries also needs whose time it is (a CW member identifier, e.g. ecartwright).
-const CW_MEMBER = process.env.CW_MEMBER?.trim() || null;
+  return new ConnectWiseClient({ ...s, baseUrl: process.env.CW_BASE_URL || undefined });
+}
 
 // Every workspace (workspaces.ts). Opening one loads its profile first: a broken profile file
 // stops the server before anything changes.
-const workspaces = new Workspaces({
+const ctx: WorkspaceContext = {
   dataDir: dirname(DB_FILE),
   mainDbFile: DB_FILE,
   backupDir: BACKUP_DIR,
   filesDir: FILES_DIR,
   envProfile: process.env.PROFILE,
-  cw,
-  cwMember: CW_MEMBER,
+  cw: cwClient(cwSettings),
+  // Pushing time entries also needs whose time it is (a CW member identifier, e.g. ecartwright).
+  cwMember: cwSettings.member || null,
   cwWeeklySummary: process.env.CW_WEEKLY_SUMMARY,
-});
+};
+const workspaces = new Workspaces(ctx);
 for (const ws of workspaces.all()) {
   const file = ws.profileFile();
   console.log(`workspace ${ws.id} (${ws.entry.name}): ${file ? `profile ${ws.profile.name}` : "no profile"}`);
 }
 if (!process.env.PROFILE && !workspaces.main.entry.profile) console.log("(set PROFILE in .env for job fields)");
-if (cw && !CW_MEMBER && workspaces.all().some((w) => w.profile.connectwise)) console.log("ConnectWise push is off: set CW_MEMBER in .env");
+if (ctx.cw && !ctx.cwMember && workspaces.all().some((w) => w.profile.connectwise)) console.log("ConnectWise push is off: set CW_MEMBER");
+
+/** New ConnectWise settings (saved in .env already): every workspace starts using them. */
+function useCw(s: CwSettings) {
+  cwSettings = s;
+  for (const [k, name] of Object.entries(ENV_KEYS)) process.env[name] = s[k as keyof CwSettings];
+  ctx.cw = cwClient(s);
+  ctx.cwMember = s.member || null;
+  for (const ws of workspaces.all()) {
+    ws.restartCw();
+    ws.notifyConfig();
+  }
+  console.log(ctx.cw ? `ConnectWise: now ${s.site} as ${s.member || "(no member: push off)"}` : "ConnectWise: off");
+}
 
 /**
  * A ticket's page in CW, with {id} for the number: the form of CW's own "Share" link, on the API
  * host without its "api-" prefix (api-na.myconnectwise.net → na.myconnectwise.net). Signed out,
  * CW sends it through its login and back. CW_TICKET_URL overrides.
  */
-const CW_TICKET_URL = !cw
-  ? null
-  : (process.env.CW_TICKET_URL ??
-    `https://${process.env.CW_SITE!.replace(/^api-/, "")}/v4_6_release/services/system_io/Service/fv_sr100_request.rails?service_recid={id}&companyName=${encodeURIComponent(process.env.CW_COMPANY_ID ?? "")}`);
+const ticketUrl = () =>
+  !ctx.cw
+    ? null
+    : (process.env.CW_TICKET_URL ??
+      `https://${cwSettings.site.replace(/^api-/, "")}/v4_6_release/services/system_io/Service/fv_sr100_request.rails?service_recid={id}&companyName=${encodeURIComponent(cwSettings.companyId)}`);
 
 function isOpEnvelope(x: any): x is OpEnvelope {
   return (
@@ -127,6 +148,41 @@ app.post("/api/workspaces/:id", async (c) => {
   return c.json({ ok: true });
 });
 
+// Settings › Connections: the ConnectWise settings in the server's .env (connection.ts). Not per
+// workspace. Changes are taken only from the app itself: a JSON body (which a page on another
+// site can't send without the browser asking first) and, where the browser says, the same site.
+const fromApp = (c: Context) => {
+  const site = c.req.header("sec-fetch-site");
+  return (c.req.header("content-type") ?? "").startsWith("application/json") && (!site || site === "same-origin");
+};
+app.get("/api/connections", (c) => c.json({ cw: { ...shown(cwSettings), on: !!ctx.cw } }));
+app.post("/api/connections/cw/test", async (c) => {
+  if (!fromApp(c)) return c.json({ error: "Not from the app" }, 403);
+  const r = resolve(await c.req.json().catch(() => null), cwSettings);
+  if ("error" in r) return c.json({ ok: false, error: r.error });
+  if (!r.settings.site) return c.json({ ok: false, error: "No site: ConnectWise would be off" });
+  return c.json(await testConnection(r.settings, process.env.CW_BASE_URL || undefined));
+});
+app.post("/api/connections/cw", async (c) => {
+  if (!fromApp(c)) return c.json({ error: "Not from the app" }, 403);
+  const r = resolve(await c.req.json().catch(() => null), cwSettings);
+  if ("error" in r) return c.json({ error: r.error }, 400);
+  const s = r.settings;
+  // Only settings that work are saved (an empty site turns ConnectWise off).
+  if (s.site) {
+    const test = await testConnection(s, process.env.CW_BASE_URL || undefined);
+    if (!test.ok) return c.json({ error: test.error }, 400);
+  }
+  try {
+    updateEnvFile(ENV_FILE, Object.fromEntries(Object.entries(ENV_KEYS).map(([k, name]) => [name, s[k as keyof CwSettings]])));
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: `Couldn't save ${ENV_FILE}` }, 500);
+  }
+  useCw(s);
+  return c.json({ cw: { ...shown(cwSettings), on: !!ctx.cw } });
+});
+
 // A file, by id: notes in any workspace link to /api/files/<id>/<name> (a picture can't say
 // which workspace it's in). The name after it is for people and is ignored. Never changes, so
 // cached for good.
@@ -162,7 +218,7 @@ app.use("/api/*", async (c, next) => {
 });
 
 /** The workspace's CW parts, if its profile uses ConnectWise and the server has it set up. */
-const cwOf = (ws: Workspace) => (cw && ws.cwParts ? { cw, ...ws.cwParts, profile: ws.profile, cwSettings: ws.profile.connectwise! } : null);
+const cwOf = (ws: Workspace) => (ctx.cw && ws.cwParts ? { cw: ctx.cw, ...ws.cwParts, profile: ws.profile, cwSettings: ws.profile.connectwise! } : null);
 const NO_CW = { error: "ConnectWise isn't set up for this workspace" };
 
 app.get("/api/state", (c) => {
@@ -174,9 +230,9 @@ app.get("/api/state", (c) => {
     config: {
       profile: ws.profile,
       cw: on,
-      cwPush: on && !!CW_MEMBER,
+      cwPush: on && !!ctx.cwMember,
       cwWeekly: on && !!ws.cwParts?.weekly,
-      cwTicketUrl: on ? CW_TICKET_URL : null,
+      cwTicketUrl: on ? ticketUrl() : null,
       workspace: { id: ws.id, name: ws.entry.name },
       workspaces: workspaces.all().map((w) => ({ id: w.id, name: w.entry.name })),
     },
@@ -322,12 +378,12 @@ app.post("/api/cw/tickets", async (c) => {
 app.post("/api/cw/push", async (c) => {
   const ws = c.get("ws");
   const x = cwOf(ws);
-  if (!x || !CW_MEMBER) return c.json({ error: "ConnectWise push isn't set up for this workspace" }, 503);
+  if (!x || !ctx.cwMember) return c.json({ error: "ConnectWise push isn't set up for this workspace" }, 503);
   const body = await c.req.json().catch(() => null);
   const ids: unknown[] = Array.isArray(body?.sessionIds) ? body.sessionIds : [];
   if (!ids.length || ids.some((v) => typeof v !== "string")) return c.json({ error: "sessionIds needed" }, 400);
   try {
-    const results = await pushSessions(x.cw, ws.store, x.profile, CW_MEMBER, ids as string[], x.documents);
+    const results = await pushSessions(x.cw, ws.store, x.profile, ctx.cwMember, ids as string[], x.documents);
     return c.json({ results });
   } catch (err) {
     console.error(err);

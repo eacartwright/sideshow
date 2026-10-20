@@ -22,7 +22,7 @@ interface ProfileChoice {
   name: string;
 }
 
-const NONE = "No profile (plain time tracker)";
+const NONE = "No profile";
 
 export function WorkspaceSettings() {
   const m = useM();

@@ -78,7 +78,9 @@ and the site goes down (happened 2026-10-10). To fix it, run `install.ps1` again
   holds it and `PROFILE` no longer applies to it.
 - `CW_*`: ConnectWise credentials, copied from the desktop's `.env`. Without them the ticket
   lookup is off. `CW_MEMBER` (e.g. `ecartwright`) is whose time pushed entries are; without it
-  the Push buttons don't appear.
+  the Push buttons don't appear. Since 2026-10-20 these are easier to change in the app,
+  Settings › Connections: it tests them, rewrites just these lines (the old file is kept as
+  `.env.bak`) and needs no restart.
 
 Restart after changing `.env`: `Stop-ScheduledTask sideshow; Start-ScheduledTask sideshow`.
 
