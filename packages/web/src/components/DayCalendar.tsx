@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { dragTimes, findGaps, placeBlocks, spanFromDrag, type DragMode } from "../calendar";
 import { hm, timeOfDay } from "../format";
 import { sessionFieldTexts, useA, useM } from "../model";
-import { showToast } from "../toast";
+import { undoable } from "../undo";
 
 // One day as a vertical timeline (DESIGN.md §7, Day page): a block per session, concurrent ones
 // side by side, the stretches between the first and last session shaded as gaps. Click a block
@@ -27,8 +27,6 @@ interface Drag {
   start: Ms;
   end: Ms;
   running: boolean;
-  /** Moving an entered session un-enters it; Undo puts that back too. */
-  enteredAt: Ms | null;
   moved: boolean;
   /** Where it would land now. */
   to: { start: Ms; end: Ms };
@@ -130,15 +128,8 @@ export function DayCalendar({
     const { start, end } = d.to;
     if (start === d.start && (d.running || end === d.end)) return;
     const verb = d.mode === "move" ? "Moved" : "Changed";
-    a.updateSession(d.id, d.running ? { start } : { start, end });
-    showToast(`${verb} to ${timeOfDay(start)}–${d.running ? "now" : timeOfDay(end)}`, {
-      label: "Undo",
-      run: () =>
-        a.updateSession(d.id, {
-          start: d.start,
-          ...(d.running ? {} : { end: d.end }),
-          ...(d.enteredAt ? { enteredAt: d.enteredAt } : {}),
-        }),
+    undoable(d.mode === "move" ? "Move on the calendar" : "Resize on the calendar", () => a.updateSession(d.id, d.running ? { start } : { start, end }), {
+      toast: `${verb} to ${timeOfDay(start)}–${d.running ? "now" : timeOfDay(end)}`,
     });
   }
 
@@ -159,7 +150,6 @@ export function DayCalendar({
       start: s.start,
       end,
       running: s.end === null,
-      enteredAt: s.enteredAt ?? null,
       moved: false,
       to: { start: s.start, end },
     });

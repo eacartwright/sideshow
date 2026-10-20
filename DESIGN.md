@@ -351,13 +351,18 @@ pressing ▶ New.
   ordered by **most recently worked on**. Type to filter across title, client, ticket ref and
   session notes. Enter/tap = ▶ Continue. If nothing matches, Enter = ▶ New with that text as the
   title.
-- **Client filter**: chips in the switcher or task list narrow to one client's tasks, still
-  recent-first ("recent for Acme").
+- **Company filter** (2026-10-19; chips until 2026-10-13, which can't scale to hundreds of
+  companies): under the task list's tabs, **Company: All** opens a searchable list of the
+  companies on your tasks, most recently worked first, each with its count in the current tab.
+  Picking one narrows every tab to its tasks, still recent-first ("recent for Acme"); on
+  Projects it shows the projects holding them. Remembered per device; ✕ clears it.
 - **Recency is by last session start**, not creation date, so something touched ten minutes ago
   is at the top even if it was created last month.
 - Views: *Recent* (default), *Day* (today by default, or any day, with ‹ › and a date picker; includes archived
   tasks, since it's a log of the day), *By client*, *Inbox*, *Done* (with an *Archived* section
   below it, collapsed).
+- **Title** fields wrap onto more lines rather than scrolling sideways (2026-10-19: on the iPhone,
+  moving the cursor with the spacebar drag didn't scroll a one-line field); Enter finishes.
 - **Title**: an untitled task's Title field shows the first line of its notes as real text,
   tracking the notes until it's edited; editing it sets the title. Clearing it goes back to
   following the notes.
@@ -446,9 +451,11 @@ smaller (14px); touch screens keep 16px so iOS doesn't zoom into inputs.
   2026-10-10 after trying a staggered header, fixed slots, and the fields on the first session
   row: each either didn't line up with the column headings or looked per-session.)
 - One row per session (= one CW entry): Start, End, Hours, Work type, Billing, ✓ Mark entered. Click a value to copy it. Work type and billing are set
-  right in the row; ✎ opens the session editor under the row. No Notes column (dropped
-  2026-10-10: a row can't show them usefully): they're on ✎'s tooltip, in the push preview and
-  in Task details.
+  right in the row. Under the Ticket # and Client headings, where the task fields are on the
+  header row, each session row shows **✎ and its notes' first line**: click it to open the
+  session editor under the row (2026-10-19: the ✎ at the row's end was too small to hit, and
+  that space was empty). The whole note is on its tooltip, in the push preview and in Task
+  details. On the phone it leads each entry's card.
 - **Billing** is a segmented control, `B | NB | NC`: the profile gives a choice field short
   labels and `"input": "segmented"`; the full names show as tooltips. `"icons"` (one per
   option, from `FIELD_ICONS` in `shared/src/profile.ts`) shows an icon instead (Notes to: 🔒 | 💬).
@@ -463,7 +470,7 @@ Esc or ← Now goes back; ▶ New returns to Now); (2) the calendar, read-only, 
 (**done** 2026-10-10: `DayCalendar.tsx`, 64 px an hour, gaps of 5 min or more shaded, a line
 at now; layout in `calendar.ts`, tested); (3) drag to move and resize (**done** 2026-10-10,
 mouse and pen: a press becomes a drag after 4 px, so a click still selects; Esc cancels; the
-drop shows a toast with Undo, which also restores "entered"; a session that crosses midnight
+drop shows a toast with Undo (see Undo below), which also restores "entered"; a session that crosses midnight
 isn't draggable; touch only selects for now); (4) drag across empty space to add time
 (**done** 2026-10-10: a dashed ghost shows the span; the switcher opens as "Add 3:00 PM–3:45 PM
 to…"; a new title makes a new task; the new session is selected). Left for later: dragging on
@@ -471,11 +478,12 @@ touch screens (docs/backlog.md).
 
 ### Time entry (editing sessions)
 
-One **session editor**, used in both Task details (tap a session) and Time entries (✎ Edit on
-an entry): Date (moves the whole session), Start, End (native time inputs, so the iPhone shows
+One **session editor**, used in Task details (tap a session), Time entries (the ✎ notes cell)
+and the running card (tap a session under "Earlier on this task", 2026-10-19): Date (moves the whole session), Start, End (native time inputs, so the iPhone shows
 its wheel; an end before the start means past midnight), Deduct (min), Work type, Notes,
-**Snap to 15 min** (rounds start/end to the nearest quarter hour), **Delete** (with an Undo
-toast). Changes save as you go. Recorded timer times are stored exactly until edited.
+**Snap to 15 min** (rounds start/end to the nearest quarter hour), **Move to…** (another task,
+or a new one: the switcher opens as "Move 9:00 AM–10:30 AM to…"; `session.move`, as WRIT uses),
+**Delete** (with an Undo toast). Changes save as you go. Recorded timer times are stored exactly until edited.
 **Now** beside Start and End sets it to the current minute, like CW's clock button (2026-10-13):
 for coming back to a ticket after its entry was pushed, End → Now, then Update…. Off when it
 would put the end before the start (or the start after the end).
@@ -487,6 +495,23 @@ would put the end before the start (or the start after the end).
 - **Editing an entered session** (times, notes, work type, deduct) clears "entered" and flags it
   *changed since entered*, so it comes back to To enter with a reminder to fix the CW entry.
   Marking it entered again clears the flag.
+
+### Undo (2026-10-19)
+
+**Ctrl+Z** (when not typing; in a text box it's the box's own undo) and **↶ Undo** on the Day
+page (its tooltip says what it would undo) take back this device's last change, step by step.
+Undoable: times (calendar drags, the editor), fields (work type, billing, company, ticket #),
+merge, Move to… / WRIT, + Add time, delete, mark entered, a task's status or project. Calendar
+drags, merges, moves and deletes also show a toast with Undo. Changes in quick succession to
+the same thing (a time typed digit by digit) are one step.
+
+Not undoable: typing in titles, notes and descriptions (their own Ctrl+Z), starting, pausing
+and stopping the clock, and anything sent to ConnectWise (a push, a new ticket). The history
+is in memory, per device: a reload starts fresh.
+
+How: an undoable action records the ops it sends and the state before them; undo works out the
+ops that put back each record they touched (`undoOps` in `shared/src/undo.ts`, tested), so no
+op needs its own inverse. Undo is itself ordinary ops, so it syncs like anything else.
 
 ### Look & feel (TBD, but these are the requirements)
 
@@ -505,6 +530,7 @@ would put the end before the start (or the start after the end).
 - A running timer past a threshold (e.g. 3h, or past end of workday) triggers a nudge: "Still
   working on X?"
 - Deleting is soft (archive) by default. Hard delete requires confirmation.
+- Undo for this device's recent changes (see Undo, above).
 
 ## 8. Platforms
 

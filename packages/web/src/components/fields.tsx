@@ -11,7 +11,7 @@ import {
   type Session,
   type Task,
 } from "@sideshow/shared";
-import { useEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import { refreshCompanies, syncText, useCompanies } from "../companies";
 import { showToast } from "../toast";
 import { ChatIcon, LockIcon, RefreshIcon } from "./icons";
@@ -68,9 +68,11 @@ type TextareaProps = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" |
   onValue: (v: string) => void;
   resetKey?: unknown;
   textareaRef?: React.RefObject<HTMLTextAreaElement | null>;
+  /** Tidies what's typed or pasted before it's kept. */
+  clean?: (v: string) => string;
 };
 
-export function DraftTextarea({ value, onValue, resetKey, textareaRef, ...rest }: TextareaProps) {
+export function DraftTextarea({ value, onValue, resetKey, textareaRef, clean = (v) => v, ...rest }: TextareaProps) {
   const own = useRef<HTMLTextAreaElement>(null);
   const ref = textareaRef ?? own;
   const [draft, setDraft] = useDraft(value, ref, resetKey);
@@ -80,8 +82,58 @@ export function DraftTextarea({ value, onValue, resetKey, textareaRef, ...rest }
       ref={ref}
       value={draft}
       onChange={(e) => {
-        setDraft(e.target.value);
-        onValue(e.target.value);
+        const v = clean(e.target.value);
+        setDraft(v);
+        onValue(v);
+      }}
+    />
+  );
+}
+
+/**
+ * A title: one line of text that wraps instead of scrolling sideways, growing to fit. (A long
+ * title in an input scrolled under the cursor while typing, but on the iPhone moving the cursor
+ * afterwards with the spacebar drag didn't scroll it.) Enter finishes; line breaks become spaces.
+ */
+export function TitleInput({ value, onValue, resetKey, ...rest }: Omit<TextareaProps, "textareaRef" | "rows">) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  const fit = () => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  };
+  useLayoutEffect(fit, [value, resetKey]);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    // A narrower box (rotating the phone, a dialog resizing) wraps it onto more lines.
+    let width = el.clientWidth;
+    const ro = new ResizeObserver(() => {
+      if (el.clientWidth !== width) {
+        width = el.clientWidth;
+        fit();
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <DraftTextarea
+      {...rest}
+      textareaRef={ref}
+      rows={1}
+      value={value}
+      resetKey={resetKey}
+      onValue={onValue}
+      clean={(v) => v.replace(/[ \t]*[\r\n]+[ \t]*/g, " ")}
+      onInput={fit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          e.currentTarget.blur();
+        }
+        rest.onKeyDown?.(e);
       }}
     />
   );
@@ -141,6 +193,17 @@ export function ComboPicker({
     options[i]?.pick();
     close();
   };
+  // Closes on a tap outside, not on the box's blur alone: Safari (the iPhone's too) doesn't focus
+  // a tapped button, so the input's blur says focus went nowhere and the list closed before the
+  // tap on an option landed.
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => {
+      if (!box.current?.contains(e.target as Node)) close();
+    };
+    document.addEventListener("pointerdown", outside, true);
+    return () => document.removeEventListener("pointerdown", outside, true);
+  }, [open]);
 
   if (!open && set && onClear) {
     return (
@@ -166,7 +229,8 @@ export function ComboPicker({
       className="picker"
       ref={box}
       onBlur={(e) => {
-        if (!box.current?.contains(e.relatedTarget as Node)) close();
+        // Tabbing out. (No relatedTarget: a tap that focused nothing, handled above.)
+        if (e.relatedTarget && !box.current?.contains(e.relatedTarget as Node)) close();
       }}
     >
       <input
@@ -195,6 +259,8 @@ export function ComboPicker({
               type="button"
               className={i === sel ? "active" : ""}
               aria-label={o.label ? o.text : undefined}
+              // The search box keeps focus (and the phone its keyboard) until the pick.
+              onMouseDown={(e) => e.preventDefault()}
               onMouseEnter={() => setSel(i)}
               onClick={() => choose(i)}
             >

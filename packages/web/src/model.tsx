@@ -34,6 +34,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyn
 import { api, SignedOut, sync, type Snapshot } from "./sync";
 import { showToast } from "./toast";
 import { getWeekly, refreshWeekly } from "./weekly";
+import { send, undoable } from "./undo";
 
 // Everything the UI reads (derived from the synced state) and every action it can take.
 
@@ -295,6 +296,11 @@ export interface Actions {
   updateSession(sessionId: Id, patch: SessionPatch): void;
   setSessionField(sessionId: Id, key: string, value: FieldValue | null): void;
   mergeSessions(sessionIds: Id[]): void;
+  /**
+   * Move a session to another task, or to a new one with this title (Move to…). Resolves to
+   * false when it can't (a running session onto a task that's running too).
+   */
+  moveSession(sessionId: Id, to: Id | { title: string }): boolean;
   /** Add time after the fact. Returns the new session id. */
   createSession(taskId: Id, start: number, end: number): Id;
   /** A new task with one session over a span (the calendar's drag-to-add). Returns the session id. */
@@ -323,6 +329,9 @@ export interface Actions {
 
 const coarse = () => window.matchMedia("(pointer: coarse)").matches;
 
+/** A profile field's label ("Work type"), for naming an undo step. */
+const fieldLabel = (key: string) => sync.getSnapshot().config.profile.fields.find((f) => f.key === key)?.label ?? "Field";
+
 /** Actions.clientForCompany. */
 function clientFor(list: string, company: { id: number; name: string }): Id {
   const items = Object.values(sync.getSnapshot().view.lists).filter((x) => x.list === list);
@@ -335,11 +344,11 @@ function clientFor(list: string, company: { id: number; name: string }): Id {
   const name = company.name.trim();
   if (!item) {
     const itemId = newId();
-    sync.dispatch({ type: "list.create", itemId, list, name, ext: { cw: { companyId: company.id } } });
+    send({ type: "list.create", itemId, list, name, ext: { cw: { companyId: company.id } } });
     return itemId;
   }
   if (item !== linked || item.archived || item.name !== name) {
-    sync.dispatch({ type: "list.update", itemId: item.id, patch: { name, archived: false, ext: { cw: { companyId: company.id } } } });
+    send({ type: "list.update", itemId: item.id, patch: { name, archived: false, ext: { cw: { companyId: company.id } } } });
   }
   return item.id;
 }
@@ -381,7 +390,7 @@ export function useActionsFactory(): Actions {
         const sessionId = newId();
         activate(taskId);
         focusNotes(true);
-        sync.dispatch({
+        send({
           type: "task.start",
           taskId,
           sessionId,
@@ -397,7 +406,7 @@ export function useActionsFactory(): Actions {
         const taskId = task?.id ?? newId();
         activate(taskId);
         focusNotes(true);
-        sync.dispatch({
+        send({
           type: "task.start",
           taskId,
           sessionId: newId(),
@@ -416,23 +425,29 @@ export function useActionsFactory(): Actions {
           return;
         }
         const taskId = task?.id ?? newId();
-        if (!task) sync.dispatch({ type: "task.create", taskId, title: w.summary, projectId: null, fields: { [field]: n } });
-        activate(taskId);
-        sync.dispatch({ type: "session.move", sessionId, taskId });
+        undoable(
+          "Move to WRIT",
+          () => {
+            if (!task) send({ type: "task.create", taskId, title: w.summary, projectId: null, fields: { [field]: n } });
+            activate(taskId);
+            send({ type: "session.move", sessionId, taskId });
+          },
+          { toast: `Moved to this week's WRIT (#${n})` },
+        );
       },
       continueTask(taskId, alongside = false) {
         activate(taskId);
         focusNotes(false);
-        sync.dispatch({ type: "task.start", taskId, sessionId: newId(), mode: alongside ? "alongside" : "switch" });
+        send({ type: "task.start", taskId, sessionId: newId(), mode: alongside ? "alongside" : "switch" });
       },
       pause(sessionId) {
-        sync.dispatch({ type: "timer.pause", sessionId });
+        send({ type: "timer.pause", sessionId });
       },
       newEntry(sessionId, fields) {
         const s = sync.getSnapshot().view.sessions[sessionId];
         if (!s || s.deleted || s.end !== null) return;
         const id = newId();
-        sync.dispatch({
+        send({
           type: "task.start",
           taskId: s.taskId,
           sessionId: id,
@@ -443,16 +458,28 @@ export function useActionsFactory(): Actions {
         return id;
       },
       stop(target) {
-        sync.dispatch({ type: "timer.stop", ...target });
+        send({ type: "timer.stop", ...target });
       },
       addInbox(title, projectId, fields = {}) {
-        sync.dispatch({ type: "task.create", taskId: newId(), title, projectId, fields });
+        send({ type: "task.create", taskId: newId(), title, projectId, fields });
       },
       updateTask(taskId, patch) {
-        sync.dispatch({ type: "task.update", taskId, patch }, 600);
+        // Typing a title or description isn't a step: the text box has its own undo.
+        const label =
+          patch.status === "done" ? "Mark done" : patch.status === "archived" ? "Archive" : patch.status === "open" ? "Reopen"
+          : patch.projectId !== undefined ? "Project change"
+          : patch.fields ? "Field change"
+          : null;
+        if (!label) {
+          send({ type: "task.update", taskId, patch }, 600);
+          return;
+        }
+        undoable(label, () => send({ type: "task.update", taskId, patch }, 600), { key: `t:${taskId}:${Object.keys(patch).sort().join()}` });
       },
       setTaskField(taskId, key, value) {
-        sync.dispatch({ type: "task.update", taskId, patch: { fields: { [key]: value } } }, 600);
+        undoable(`${fieldLabel(key)} change`, () => send({ type: "task.update", taskId, patch: { fields: { [key]: value } } }, 600), {
+          key: `t:${taskId}:fields.${key}`,
+        });
       },
       async lookupTicket(taskId, opts) {
         const snap = sync.getSnapshot();
@@ -473,7 +500,7 @@ export function useActionsFactory(): Actions {
           if (clientDef?.list && t.companyId && same) {
             const id = clientFor(clientDef.list, { id: t.companyId, name: t.company });
             if (now.fields[clientDef.key] !== id) {
-              sync.dispatch({ type: "task.update", taskId, patch: { fields: { [clientDef.key]: id } } });
+              send({ type: "task.update", taskId, patch: { fields: { [clientDef.key]: id } } });
             }
           } else if (clientDef?.list) {
             // An older server without the company's id: fill the client by name if unset.
@@ -482,7 +509,7 @@ export function useActionsFactory(): Actions {
             );
             if (item) fill[clientDef.key] = item.id;
           }
-          sync.dispatch({
+          send({
             type: "task.refInfo",
             taskId,
             field: cw.ticketField,
@@ -589,68 +616,109 @@ export function useActionsFactory(): Actions {
         }
       },
       updateSession(sessionId, patch) {
-        sync.dispatch({ type: "session.update", sessionId, patch }, 800);
+        // Notes are typed (their editor has its own undo); ext is what an integration records.
+        const keys = Object.keys(patch).filter((k) => k !== "notes" && k !== "ext").sort();
+        if (!keys.length) {
+          send({ type: "session.update", sessionId, patch }, 800);
+          return;
+        }
+        const label =
+          "enteredAt" in patch ? (patch.enteredAt ? "Mark entered" : "Back to To enter")
+          : keys.includes("start") || keys.includes("end") ? "Time change"
+          : keys.includes("deductMin") ? "Deduct change"
+          : "Entry change";
+        undoable(label, () => send({ type: "session.update", sessionId, patch }, 800), { key: `s:${sessionId}:${keys.join()}` });
       },
       setSessionField(sessionId, key, value) {
-        sync.dispatch({ type: "session.update", sessionId, patch: { fields: { [key]: value } } }, 800);
+        undoable(`${fieldLabel(key)} change`, () => send({ type: "session.update", sessionId, patch: { fields: { [key]: value } } }, 800), {
+          key: `s:${sessionId}:fields.${key}`,
+        });
       },
       mergeSessions(sessionIds) {
-        sync.dispatch({ type: "session.merge", sessionIds });
+        undoable("Merge", () => send({ type: "session.merge", sessionIds }), { toast: `Merged ${sessionIds.length} entries` });
+      },
+      moveSession(sessionId, to) {
+        const snap = sync.getSnapshot();
+        const s = snap.view.sessions[sessionId];
+        if (!s || s.deleted) return false;
+        if (typeof to === "string") {
+          const task = snap.view.tasks[to];
+          if (!task || task.deleted || to === s.taskId) return false;
+          if (s.end === null && openSessionOf(to)) {
+            showToast("That task is running too: pause one of them first");
+            return false;
+          }
+        }
+        const title = typeof to === "string" ? displayTitle(snap.view.tasks[to]!, []).text : to.title.trim();
+        undoable(
+          "Move",
+          () => {
+            let taskId = to;
+            if (typeof taskId !== "string") {
+              taskId = newId();
+              send({ type: "task.create", taskId, title: title, projectId: null });
+            }
+            if (s.end === null) activate(taskId);
+            send({ type: "session.move", sessionId, taskId });
+          },
+          { toast: `Moved to ${title ? `“${title}”` : "a new task"}` },
+        );
+        return true;
       },
       createSession(taskId, start, end) {
         const sessionId = newId();
-        sync.dispatch({ type: "session.create", sessionId, taskId, start, end });
+        undoable("Add time", () => send({ type: "session.create", sessionId, taskId, start, end }));
         return sessionId;
       },
       createTaskWithSession(title, start, end) {
         const taskId = newId();
         const sessionId = newId();
-        sync.dispatch({ type: "task.create", taskId, title: title.trim(), projectId: null });
-        sync.dispatch({ type: "session.create", sessionId, taskId, start, end });
+        undoable("Add time", () => {
+          send({ type: "task.create", taskId, title: title.trim(), projectId: null });
+          send({ type: "session.create", sessionId, taskId, start, end });
+        });
         return sessionId;
       },
       deleteSession(sessionId) {
-        sync.dispatch({ type: "session.delete", sessionId });
-        showToast("Session deleted", {
-          label: "Undo",
-          run: () => sync.dispatch({ type: "session.delete", sessionId, undo: true }),
-        });
+        undoable("Delete", () => send({ type: "session.delete", sessionId }), { toast: "Session deleted" });
       },
       deleteTask(taskId) {
         const info = sync.getSnapshot().view.tasks[taskId];
-        sync.dispatch({ type: "task.delete", taskId });
-        showToast(`Deleted ${info?.title.trim() ? `“${info.title.trim()}”` : "the task"}`, {
-          label: "Undo",
-          run: () => sync.dispatch({ type: "task.delete", taskId, undo: true }),
+        undoable("Delete", () => send({ type: "task.delete", taskId }), {
+          toast: `Deleted ${info?.title.trim() ? `“${info.title.trim()}”` : "the task"}`,
         });
       },
       createListItem(list, name) {
         const itemId = newId();
-        sync.dispatch({ type: "list.create", itemId, list, name: name.trim() });
+        send({ type: "list.create", itemId, list, name: name.trim() });
         return itemId;
       },
       clientForCompany: clientFor,
       removeListItem(itemId) {
         const name = sync.getSnapshot().view.lists[itemId]?.name ?? "";
-        sync.dispatch({ type: "list.update", itemId, patch: { archived: true } });
+        send({ type: "list.update", itemId, patch: { archived: true } });
         showToast(`Removed ${name}`, {
           label: "Undo",
-          run: () => sync.dispatch({ type: "list.update", itemId, patch: { archived: false } }),
+          run: () => send({ type: "list.update", itemId, patch: { archived: false } }),
         });
       },
       restoreListItem(itemId) {
-        sync.dispatch({ type: "list.update", itemId, patch: { archived: false } });
+        send({ type: "list.update", itemId, patch: { archived: false } });
       },
       createProject(title, parentId) {
         const projectId = newId();
-        sync.dispatch({ type: "project.create", projectId, title: title.trim(), parentId });
+        send({ type: "project.create", projectId, title: title.trim(), parentId });
         return projectId;
       },
       updateProject(projectId, patch) {
-        sync.dispatch({ type: "project.update", projectId, patch }, 600);
+        if (patch.status === undefined && patch.parentId === undefined) {
+          send({ type: "project.update", projectId, patch }, 600);
+          return;
+        }
+        undoable("Project change", () => send({ type: "project.update", projectId, patch }, 600));
       },
       updateSettings(patch) {
-        sync.dispatch({ type: "settings.update", patch });
+        send({ type: "settings.update", patch });
       },
     };
   }, []);

@@ -148,8 +148,18 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-10-14)
+## Status (2026-10-19)
 
+- **Built 2026-10-19** from Evan's list (DESIGN.md §7): company filter on the task list (a
+  searchable picker, not chips); **Move to…** in the session editor (any task or a new one);
+  earlier sessions on the running card open the session editor; the Day page's ✎ became a
+  notes cell under Ticket/Company; **Undo** (Ctrl+Z, ↶ on the Day page; `shared/src/undo.ts`,
+  `web/src/undo.ts`; actions send ops through `send` so they're recorded); titles wrap
+  (`TitleInput`). Fixed: picking from a `ComboPicker` on the iPhone (Safari doesn't focus a
+  tapped button, so the list closed on blur before the tap landed; it now closes on a tap
+  outside). Check on the iPhone: picking a company, editing a long title.
+- **Waiting on Evan:** a ticket per session for CW projects, and two-way sync of pushed entries
+  (both proposed in the backlog Inbox).
 - **Live** at https://sideshow.evans.tools on the mini PC; hosting, updates and restores are in
   [docs/runbook.md](docs/runbook.md) (Evan deploys with his "Update sideshow" shortcut). Done:
   M1 core app, M2 projects & profiles, M3 Day page (desktop; touch dragging in the backlog), M4

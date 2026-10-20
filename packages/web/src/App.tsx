@@ -16,6 +16,7 @@ import { Spinner } from "./components/Spinner";
 import { ActionsContext, ModelContext, useActionsFactory, useModel, type Model } from "./model";
 import { dismissToast, useToast } from "./toast";
 import { Lightbox } from "./components/Lightbox";
+import { undo } from "./undo";
 
 type Overlay =
   | { kind: "switcher"; alongside?: boolean }
@@ -48,6 +49,10 @@ export function App() {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setOverlay({ kind: "switcher", alongside: e.shiftKey });
+      } else if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "z" && !isTyping(e.target)) {
+        // In a text box, Ctrl+Z is the box's own undo.
+        e.preventDefault();
+        undo();
       } else if (e.key === "/" && !isTyping(e.target) && !overlay) {
         e.preventDefault();
         setOverlay({ kind: "switcher" });

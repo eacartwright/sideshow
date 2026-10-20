@@ -5,7 +5,7 @@ import { sessionFieldTexts, useA, useM, useNow } from "../model";
 import { NewTicketButton } from "./CreateTicket";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { Dialog } from "./Dialog";
-import { DraftInput, ProjectPicker, TaskFieldInputs, TicketInfo, TicketLinks, TicketRefresh, ticketUrl } from "./fields";
+import { ProjectPicker, TitleInput, TaskFieldInputs, TicketInfo, TicketLinks, TicketRefresh, ticketUrl } from "./fields";
 import { NoteView } from "./NoteView";
 import { RichNotes } from "./RichNotes";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
@@ -61,9 +61,10 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
   return (
     <Dialog title="Task" onClose={onClose} className="detail" actions={ticketUrl(m, task) && <TicketRefresh task={task} />}>
       <div className="stack">
-        <DraftInput
+        <TitleInput
           className="title-input"
           value={info.titleText}
+          resetKey={taskId}
           placeholder="Title"
           title={task.title ? undefined : "From the notes until you edit it"}
           aria-label="Title"

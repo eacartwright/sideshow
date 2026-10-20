@@ -1,6 +1,7 @@
 import {
   DEFAULT_ENTRY_FORMAT,
   durationMs,
+  firstLine,
   plainNote,
   startOfDay,
   type EntryFormat,
@@ -21,6 +22,7 @@ import { FieldInput, TicketInfo, ticketUrl } from "./fields";
 import { isUpdate, PushDialog, pushProblem } from "./PushDialog";
 import { Switcher } from "./Switcher";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
+import { undo, useUndoLabel } from "../undo";
 
 // The Day page (DESIGN.md §7): a day's sessions as a table, ready to enter into another system
 // (ConnectWise at this job). Grouped by task, because entries go in ticket by ticket: the task
@@ -75,6 +77,7 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
   const m = useM();
   const now = useNow(30_000);
   const [mode, setMode] = useState<Mode>("day");
+  const undoLabel = useUndoLabel();
   const [day, setDay] = useState(() => startOfDay(Date.now()));
   // The session picked in the calendar or the table; the other one highlights it too.
   const [selectedId, setSelectedId] = useState<Id | null>(null);
@@ -187,6 +190,14 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
             {todo.length > 0 && <span className="count">{todo.length}</span>}
           </button>
         </div>
+        <button
+          className="btn subtle sm"
+          disabled={!undoLabel}
+          onClick={undo}
+          title={undoLabel ? `Undo: ${undoLabel} (Ctrl+Z)` : "Nothing to undo yet"}
+        >
+          ↶ Undo
+        </button>
         {canPush && shownChecked.length > 0 && (
           <div className="push-bar" role="status">
             <strong>{shownChecked.length} selected</strong>
@@ -487,9 +498,7 @@ function EntryGroup({
       {sessions.map((s) => (
         <SessionRows
           key={s.id}
-          lead={taskDefs.map((d) => (
-            <td key={d.key} className={`col-task col-${d.key}`} />
-          ))}
+          leadSpan={taskDefs.length}
           session={s}
           now={now}
           span={span}
@@ -562,7 +571,7 @@ function SessionRows({
   checked,
   onCheck,
   onPush,
-  lead,
+  leadSpan,
   selected,
   onSelect,
   picked,
@@ -574,8 +583,11 @@ function SessionRows({
   editing: boolean;
   onEdit: () => void;
   picking: boolean;
-  /** Cells before the session's own: blank ones under the task's fields (on the header row). */
-  lead: React.ReactNode;
+  /**
+   * How many columns the task's fields take (filled on the header row only). On a session's
+   * row they hold its notes, as the button that opens its editor.
+   */
+  leadSpan: number;
   /** Ticked for a push to CW. */
   checked: boolean;
   onCheck: (on: boolean) => void;
@@ -646,7 +658,21 @@ function SessionRows({
             )}
           </td>
         )}
-        {lead}
+        {leadSpan > 0 && (
+          <td colSpan={leadSpan} className="col-entry">
+            <button
+              type="button"
+              className={`entry-open ${editing ? "on" : ""}`}
+              onClick={onEdit}
+              aria-expanded={editing}
+              aria-label="Edit this entry"
+              title={`Edit\n\n${plainNote(s.notes).trim() || CONTINUATION}`}
+            >
+              <span aria-hidden>✎</span>
+              <span className={`entry-note ${s.notes.trim() ? "" : "muted"}`}>{firstLine(s.notes, 200) || CONTINUATION}</span>
+            </button>
+          </td>
+        )}
         {columns.map(cell)}
         {canPush && (
           <td className="col-email" data-label="Email">
@@ -689,9 +715,11 @@ function SessionRows({
                     ⚠
                   </span>
                 )}
-                <button className="btn subtle sm icon" onClick={onEdit} aria-label="Edit this entry" aria-expanded={editing} title={`Edit\n\nNotes: ${plainNote(s.notes).trim() || CONTINUATION}`}>
-                  ✎
-                </button>
+                {leadSpan === 0 && (
+                  <button className="btn subtle sm icon" onClick={onEdit} aria-label="Edit this entry" aria-expanded={editing} title={`Edit\n\nNotes: ${plainNote(s.notes).trim() || CONTINUATION}`}>
+                    ✎
+                  </button>
+                )}
                 {s.enteredAt ? (
                   <button
                     className="entered-btn"

@@ -1,12 +1,14 @@
 import { durationMs, startOfDay, type Ms, type Session } from "@sideshow/shared";
+import { useState } from "react";
 import { hm } from "../format";
 import { useA, useNow } from "../model";
 import { SessionFieldInputs } from "./fields";
 import { RichNotes } from "./RichNotes";
+import { Switcher } from "./Switcher";
 
 // Edit one session: day, start/end (native time inputs, so the iPhone shows its wheel),
-// deduct, work type, notes; snap to the quarter hour; delete. Used in Task details and
-// Time entries. Every change saves as you go.
+// deduct, work type, notes; snap to the quarter hour; move to another task; delete.
+// Used in Task details, Time entries and the running card. Every change saves as you go.
 
 const pad = (n: number) => n.toString().padStart(2, "0");
 const DAY = 86_400_000;
@@ -44,6 +46,7 @@ function NowButton({ label, disabled, onClick }: { label: string; disabled: bool
 export function SessionEditor({ session: s, onDone }: { session: Session; onDone?: () => void }) {
   const a = useA();
   const now = useNow(30_000);
+  const [moving, setMoving] = useState(false);
   const running = s.end === null;
   const day = startOfDay(s.start);
   const snapped = snap(s.start) === s.start && (running || snap(s.end!) === s.end);
@@ -145,6 +148,13 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
         >
           Snap to 15 min
         </button>
+        <button
+          className="btn subtle"
+          onClick={() => setMoving(true)}
+          title="Move this entry, notes and all, to another task (another ticket) or a new one"
+        >
+          Move to…
+        </button>
         <button className="btn subtle danger" onClick={() => a.deleteSession(s.id)}>
           Delete
         </button>
@@ -155,6 +165,7 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
           </button>
         )}
       </div>
+      {moving && <Switcher move={s} onClose={() => setMoving(false)} />}
     </div>
   );
 }

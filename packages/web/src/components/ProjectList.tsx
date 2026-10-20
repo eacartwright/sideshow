@@ -6,7 +6,8 @@ import { InlineAdd } from "./fields";
 
 // The Projects tab: every project that isn't archived, as a tree. Tap one to open its page.
 
-export function ProjectList({ onOpenProject }: { onOpenProject: (id: Id) => void }) {
+/** `only`: show just these projects (the company filter's). */
+export function ProjectList({ onOpenProject, only }: { onOpenProject: (id: Id) => void; only?: Set<Id> }) {
   const m = useM();
   const a = useA();
   const now = useNow(30_000);
@@ -26,11 +27,13 @@ export function ProjectList({ onOpenProject }: { onOpenProject: (id: Id) => void
     stats.set(id, s);
   }
 
+  const shown = only ? m.projects.filter((p) => only.has(p.project.id)) : m.projects;
+
   return (
     <>
       <InlineAdd value={title} onValue={setTitle} placeholder="New project…" onAdd={(t) => a.createProject(t, null)} />
       <ul className="rows">
-        {m.projects.map(({ project, depth }) => {
+        {shown.map(({ project, depth }) => {
           const s = stats.get(project.id);
           const meta = [
             project.status === "done" && "Done",
@@ -48,6 +51,7 @@ export function ProjectList({ onOpenProject }: { onOpenProject: (id: Id) => void
           );
         })}
       </ul>
+      {only && shown.length === 0 && <p className="empty">No projects with this company's tasks.</p>}
       {m.projects.length === 0 && (
         <p className="empty">No projects yet. Add one above, or pick a project in a task's details.</p>
       )}

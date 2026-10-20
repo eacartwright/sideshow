@@ -1,4 +1,4 @@
-import { matchesQuery } from "@sideshow/shared";
+import { matchesQuery, type Session } from "@sideshow/shared";
 import { useEffect, useRef, useState } from "react";
 import { hm, plural, timeOfDay, whenLabel } from "../format";
 import { taskTotals, useA, useM, type TaskInfo } from "../model";
@@ -8,6 +8,7 @@ import { Dialog } from "./Dialog";
 // Ctrl+K or / on desktop, Find on the phone. In "alongside" mode (or with Shift),
 // whatever is running keeps running. With a `span` (a drag across empty space on the Day
 // page's calendar) it doesn't touch the clock: the pick gets a session covering that span.
+// With `move` (Move to… on a session) the pick gets that session instead.
 
 type Item = { kind: "task"; info: TaskInfo } | { kind: "new"; title: string };
 
@@ -15,6 +16,7 @@ export function Switcher({
   alongside = false,
   span,
   onAdded,
+  move,
   onClose,
 }: {
   alongside?: boolean;
@@ -22,6 +24,8 @@ export function Switcher({
   span?: { start: number; end: number };
   /** With a span: the new session's id. */
   onAdded?: (sessionId: string) => void;
+  /** Move this session to the picked task (or a new one) instead. */
+  move?: Session;
   onClose: () => void;
 }) {
   const m = useM();
@@ -33,9 +37,11 @@ export function Switcher({
   const runningIds = new Set(m.running.map((s) => s.taskId));
 
   const query = q.trim();
-  const tasks = query
-    ? m.recent.filter((t) => matchesQuery(t.haystack, query)).slice(0, 50)
-    : m.recent.filter((t) => t.task.status === "open" && !(alongside && runningIds.has(t.task.id))).slice(0, 30);
+  const tasks = (
+    query
+      ? m.recent.filter((t) => matchesQuery(t.haystack, query)).slice(0, 50)
+      : m.recent.filter((t) => t.task.status === "open" && !(alongside && runningIds.has(t.task.id))).slice(0, 30)
+  ).filter((t) => t.task.id !== move?.taskId);
   const items: Item[] = tasks.map((info) => ({ kind: "task" as const, info }));
   if (query) items.push({ kind: "new", title: query });
   else if (alongside) items.unshift({ kind: "new", title: "" });
@@ -46,6 +52,10 @@ export function Switcher({
 
   const act = (item: Item | undefined, along: boolean) => {
     if (!item) return;
+    if (move) {
+      if (a.moveSession(move.id, item.kind === "new" ? { title: item.title } : item.info.task.id)) onClose();
+      return;
+    }
     if (span) {
       const id =
         item.kind === "new"
@@ -59,11 +69,13 @@ export function Switcher({
     else a.continueTask(item.info.task.id, along);
     onClose();
   };
-  const title = span
-    ? `Add ${timeOfDay(span.start)}–${timeOfDay(span.end)} (${hm(span.end - span.start)}) to…`
-    : alongside
-      ? "Also working on…"
-      : "Switch task";
+  const title = move
+    ? `Move ${timeOfDay(move.start)}–${move.end ? timeOfDay(move.end) : "now"} (${hm((move.end ?? now) - move.start)}) to…`
+    : span
+      ? `Add ${timeOfDay(span.start)}–${timeOfDay(span.end)} (${hm(span.end - span.start)}) to…`
+      : alongside
+        ? "Also working on…"
+        : "Switch task";
 
   return (
     <Dialog title={title} onClose={onClose} className="switcher">
@@ -98,7 +110,7 @@ export function Switcher({
             >
               {item.kind === "new" ? (
                 <span className="result-new">
-                  {span ? "+" : "▶"} New task{item.title ? ": " : ""}
+                  {span || move ? "+" : "▶"} New task{item.title ? ": " : ""}
                   <strong>{item.title}</strong>
                 </span>
               ) : (
@@ -109,7 +121,9 @@ export function Switcher({
         ))}
       </ul>
       <div className="hint muted small">
-        {span ? (
+        {move ? (
+          <>↑↓ move · Enter move it there · Ctrl+Enter new task · Esc cancel</>
+        ) : span ? (
           <>↑↓ move · Enter add the time · Ctrl+Enter new task · Esc cancel</>
         ) : (
           <>

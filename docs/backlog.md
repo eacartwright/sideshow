@@ -8,6 +8,22 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 
 ## Inbox
 
+- **A ticket per session, for CW projects (2026-10-19, Evan; proposed, waiting on his go).**
+  A project job is one piece of work but several tickets (travel, coordination / client
+  communication, onsite delivery). Proposed: a task can link a CW project (#302) instead of a
+  ticket; each session then gets a **Ticket** dropdown of that project's tickets (fetched from
+  CW), carried over to the next session like the work type, and the push uses the session's
+  ticket. On the Day page the session rows show their ticket in the Ticket # column, which is
+  blank on session rows today. Maybe: a work type picks the matching template ticket (Travel →
+  the travel ticket). Folds in "Track a CW project (M6)" below. **Move to…** (built
+  2026-10-19) already covers one-off moves between tasks.
+- **Two-way sync of pushed entries (2026-10-19, Evan asked; proposed).** Each pushed session
+  has its CW entry id (`ext.cw.entryId`). Proposed: keep a fingerprint of what was pushed;
+  when the entries are on screen (Entries page, a group's ↻, Task details) fetch them and
+  compare (the deleted-in-CW check, `checkPushed`, already runs then). Changed in CW only →
+  take CW's times, notes, deduct, work type, billing, still entered, with a toast. Changed in
+  both → "⚠ changed in both": keep mine (Update…) or take CW's. Not every entry ever, only
+  what's being looked at. Care with notes holding attachments (CW has "*Attachment: name*").
 - **CW sites (2026-10-14, Evan noticed; to think through).** Some companies have several sites
   in CW. A time entry is on a ticket, and the ticket already has the site, so pushing needs
   nothing. Where it matters: **New ticket…** (CW uses the company's default site; offer a site
@@ -21,7 +37,8 @@ under Status in [CLAUDE.md](../CLAUDE.md).
   CW entry to another ticket (e.g. something done under the WRIT that belongs on a client
   ticket), and delete or "remove from this ticket" so the CW entry goes too, in one or two
   steps. Today: deleting or merging a pushed session leaves its CW entry; changing the task's
-  ticket and pushing Update… moves the entry (push.ts, "moved").
+  ticket and pushing Update… moves the entry (push.ts, "moved"), and so does **Move to…**
+  (2026-10-19) a pushed session onto a task with another ticket, then Update….
 - **WRIT follow-ups (maybe).** A default work type for the WRIT's sessions (Internal Technical /
   Office?); archive last week's WRIT task once Evan closes its ticket in CW (after the timesheet).
 

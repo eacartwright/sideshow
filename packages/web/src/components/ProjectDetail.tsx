@@ -2,7 +2,7 @@ import { projectPath, type Id } from "@sideshow/shared";
 import { useState } from "react";
 import { useA, useM, useNow } from "../model";
 import { Dialog } from "./Dialog";
-import { DraftInput, DraftTextarea, InlineAdd, ProjectPicker } from "./fields";
+import { DraftInput, DraftTextarea, InlineAdd, ProjectPicker, TitleInput } from "./fields";
 import { TaskRow } from "./TaskList";
 
 // One project: where it sits, its subprojects and its tasks (open, inbox, done).
@@ -46,7 +46,7 @@ export function ProjectDetail({
             ))}
           </nav>
         )}
-        <DraftInput
+        <TitleInput
           className="title-input"
           value={project.title}
           placeholder="Project name"

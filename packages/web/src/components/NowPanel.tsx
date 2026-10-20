@@ -1,9 +1,9 @@
 import { durationMs, firstLine, startOfDay, ticketNumber, type FieldDef, type FieldValue, type Id, type Session } from "@sideshow/shared";
 import { useState } from "react";
 import { clock, dayLabel, hm, timeOfDay } from "../format";
-import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
-import { at, timeValue } from "./SessionEditor";
-import { DraftInput, SessionFieldInputs, TaskFieldInputs, TicketInfo, TicketLinks } from "./fields";
+import { sessionFieldTexts, taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
+import { at, SessionEditor, timeValue } from "./SessionEditor";
+import { SessionFieldInputs, TitleInput, TaskFieldInputs, TicketInfo, TicketLinks } from "./fields";
 import { NoteView } from "./NoteView";
 import { RichNotes } from "./RichNotes";
 import { useWeekly } from "../weekly";
@@ -58,6 +58,7 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
   const info = session ? m.tasks.get(session.taskId) : undefined;
   const earlier = info && session ? info.sessions.filter((s) => s.id !== session.id).reverse() : [];
   const running = session && info ? { session, info } : null;
+  const [editingId, setEditingId] = useState<Id | null>(null);
 
   return (
     <section className={`now ${running ? "is-running" : "is-idle"} ${top ? "" : "compact"}`} aria-label="Now" data-session={session?.id}>
@@ -90,15 +91,28 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
             {hm(earlier.reduce((t, s) => t + durationMs(s, now), 0))}
           </summary>
           <ul>
-            {earlier.slice(0, 10).map((s) => (
-              <li key={s.id}>
-                <div className="muted small">
-                  {dayLabel(s.start)} · {timeOfDay(s.start)}–{s.end ? timeOfDay(s.end) : "now"} ·{" "}
-                  {hm(durationMs(s, now))}
-                </div>
-                {s.notes.trim() ? <NoteView markdown={s.notes} /> : <div className="muted">Continuation of previous work</div>}
-              </li>
-            ))}
+            {earlier.slice(0, 10).map((s) => {
+              const open = editingId === s.id;
+              return (
+                <li key={s.id}>
+                  {/* Tap one to fix it (times, work type, notes) or move it to another task. */}
+                  <button
+                    className={`earlier-session ${open ? "open" : ""}`}
+                    aria-expanded={open}
+                    title={open ? "Close" : "Edit this entry"}
+                    onClick={() => setEditingId(open ? null : s.id)}
+                  >
+                    <span className="muted small">
+                      {dayLabel(s.start)} · {timeOfDay(s.start)}–{s.end ? timeOfDay(s.end) : "now"} · {hm(durationMs(s, now))}
+                      {sessionFieldTexts(m, s).map((x) => ` · ${x}`)}
+                      {s.enteredAt ? " · ✓ entered" : ""}
+                    </span>
+                    {open ? null : s.notes.trim() ? <NoteView markdown={s.notes} /> : <span className="muted">Continuation of previous work</span>}
+                  </button>
+                  {open && <SessionEditor session={s} onDone={() => setEditingId(null)} />}
+                </li>
+              );
+            })}
           </ul>
         </details>
       )}
@@ -178,7 +192,7 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
         </button>
       </div>
       <StartedLine session={session} info={info} now={now} />
-      <DraftInput
+      <TitleInput
         className="title-input"
         value={info.titleText}
         resetKey={info.task.id}

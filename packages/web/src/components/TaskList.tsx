@@ -1,8 +1,9 @@
-import { startOfDay, type Id } from "@sideshow/shared";
+import { projectPath, startOfDay, type FieldDef, type Id, type ListItem } from "@sideshow/shared";
 import { useState } from "react";
 import { hm, whenLabel } from "../format";
 import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
 import { addDays, DayNav } from "./DayNav";
+import { ComboPicker } from "./fields";
 import { ProjectList } from "./ProjectList";
 
 export type View = "recent" | "day" | "inbox" | "done" | "projects";
@@ -30,13 +31,38 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
         return false;
     }
   };
+  // The company filter (the profile's groupBy field), remembered on this device.
+  const [companyId, setCompanyIdState] = useState<Id | null>(loadFilter);
+  const setCompanyId = (id: Id | null) => {
+    setCompanyIdState(id);
+    try {
+      if (id) localStorage.setItem(FILTER_KEY, id);
+      else localStorage.removeItem(FILTER_KEY);
+    } catch {
+      // Not remembered: fine for this visit.
+    }
+  };
+  const company = companyId && m.groupBy ? m.view.lists[companyId] : undefined;
+  const ofCompany = (t: TaskInfo) => !company || t.groupItem?.id === company.id;
+
   // A day's log includes archived tasks; the other views don't.
-  const list = (view === "day" ? m.all : m.recent).filter(inView);
+  const base = (view === "day" ? m.all : m.recent).filter(inView);
+  const list = base.filter(ofCompany);
   if (view === "inbox") list.sort((a, b) => b.task.createdAt - a.task.createdAt);
 
-  const inboxCount = m.recent.filter((t) => t.inbox).length;
+  const inboxCount = m.recent.filter((t) => t.inbox && ofCompany(t)).length;
   const dayTotal = view === "day" ? list.reduce((sum, t) => sum + taskTotals(t, now, day).onDay, 0) : 0;
-  const archived = view === "done" ? m.all.filter((t) => t.task.status === "archived") : [];
+  const archivedAll = view === "done" ? m.all.filter((t) => t.task.status === "archived") : [];
+  const archived = archivedAll.filter(ofCompany);
+  // Projects holding the company's tasks (anywhere inside), for the Projects tab.
+  let projectIds: Set<Id> | undefined;
+  if (company && view === "projects") {
+    projectIds = new Set();
+    for (const t of m.all) {
+      if (!ofCompany(t) || !t.task.projectId) continue;
+      for (const p of projectPath(m.view, t.task.projectId)) projectIds.add(p.id);
+    }
+  }
 
   return (
     <section className="list" aria-label="Tasks">
@@ -55,7 +81,13 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
         ))}
       </div>
 
-      {view === "projects" && <ProjectList onOpenProject={onOpenProject} />}
+      {m.groupBy && (
+        <div className="list-filter">
+          <CompanyFilter field={m.groupBy} value={company ?? null} onChange={setCompanyId} counted={view === "projects" ? [] : [...base, ...archivedAll]} />
+        </div>
+      )}
+
+      {view === "projects" && <ProjectList onOpenProject={onOpenProject} only={projectIds} />}
 
       {view === "day" && (
         <DayNav day={day} onDay={(d) => setPickedDay(d === startOfDay(now) ? null : d)} now={now}>
@@ -69,7 +101,13 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
         ))}
       </ul>
       {list.length === 0 && view !== "projects" && (
-        <p className="empty">{view === "day" && pickedDay !== null ? "No time tracked that day." : EMPTY[view]}</p>
+        <p className="empty">
+          {company && base.length > 0
+            ? `Nothing for ${company.name} here.`
+            : view === "day" && pickedDay !== null
+              ? "No time tracked that day."
+              : EMPTY[view]}
+        </p>
       )}
 
       {archived.length > 0 && (
@@ -85,6 +123,84 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
         </details>
       )}
     </section>
+  );
+}
+
+const FILTER_KEY = "sideshow:listCompany";
+function loadFilter(): Id | null {
+  try {
+    return localStorage.getItem(FILTER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Narrow the list to one company's tasks: a searchable list of the companies on your tasks,
+ * most recently worked first, with how many each has in this tab. (There are hundreds of them,
+ * so not a row of chips.)
+ */
+function CompanyFilter({
+  field,
+  value,
+  onChange,
+  counted,
+}: {
+  field: FieldDef;
+  value: ListItem | null;
+  onChange: (id: Id | null) => void;
+  /** The tab's tasks, for the counts. */
+  counted: TaskInfo[];
+}) {
+  const m = useM();
+  const label = field.label.toLowerCase();
+  // Every company on a task, most recently worked first (m.all is in that order).
+  const companies: ListItem[] = [];
+  const seen = new Set<Id>();
+  for (const t of m.all) {
+    const item = t.groupItem;
+    if (item && !seen.has(item.id)) {
+      seen.add(item.id);
+      companies.push(item);
+    }
+  }
+  const counts = new Map<Id, number>();
+  for (const t of counted) if (t.groupItem) counts.set(t.groupItem.id, (counts.get(t.groupItem.id) ?? 0) + 1);
+  return (
+    <ComboPicker
+      chip={
+        <>
+          <span className="muted">{field.label}:</span> {value ? value.name : "All"}
+        </>
+      }
+      chipTitle={value ? `Showing ${value.name}'s tasks only` : `Show one ${label}'s tasks only`}
+      set={!!value}
+      onClear={() => onChange(null)}
+      clearLabel={`All ${label === "company" ? "companies" : `${label}s`}`}
+      placeholder={`Find ${label}…`}
+      empty={companies.length ? "No match" : `No tasks have a ${label} yet`}
+      options={(query) => [
+        ...companies
+          .filter((c) => !query || c.name.toLowerCase().includes(query))
+          .slice(0, query ? 50 : 20)
+          .map((c) => {
+            const n = counts.get(c.id);
+            return {
+              key: c.id,
+              text: c.name,
+              section: query ? undefined : "Recent",
+              label: (
+                <span className="filter-option">
+                  <span>{c.name}</span>
+                  {n ? <span className="muted small">{n}</span> : null}
+                </span>
+              ),
+              pick: () => onChange(c.id),
+            };
+          }),
+        ...(value ? [{ key: "-", text: `All ${label === "company" ? "companies" : `${label}s`}`, pick: () => onChange(null) }] : []),
+      ]}
+    />
   );
 }
 
