@@ -4,6 +4,7 @@ import { hm, whenLabel } from "../format";
 import { taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
 import { addDays, DayNav } from "./DayNav";
 import { ComboPicker } from "./fields";
+import { wsKey } from "../workspace";
 import { ProjectList } from "./ProjectList";
 
 export type View = "recent" | "day" | "inbox" | "done" | "projects";
@@ -64,6 +65,10 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
     }
   }
 
+  const filter = m.groupBy && (
+    <CompanyFilter field={m.groupBy} value={company ?? null} onChange={setCompanyId} counted={view === "projects" ? [] : [...base, ...archivedAll]} />
+  );
+
   return (
     <section className="list" aria-label="Tasks">
       <div className="tabs" role="tablist">
@@ -81,17 +86,14 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
         ))}
       </div>
 
-      {m.groupBy && (
-        <div className="list-filter">
-          <CompanyFilter field={m.groupBy} value={company ?? null} onChange={setCompanyId} counted={view === "projects" ? [] : [...base, ...archivedAll]} />
-        </div>
-      )}
+      {/* On Day it sits in the date's row instead. */}
+      {filter && view !== "day" && <div className="list-filter">{filter}</div>}
 
       {view === "projects" && <ProjectList onOpenProject={onOpenProject} only={projectIds} />}
 
       {view === "day" && (
-        <DayNav day={day} onDay={(d) => setPickedDay(d === startOfDay(now) ? null : d)} now={now}>
-          {list.length > 0 && <span className="muted small">Total {hm(dayTotal)}</span>}
+        <DayNav day={day} onDay={(d) => setPickedDay(d === startOfDay(now) ? null : d)} now={now} after={filter}>
+          {list.length > 0 && <span className="muted small nav-total">Total {hm(dayTotal)}</span>}
         </DayNav>
       )}
 
@@ -126,7 +128,7 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
   );
 }
 
-const FILTER_KEY = "sideshow:listCompany";
+const FILTER_KEY = wsKey("sideshow:listCompany");
 function loadFilter(): Id | null {
   try {
     return localStorage.getItem(FILTER_KEY);

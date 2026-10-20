@@ -66,6 +66,14 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   `defaults` (a work type's billing): the reducer applies them when the item is chosen, unless
   the same change sets that field, and the server fills missing defaults once when the
   profile's defaults change.
+- **Workspaces** (DESIGN.md §4, 2026-10-20): separate data sets, each its own DB and profile.
+  `server/src/workspaces.ts` (`Registry` = `data/workspaces.json`, `Workspace` = db + store +
+  files + CW parts, `Workspaces`); main = `data/sideshow.db`, others `data/workspaces/<id>.db`.
+  Routes get theirs from `c.get("ws")` (header `X-Sideshow-Workspace`, `?ws=` for SSE, default
+  main); `/api/workspaces` and `GET /api/files/:id` aren't per workspace. Client:
+  `web/src/workspace.ts` (`workspaceId`, `wsKey()` for per-workspace localStorage; main keeps
+  the old keys), switching reloads. `/api/ops` refuses a batch whose `workspace` differs (409).
+  Tests: `workspaces.test.ts` (incl. the CW → none → CW round trip).
 - `packages/web` — React + Vite. `sync.ts`: view = server state + pending ops replayed through the
   same reducer; pending ops persist in localStorage before sending (the outbox).
 - **Notes are Markdown** (DESIGN.md §7 "Rich notes"): edited in `RichNotes` (TipTap; Markdown
@@ -148,7 +156,13 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-10-19)
+## Status (2026-10-20)
+
+- **Built 2026-10-20:** **workspaces** with a profile each (Settings › Workspaces; DESIGN.md
+  §4); the Entries table **edited in place** with CW (dates, times, hours, ticket #, company;
+  click-to-copy without an integration); the Day tab's company filter beside the date. Check
+  on the mini PC after the update: no `workspaces.json` = just main, nothing changes until a
+  workspace is made. Next asked for: a **Connections** tab for the CW settings (backlog).
 
 - **Built 2026-10-19** from Evan's list (DESIGN.md §7): company filter on the task list (a
   searchable picker, not chips); **Move to…** in the session editor (any task or a new one);

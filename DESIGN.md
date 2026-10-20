@@ -87,9 +87,9 @@ plain-text/CSV export. It has no idea what a ticket, client, work type or billab
 Nothing switches core features on or off.
 
 **A profile** declares the extra fields a job needs, and only those. **A field the profile
-doesn't list doesn't exist** (an inclusion list, not a list of on/off flags). One profile is
-active at a time. A profile is just data, so a job with no API access still gets its fields and
-its entry format without writing code.
+doesn't list doesn't exist** (an inclusion list, not a list of on/off flags).
+A profile is just data, so a job with no API access still gets its fields and
+its entry format without writing code. (One profile per workspace: see Workspaces below.)
 
 ```json
 {
@@ -114,7 +114,10 @@ its entry format without writing code.
   The core schema never changes when a profile changes.
 - **Switching profiles keeps data.** Values stay in the blob, hidden, and reappear if the
   profile comes back (principle 5). List items are never deleted by a sync, only archived, so
-  past sessions never point at nothing.
+  past sessions never point at nothing. Switching only seeds lists the workspace doesn't have
+  yet and fills a changed default where a record lacks the field; it never changes or removes
+  a value. Tested: CW → none → CW, across restarts, leaves every record byte for byte as it was
+  (`workspaces.test.ts`).
 - **`groupBy`** gives a `list` field its own sidebar view and a page per value (the Client page,
   §5). Another job might group by department, or not at all.
 - **List item `defaults`**: choosing an item sets the fields its defaults name (a work type sets
@@ -129,6 +132,32 @@ its entry format without writing code.
 maps the external system's entities onto the core's, syncs `list` fields, offers external
 **search sources**, and adds actions (look up, track, push). Records it touches carry a generic
 link, `{integration, externalId}`; the core never stores anything else about the external system.
+
+### Workspaces (2026-10-20)
+
+Separate sets of data: each workspace has its own tasks, sessions, projects, lists and
+settings, in its own database, and **its own profile**. Nothing in one shows in another (a
+work workspace with the CW profile, a personal one with none). Chosen in Settings ›
+Workspaces, **per device**; with more than one, the header shows which (a badge that opens
+that tab). Profile = the lens on one workspace's data, changed rarely; workspace = which data.
+(Evan's call, 2026-10-20, over one picker doing both, which would blur "gone" and "hidden".)
+
+- **Main** is the database there always was (`data/sideshow.db`); others are
+  `data/workspaces/<id>.db`, listed in `data/workspaces.json`. No list file = just main, its
+  profile from `PROFILE` in `.env` until changed in the app. Attachments share one folder
+  (ids are unique); `/api/files/<id>` finds a file in any workspace, since a picture in a note
+  can't say which workspace it's in.
+- **Changing a workspace's profile** (Settings, with "Are you sure?"): the server copies the
+  database first (`sideshow-<id>-before-profile-<time>.db`), switches without a restart, and
+  tells that workspace's devices, which fetch the state and config again.
+- **Keeping them apart.** Every request names its workspace (`X-Sideshow-Workspace`, or `?ws=`
+  for the live updates); none means main, which is all an app from before workspaces knows.
+  On a device, the cached state and the **outbox are per workspace** (main keeps the old
+  storage keys), and switching reloads the app, so nothing in memory carries over. Each batch
+  of ops says which workspace it was made in, and the server refuses a batch for another (409).
+  Changes left unsent in one workspace wait for it; Settings shows how many.
+- A device whose workspace is gone from the server goes back to main.
+- Not yet: deleting a workspace, moving tasks between workspaces.
 
 *Rest of this document uses the current job's labels (Client, Work Type) for readability.*
 
@@ -450,7 +479,11 @@ smaller (14px); touch screens keep 16px so iOS doesn't zoom into inputs.
   rows leave the Ticket # and Client cells blank, like a grouped spreadsheet. (Settled
   2026-10-10 after trying a staggered header, fixed slots, and the fields on the first session
   row: each either didn't line up with the column headings or looked per-session.)
-- One row per session (= one CW entry): Start, End, Hours, Work type, Billing, ✓ Mark entered. Click a value to copy it. Work type and billing are set
+- One row per session (= one CW entry): Start, End, Hours, Work type, Billing, ✓ Mark entered. **With CW** (2026-10-19) every value is edited in place: Date, Start, End
+  in native date/time boxes (shown as plain text until hovered), Hours typed (1.5 or 1:30; moves
+  the end), Ticket # and Company on the header row (the ticket saves on Enter or leaving the
+  box, so a half-typed number isn't looked up; Esc puts it back). **Without an integration**
+  the values are click-to-copy, for typing into the other system by hand. Work type and billing are set
   right in the row. Under the Ticket # and Client headings, where the task fields are on the
   header row, each session row shows **✎ and its notes' first line**: click it to open the
   session editor under the row (2026-10-19: the ✎ at the row's end was too small to hit, and

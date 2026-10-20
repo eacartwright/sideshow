@@ -5,7 +5,7 @@ import { DayPage } from "./components/DayPage";
 import { InboxAdd } from "./components/InboxAdd";
 import { NowPanel } from "./components/NowPanel";
 import { ProjectDetail } from "./components/ProjectDetail";
-import { SettingsDialog } from "./components/Settings";
+import { SettingsDialog, type SettingsTab } from "./components/Settings";
 import { Switcher } from "./components/Switcher";
 import { TaskDetail } from "./components/TaskDetail";
 import { TaskList } from "./components/TaskList";
@@ -21,7 +21,7 @@ import { undo } from "./undo";
 type Overlay =
   | { kind: "switcher"; alongside?: boolean }
   | { kind: "inbox" }
-  | { kind: "settings" }
+  | { kind: "settings"; tab?: SettingsTab }
   | { kind: "clients" }
   | { kind: "project"; projectId: Id }
   /** `back`: where closing returns to (the project page it was opened from). */
@@ -142,6 +142,12 @@ export function App() {
       <ActionsContext.Provider value={actions}>
         <header className={`app-header ${page === "day" ? "wide" : ""}`}>
           <h1>sideshow</h1>
+          {/* With more than one workspace, which one this is (so they can't be mixed up). */}
+          {(model.config.workspaces?.length ?? 0) > 1 && model.config.workspace && (
+            <button className="ws-badge" onClick={() => setOverlay({ kind: "settings", tab: "workspaces" })} title="Workspace (Settings › Workspaces)">
+              {model.config.workspace.name}
+            </button>
+          )}
           <SyncBadge model={model} />
           <nav className="actionbar" aria-label="Actions">
             <button className="btn" onClick={() => setOverlay({ kind: "switcher" })} title="Find a task (Ctrl+K)">
@@ -199,7 +205,7 @@ export function App() {
 
         {overlay?.kind === "switcher" && <Switcher alongside={overlay.alongside} onClose={close} />}
         {overlay?.kind === "inbox" && <InboxAdd onClose={close} />}
-        {overlay?.kind === "settings" && <SettingsDialog onClose={close} onClients={() => setOverlay({ kind: "clients" })} />}
+        {overlay?.kind === "settings" && <SettingsDialog initialTab={overlay.tab} onClose={close} onClients={() => setOverlay({ kind: "clients" })} />}
         {overlay?.kind === "clients" && <ClientsDialog onClose={() => setOverlay({ kind: "settings" })} />}
         <ToastBar />
         {overlay?.kind === "project" && (

@@ -6,17 +6,12 @@ import { existsSync, renameSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { newId, OP_TYPES, type OpEnvelope } from "@sideshow/shared";
-import { startBackups } from "./backup";
-import { openDb } from "./db";
 import { FileStore, MAX_FILE } from "./files";
 import { ConnectWiseClient, CwError, configFromEnv } from "./integrations/connectwise/client";
-import { CompanyCache } from "./integrations/connectwise/companies";
-import { CwDocuments } from "./integrations/connectwise/documents";
-import { WeeklyTickets } from "./integrations/connectwise/weekly";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
-import { TicketMaker, type NewTicket } from "./integrations/connectwise/tickets";
-import { defaultsBackfill, loadProfile, profileListChanges } from "./profile";
-import { Store } from "./store";
+import type { NewTicket } from "./integrations/connectwise/tickets";
+import { listProfiles } from "./profile";
+import { MAIN, Workspaces, type Workspace } from "./workspaces";
 
 const PORT = Number(process.env.PORT ?? 8787);
 // The app was called fieldtime until 2026-10: FIELDTIME_* settings still work.
@@ -37,23 +32,8 @@ function defaultDbFile(): string {
 }
 const WEB_DIST = fileURLToPath(new URL("../../web/dist", import.meta.url));
 
-// Load the profile first: a broken profile file should stop the server before anything changes.
-const profile = loadProfile(process.env.PROFILE);
-console.log(process.env.PROFILE ? `profile: ${profile.name}` : "profile: none (set PROFILE in .env for job fields)");
-const db = openDb(DB_FILE);
-const store = new Store(db);
-const files = new FileStore(db, FILES_DIR);
-const backups = startBackups(db, BACKUP_DIR, FILES_DIR);
-const now = Date.now();
-const listChanges = profileListChanges(profile, store.state, now);
-if (listChanges.length) {
-  // New or changed defaults (a work type's billing) also fill records that have none yet.
-  const { tasks, sessions } = defaultsBackfill(store.state, listChanges, now);
-  store.seed({ lists: listChanges, projects: [], tasks, sessions });
-  console.log(`profile lists: ${listChanges.length} items updated, defaults filled on ${tasks.length + sessions.length} records`);
-}
-
-// ConnectWise is optional: without the CW_* settings in .env, ticket lookup is off.
+// ConnectWise is optional: without the CW_* settings in .env, ticket lookup is off. A workspace
+// uses it when its profile has a connectwise section.
 const cw = (() => {
   if (!process.env.CW_SITE) return null;
   try {
@@ -63,32 +43,28 @@ const cw = (() => {
     return null;
   }
 })();
-// The company picker's copy of CW's companies: brought up to date at startup and every few hours.
-const companies = cw && profile.connectwise ? new CompanyCache(db, cw) : null;
-if (companies) {
-  void companies.sync();
-  setInterval(() => void companies.sync(), 4 * 3_600_000).unref();
-}
 // Pushing time entries also needs whose time it is (a CW member identifier, e.g. ecartwright).
 const CW_MEMBER = process.env.CW_MEMBER?.trim() || null;
-if (cw && profile.connectwise && !CW_MEMBER) console.log("ConnectWise push is off: set CW_MEMBER in .env");
-// A note's attachments go to the ticket its time is pushed to (once per ticket).
-const documents = cw ? new CwDocuments(db, files, cw) : undefined;
-const tickets = cw && profile.connectwise ? new TicketMaker(cw, store, profile, CW_MEMBER, documents) : null;
-// The weekly recurring internal ticket (WRIT): found by its summary and owner, looked for again
-// once a week (DESIGN.md §10). CW_WEEKLY_SUMMARY overrides the summary looked for.
-const weekly =
-  cw && profile.connectwise && CW_MEMBER && tickets
-    ? new WeeklyTickets(db, cw, CW_MEMBER, async () => {
-        if (process.env.CW_WEEKLY_SUMMARY) return process.env.CW_WEEKLY_SUMMARY;
-        const owner = await tickets.getOwner().catch(() => null);
-        return owner ? `Weekly Recurring Internal Ticket - ${owner.name}` : null;
-      })
-    : null;
-if (weekly) {
-  weekly.checkIfDue();
-  setInterval(() => weekly.checkIfDue(), 15 * 60_000).unref();
+
+// Every workspace (workspaces.ts). Opening one loads its profile first: a broken profile file
+// stops the server before anything changes.
+const workspaces = new Workspaces({
+  dataDir: dirname(DB_FILE),
+  mainDbFile: DB_FILE,
+  backupDir: BACKUP_DIR,
+  filesDir: FILES_DIR,
+  envProfile: process.env.PROFILE,
+  cw,
+  cwMember: CW_MEMBER,
+  cwWeeklySummary: process.env.CW_WEEKLY_SUMMARY,
+});
+for (const ws of workspaces.all()) {
+  const file = ws.profileFile();
+  console.log(`workspace ${ws.id} (${ws.entry.name}): ${file ? `profile ${ws.profile.name}` : "no profile"}`);
 }
+if (!process.env.PROFILE && !workspaces.main.entry.profile) console.log("(set PROFILE in .env for job fields)");
+if (cw && !CW_MEMBER && workspaces.all().some((w) => w.profile.connectwise)) console.log("ConnectWise push is off: set CW_MEMBER in .env");
+
 /**
  * A ticket's page in CW, with {id} for the number: the form of CW's own "Share" link, on the API
  * host without its "api-" prefix (api-na.myconnectwise.net → na.myconnectwise.net). Signed out,
@@ -105,30 +81,115 @@ function isOpEnvelope(x: any): x is OpEnvelope {
   );
 }
 
-const app = new Hono();
+const app = new Hono<{ Variables: { ws: Workspace } }>();
 
-app.get("/api/health", (c) => c.json({ ok: true, rev: store.rev, lastBackup: backups.latest() }));
+app.get("/api/health", (c) => c.json({ ok: true, rev: workspaces.main.store.rev, lastBackup: workspaces.main.backups.latest() }));
 
-app.get("/api/state", (c) =>
+// The workspaces, the profiles there are, and making, renaming or re-profiling one (Settings).
+// Not tied to the workspace the request comes from.
+app.get("/api/workspaces", (c) =>
   c.json({
-    rev: store.rev,
-    state: store.state,
-    config: {
-      profile,
-      cw: cw !== null && !!profile.connectwise,
-      cwPush: cw !== null && !!profile.connectwise && !!CW_MEMBER,
-      cwWeekly: weekly !== null,
-      cwTicketUrl: profile.connectwise ? CW_TICKET_URL : null,
-    },
+    workspaces: workspaces.all().map((w) => ({ id: w.id, name: w.entry.name, profile: w.profileFile(), profileName: w.profile.name })),
+    profiles: listProfiles(),
   }),
 );
+app.post("/api/workspaces", async (c) => {
+  const b = await c.req.json().catch(() => null);
+  const name = typeof b?.name === "string" ? b.name.trim() : "";
+  const profile = typeof b?.profile === "string" ? b.profile : "";
+  if (!name || name.length > 60) return c.json({ error: "A name (up to 60 characters) is needed" }, 400);
+  try {
+    const ws = workspaces.create(name, profile);
+    return c.json({ id: ws.id });
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: `Couldn't use that profile: ${(err as Error).message}` }, 400);
+  }
+});
+app.post("/api/workspaces/:id", async (c) => {
+  const id = c.req.param("id");
+  if (!workspaces.get(id)) return c.json({ error: "No such workspace" }, 404);
+  const b = await c.req.json().catch(() => null);
+  if (typeof b?.name === "string") {
+    const name = b.name.trim();
+    if (!name || name.length > 60) return c.json({ error: "A name (up to 60 characters) is needed" }, 400);
+    workspaces.rename(id, name);
+  }
+  if (typeof b?.profile === "string") {
+    try {
+      const backup = workspaces.setProfile(id, b.profile);
+      console.log(`workspace ${id}: profile now ${b.profile || "none"} (copy from before: ${backup})`);
+    } catch (err) {
+      console.error(err);
+      return c.json({ error: `Couldn't use that profile: ${(err as Error).message}` }, 400);
+    }
+  }
+  return c.json({ ok: true });
+});
+
+// A file, by id: notes in any workspace link to /api/files/<id>/<name> (a picture can't say
+// which workspace it's in). The name after it is for people and is ignored. Never changes, so
+// cached for good.
+app.get("/api/files/:id/:name?", (c) => {
+  const id = c.req.param("id");
+  if (!/^[0-9a-f-]{36}$/.test(id)) return c.json({ error: "No such file" }, 404);
+  const file = workspaces
+    .all()
+    .map((w) => w.files.read(id))
+    .find((f) => !!f);
+  if (!file) return c.json({ error: "No such file" }, 404);
+  const inline = /^(image\/(png|jpeg|gif|webp)|application\/pdf|text\/plain)$/.test(file.info.type);
+  return new Response(new Uint8Array(file.data), {
+    headers: {
+      "content-type": file.info.type,
+      "content-length": String(file.info.size),
+      "cache-control": "private, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+      "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.info.name)}`,
+    },
+  });
+});
+
+// Everything else is for one workspace: the X-Sideshow-Workspace header says which (the
+// EventSource can't send headers, so ?ws= there). None means the main one, all an app from
+// before workspaces knows about.
+app.use("/api/*", async (c, next) => {
+  const id = c.req.header("x-sideshow-workspace") ?? c.req.query("ws") ?? MAIN;
+  const ws = workspaces.get(id);
+  if (!ws) return c.json({ error: "No such workspace", workspace: id }, 404);
+  c.set("ws", ws);
+  await next();
+});
+
+/** The workspace's CW parts, if its profile uses ConnectWise and the server has it set up. */
+const cwOf = (ws: Workspace) => (cw && ws.cwParts ? { cw, ...ws.cwParts, profile: ws.profile, cwSettings: ws.profile.connectwise! } : null);
+const NO_CW = { error: "ConnectWise isn't set up for this workspace" };
+
+app.get("/api/state", (c) => {
+  const ws = c.get("ws");
+  const on = !!cwOf(ws);
+  return c.json({
+    rev: ws.store.rev,
+    state: ws.store.state,
+    config: {
+      profile: ws.profile,
+      cw: on,
+      cwPush: on && !!CW_MEMBER,
+      cwWeekly: on && !!ws.cwParts?.weekly,
+      cwTicketUrl: on ? CW_TICKET_URL : null,
+      workspace: { id: ws.id, name: ws.entry.name },
+      workspaces: workspaces.all().map((w) => ({ id: w.id, name: w.entry.name })),
+    },
+  });
+});
 
 app.get("/api/cw/tickets/:id", async (c) => {
-  if (!cw) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  const x = cwOf(c.get("ws"));
+  if (!x) return c.json(NO_CW, 503);
   const id = Number(c.req.param("id"));
   if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Not a ticket number" }, 400);
   try {
-    const t = await cw.getTicket(id);
+    const t = await x.cw.getTicket(id);
     return c.json({ id: t.id, summary: t.summary, company: t.company?.name ?? "", companyId: t.company?.id ?? null, closed: !!t.closedFlag });
   } catch (err) {
     if (err instanceof CwError && err.status === 404) return c.json({ error: `No ticket #${id}` }, 404);
@@ -139,50 +200,55 @@ app.get("/api/cw/tickets/:id", async (c) => {
 
 // Every CW company, duplicates marked, for the company picker. The client keeps a copy.
 app.get("/api/cw/companies", (c) => {
-  if (!companies) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
-  return c.json({ ...companies.status(), companies: companies.list() });
+  const x = cwOf(c.get("ws"));
+  if (!x) return c.json(NO_CW, 503);
+  return c.json({ ...x.companies.status(), companies: x.companies.list() });
 });
 
 // Sync now (and answer once it's done). ?full=1 asks every company for its newest ticket again.
 app.post("/api/cw/companies/refresh", async (c) => {
-  if (!companies) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
-  await companies.sync(c.req.query("full") === "1");
-  return c.json({ ...companies.status(), companies: companies.list() });
+  const x = cwOf(c.get("ws"));
+  if (!x) return c.json(NO_CW, 503);
+  await x.companies.sync(c.req.query("full") === "1");
+  return c.json({ ...x.companies.status(), companies: x.companies.list() });
 });
 
 // This week's recurring internal ticket, for ▶ WRIT. Asking also looks again if it's due.
 app.get("/api/cw/weekly", (c) => {
-  if (!weekly) return c.json({ error: "ConnectWise push isn't set up on this server" }, 503);
+  const weekly = cwOf(c.get("ws"))?.weekly;
+  if (!weekly) return c.json({ error: "ConnectWise push isn't set up for this workspace" }, 503);
   weekly.checkIfDue();
   return c.json({ weekly: weekly.current() });
 });
 app.post("/api/cw/weekly/refresh", async (c) => {
-  if (!weekly) return c.json({ error: "ConnectWise push isn't set up on this server" }, 503);
+  const weekly = cwOf(c.get("ws"))?.weekly;
+  if (!weekly) return c.json({ error: "ConnectWise push isn't set up for this workspace" }, 503);
   return c.json({ weekly: await weekly.check() });
 });
 
 // Rename a ticket: its summary in CW becomes the task's title (Task details' "Update ticket").
 // The new summary is recorded on the task like a lookup's, so every device sees it.
 app.post("/api/cw/tickets/:id/summary", async (c) => {
-  if (!cw || !profile.connectwise) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  const ws = c.get("ws");
+  const x = cwOf(ws);
+  if (!x) return c.json(NO_CW, 503);
   const id = Number(c.req.param("id"));
   const b = await c.req.json().catch(() => null);
   const summary = typeof b?.summary === "string" ? b.summary.trim() : "";
-  const task = typeof b?.taskId === "string" ? store.state.tasks[b.taskId] : undefined;
+  const task = typeof b?.taskId === "string" ? ws.store.state.tasks[b.taskId] : undefined;
   if (!Number.isInteger(id) || id <= 0 || !summary || !task) return c.json({ error: "taskId, summary and a ticket number needed" }, 400);
   if (summary.length > 100) return c.json({ error: "ConnectWise allows 100 characters in a summary" }, 400);
   try {
-    const t = await cw.updateTicketSummary(id, summary);
-    const field = profile.connectwise.ticketField;
+    const t = await x.cw.updateTicketSummary(id, summary);
     const at = Date.now();
-    store.apply([
+    ws.store.apply([
       {
         id: newId(),
         at,
         op: {
           type: "task.refInfo",
           taskId: task.id,
-          field,
+          field: x.cwSettings.ticketField,
           ref: String(id),
           info: {
             summary: t.summary ?? summary,
@@ -204,9 +270,10 @@ app.post("/api/cw/tickets/:id/summary", async (c) => {
 
 // What a new ticket can be: boards with their types and statuses, and who it's assigned to.
 app.get("/api/cw/boards", async (c) => {
-  if (!tickets) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  const x = cwOf(c.get("ws"));
+  if (!x) return c.json(NO_CW, 503);
   try {
-    const [boards, owner] = await Promise.all([tickets.getBoards(), tickets.getOwner().catch(() => null)]);
+    const [boards, owner] = await Promise.all([x.tickets.getBoards(), x.tickets.getOwner().catch(() => null)]);
     return c.json({ boards, owner });
   } catch (err) {
     console.error(err);
@@ -216,9 +283,10 @@ app.get("/api/cw/boards", async (c) => {
 
 // Create a CW ticket for a task; its number goes onto the task (an op every device sees).
 app.post("/api/cw/tickets", async (c) => {
-  if (!tickets) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  const x = cwOf(c.get("ws"));
+  if (!x) return c.json(NO_CW, 503);
   const b = await c.req.json().catch(() => null);
-  const num = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x > 0 ? x : undefined);
+  const num = (v: unknown) => (typeof v === "number" && Number.isInteger(v) && v > 0 ? v : undefined);
   if (!b || typeof b.taskId !== "string" || typeof b.summary !== "string" || !num(b.boardId)) {
     return c.json({ error: "taskId, summary and boardId needed" }, 400);
   }
@@ -230,10 +298,10 @@ app.post("/api/cw/tickets", async (c) => {
     statusId: num(b.statusId),
     assign: b.assign !== false,
     description: typeof b.description === "string" ? b.description : undefined,
-    pushSessionIds: Array.isArray(b.pushSessionIds) ? b.pushSessionIds.filter((x: unknown) => typeof x === "string") : undefined,
+    pushSessionIds: Array.isArray(b.pushSessionIds) ? b.pushSessionIds.filter((v: unknown) => typeof v === "string") : undefined,
   };
   try {
-    const result = await tickets.create(req);
+    const result = await x.tickets.create(req);
     return c.json(result, "error" in result ? 409 : 200);
   } catch (err) {
     console.error(err);
@@ -252,12 +320,14 @@ app.post("/api/cw/tickets", async (c) => {
 // state is what the user sees. Results come back per session; successes are also recorded on
 // the sessions (an op, so every device sees them).
 app.post("/api/cw/push", async (c) => {
-  if (!cw || !profile.connectwise || !CW_MEMBER) return c.json({ error: "ConnectWise push isn't set up on this server" }, 503);
+  const ws = c.get("ws");
+  const x = cwOf(ws);
+  if (!x || !CW_MEMBER) return c.json({ error: "ConnectWise push isn't set up for this workspace" }, 503);
   const body = await c.req.json().catch(() => null);
   const ids: unknown[] = Array.isArray(body?.sessionIds) ? body.sessionIds : [];
-  if (!ids.length || ids.some((x) => typeof x !== "string")) return c.json({ error: "sessionIds needed" }, 400);
+  if (!ids.length || ids.some((v) => typeof v !== "string")) return c.json({ error: "sessionIds needed" }, 400);
   try {
-    const results = await pushSessions(cw, store, profile, CW_MEMBER, ids as string[], documents);
+    const results = await pushSessions(x.cw, ws.store, x.profile, CW_MEMBER, ids as string[], x.documents);
     return c.json({ results });
   } catch (err) {
     console.error(err);
@@ -267,12 +337,14 @@ app.post("/api/cw/push", async (c) => {
 
 // Which pushed sessions' CW entries have been deleted in CW; those go back to To enter.
 app.post("/api/cw/check", async (c) => {
-  if (!cw || !profile.connectwise) return c.json({ error: "ConnectWise isn't set up on this server" }, 503);
+  const ws = c.get("ws");
+  const x = cwOf(ws);
+  if (!x) return c.json(NO_CW, 503);
   const body = await c.req.json().catch(() => null);
   const ids: unknown[] = Array.isArray(body?.sessionIds) ? body.sessionIds : [];
-  if (ids.some((x) => typeof x !== "string")) return c.json({ error: "sessionIds needed" }, 400);
+  if (ids.some((v) => typeof v !== "string")) return c.json({ error: "sessionIds needed" }, 400);
   try {
-    return c.json({ removed: await checkPushed(cw, store, ids as string[]) });
+    return c.json({ removed: await checkPushed(x.cw, ws.store, ids as string[]) });
   } catch (err) {
     console.error(err);
     return c.json({ error: "Couldn't reach ConnectWise" }, 502);
@@ -293,50 +365,41 @@ app.post("/api/files", async (c) => {
   } catch {
     // Not URL-encoded: keep "file".
   }
-  const info = files.save(data, name, c.req.header("content-type") ?? "");
+  const info = c.get("ws").files.save(data, name, c.req.header("content-type") ?? "");
   return c.json({ ...info, url: FileStore.url(info) });
 });
 
-// A file, by id; the name after it is for people and is ignored. Never changes, so cached for good.
-app.get("/api/files/:id/:name?", (c) => {
-  const id = c.req.param("id");
-  if (!/^[0-9a-f-]{36}$/.test(id)) return c.json({ error: "No such file" }, 404);
-  const file = files.read(id);
-  if (!file) return c.json({ error: "No such file" }, 404);
-  const inline = /^(image\/(png|jpeg|gif|webp)|application\/pdf|text\/plain)$/.test(file.info.type);
-  return new Response(new Uint8Array(file.data), {
-    headers: {
-      "content-type": file.info.type,
-      "content-length": String(file.info.size),
-      "cache-control": "private, max-age=31536000, immutable",
-      "x-content-type-options": "nosniff",
-      "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.info.name)}`,
-    },
-  });
-});
-
 app.post("/api/ops", async (c) => {
+  const ws = c.get("ws");
   const body = await c.req.json().catch(() => null);
+  // The outbox says which workspace its ops were made in, and ops for another one are refused:
+  // nothing made in one workspace can land in another. (An app from before workspaces only
+  // knows the main one, and doesn't say.)
+  if ((body?.workspace ?? MAIN) !== ws.id) return c.json({ error: "These changes are for another workspace", workspace: body?.workspace }, 409);
   const ops: unknown[] = Array.isArray(body?.ops) ? body.ops : [];
   const valid = ops.filter(isOpEnvelope);
   if (valid.length !== ops.length) return c.json({ error: "invalid op" }, 400);
-  const changes = store.apply(valid);
-  return c.json({ rev: store.rev, changes });
+  const changes = ws.store.apply(valid);
+  return c.json({ rev: ws.store.rev, changes });
 });
 
-// Live updates: every change is pushed to every connected device.
-app.get("/api/events", (c) =>
-  streamSSE(c, async (stream) => {
-    const off = store.onChange((rev, changes) => {
+// Live updates: every change is pushed to every device on the workspace, and "config" when its
+// profile or the workspace names change (devices then fetch the state again).
+app.get("/api/events", (c) => {
+  const ws = c.get("ws");
+  return streamSSE(c, async (stream) => {
+    const off = ws.store.onChange((rev, changes) => {
       void stream.writeSSE({ event: "changes", data: JSON.stringify({ rev, changes }) });
     });
-    await stream.writeSSE({ event: "hello", data: JSON.stringify({ rev: store.rev }) });
+    const offConfig = ws.onConfig(() => void stream.writeSSE({ event: "config", data: "{}" }));
+    await stream.writeSSE({ event: "hello", data: JSON.stringify({ rev: ws.store.rev }) });
     const ping = setInterval(() => void stream.writeSSE({ event: "ping", data: "" }), 25_000);
     await new Promise<void>((resolve) => stream.onAbort(resolve));
     clearInterval(ping);
     off();
-  }),
-);
+    offConfig();
+  });
+});
 
 // In production the server also serves the built web app.
 if (existsSync(WEB_DIST)) {
@@ -351,5 +414,5 @@ if (existsSync(WEB_DIST)) {
 }
 
 serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {
-  console.log(`sideshow server on http://localhost:${info.port}  (db: ${DB_FILE}, files: ${FILES_DIR}, backups: ${BACKUP_DIR})`);
+  console.log(`sideshow server on http://localhost:${info.port}  (main db: ${DB_FILE}, files: ${FILES_DIR}, backups: ${BACKUP_DIR})`);
 });

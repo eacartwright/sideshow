@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   listEntry,
@@ -28,6 +28,20 @@ export function loadProfile(name: string | undefined): Profile {
   const problems = profileProblems(profile);
   if (problems.length) throw new Error(`Profile ${file}: ${problems.join("; ")}`);
   return profile;
+}
+
+/** The profiles there are to choose from: file name (without .json) and the profile's own name. */
+export function listProfiles(): { file: string; name: string }[] {
+  const out: { file: string; name: string }[] = [];
+  for (const f of readdirSync(fileURLToPath(DIR)).filter((x) => x.endsWith(".json")).sort()) {
+    const file = f.slice(0, -5);
+    try {
+      out.push({ file, name: loadProfile(file).name });
+    } catch {
+      // A broken profile isn't offered; picking it would fail.
+    }
+  }
+  return out;
 }
 
 /**

@@ -10,6 +10,7 @@ import {
   type Profile,
   type State,
 } from "@sideshow/shared";
+import { MAIN, switchWorkspace, workspaceId, wsKey } from "./workspace";
 
 // Client side of sync. What the UI shows is always:
 //   the last state confirmed by the server + ops not yet confirmed, replayed on top.
@@ -27,6 +28,9 @@ export interface Config {
   cwTicketUrl?: string | null;
   /** The server finds the weekly recurring internal ticket (▶ WRIT). */
   cwWeekly?: boolean;
+  /** The workspace this is (DESIGN.md §4), and every workspace there is. Missing from servers before workspaces. */
+  workspace?: { id: string; name: string };
+  workspaces?: { id: string; name: string }[];
 }
 
 /** "signedout": the login in front of the server (Cloudflare Access) has expired. */
@@ -41,8 +45,9 @@ export interface Snapshot {
 }
 
 // The cache is only a head start until the server answers, so a new shape just gets a new key.
-const CACHE_KEY = "sideshow:cache:2";
-const PENDING_KEY = "sideshow:pending";
+// Both are per workspace: another workspace's unsent changes wait for it under their own key.
+const CACHE_KEY = wsKey("sideshow:cache:2");
+const PENDING_KEY = wsKey("sideshow:pending");
 /** From before the rename (2026-10). Unsent ops there are carried over, on the same address. */
 const OLD_PENDING_KEY = "fieldtime:pending";
 const KINDS = ["lists", "projects", "tasks", "sessions"] as const;
@@ -51,7 +56,10 @@ export class SignedOut extends Error {}
 
 /** fetch, but a redirect (to the Access login page) is reported as SignedOut instead of a CORS failure. */
 export async function api(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(path, { ...init, redirect: "manual" });
+  // Every request says which workspace it's for.
+  const headers = new Headers(init?.headers);
+  headers.set("x-sideshow-workspace", workspaceId);
+  const res = await fetch(path, { ...init, headers, redirect: "manual" });
   if (res.type === "opaqueredirect" || res.status === 401 || res.status === 403) throw new SignedOut();
   if (!res.ok) throw new Error(String(res.status));
   return res;
@@ -98,7 +106,7 @@ class Sync {
       this.loaded = true;
     }
     this.pending = read<OpEnvelope[]>(PENDING_KEY) ?? [];
-    const old = read<OpEnvelope[]>(OLD_PENDING_KEY);
+    const old = workspaceId === MAIN ? read<OpEnvelope[]>(OLD_PENDING_KEY) : null;
     if (old) {
       // Ops already sent are skipped by the server (by id), so a repeat is harmless.
       this.pending = [...old, ...this.pending.filter((p) => !old.some((o) => o.id === p.id))];
@@ -202,18 +210,22 @@ class Sync {
       this.saveCache();
       this.recompute();
     } catch (err) {
+      // This device's workspace isn't on the server (any more): back to the main one.
+      if (workspaceId !== MAIN && (err as Error).message === "404") return switchWorkspace(MAIN);
       this.setConnection(err instanceof SignedOut ? "signedout" : "offline");
     }
   }
 
   private listen() {
-    const es = new EventSource("/api/events");
+    const es = new EventSource(`/api/events?ws=${encodeURIComponent(workspaceId)}`);
     es.addEventListener("hello", (e) => {
       this.setConnection("online");
       const { rev } = JSON.parse((e as MessageEvent).data) as { rev: number };
       if (rev !== this.rev) void this.fetchState();
       this.flush();
     });
+    // The workspace's profile or name changed: the new config comes with the state.
+    es.addEventListener("config", () => void this.fetchState());
     es.addEventListener("changes", (e) => {
       const { rev, changes } = JSON.parse((e as MessageEvent).data) as { rev: number; changes: Changes };
       this.merge(changes);
@@ -268,7 +280,8 @@ class Sync {
       const res = await api("/api/ops", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ ops: batch }),
+        // The server refuses ops made in another workspace than the one it's asked about.
+        body: JSON.stringify({ workspace: workspaceId, ops: batch }),
       });
       const body = (await res.json()) as { rev: number; changes: Changes };
       this.merge(body.changes);

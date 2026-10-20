@@ -10,6 +10,7 @@ import {
   type Id,
   type Ms,
   type Session,
+  type SessionPatch,
 } from "@sideshow/shared";
 import { useEffect, useRef, useState } from "react";
 import { copyText } from "../clipboard";
@@ -21,14 +22,15 @@ import { NewTicketButton } from "./CreateTicket";
 import { FieldInput, TicketInfo, ticketUrl } from "./fields";
 import { isUpdate, PushDialog, pushProblem } from "./PushDialog";
 import { Switcher } from "./Switcher";
-import { defaultManualSpan, SessionEditor } from "./SessionEditor";
+import { dateValue, dayPatch, defaultManualSpan, endPatch, SessionEditor, startPatch, timeValue } from "./SessionEditor";
 import { undo, useUndoLabel } from "../undo";
 
 // The Day page (DESIGN.md §7): a day's sessions as a table, ready to enter into another system
 // (ConnectWise at this job). Grouped by task, because entries go in ticket by ticket: the task
 // fields once in the group's header row, in their own columns (the ticket first), then one row
 // per session (= one entry), its cells under those columns left blank. Columns and
-// formats come from the profile's entryFormat. Click a value to copy it.
+// formats come from the profile's entryFormat. With an integration (CW) the
+// values are edited in place; without one, click a value to copy it.
 // "Day" is one day's log; "To enter" is everything not yet marked entered, across days.
 // Built for the desktop's width; on a phone each row wraps into a small card.
 
@@ -62,7 +64,10 @@ function layout(m: Model) {
   const taskDefs = [...ticket, ...taskFields.filter((d) => !ticket.includes(d))];
   // Notes don't fit a table row in any useful way: they show on ✎ (hover) and in the push preview.
   const columns = fmt.fields.filter((k) => k !== "notes" && (!def(k) || def(k)!.on === "session"));
-  return { fmt, def, taskDefs, columns, target: fmt.target ?? "the other system" };
+  // With an integration (CW) entries go there by push: the table is edited in place. Without one
+  // they're typed into the other system by hand, so its values copy with a click.
+  const editable = !!m.config.cw;
+  return { fmt, def, taskDefs, columns, target: fmt.target ?? "the other system", editable };
 }
 
 /** What a field copies as: a list item's name, a ticket # without its "#". An unset field with a default copies that. */
@@ -342,7 +347,7 @@ function EntryGroup({
   const [editingId, setEditingId] = useState<Id | null>(null);
   const [merging, setMerging] = useState(false);
   const [picked, setPicked] = useState<Set<Id>>(() => new Set());
-  const { def, taskDefs, columns, target } = layout(m);
+  const { def, taskDefs, columns, target, editable } = layout(m);
   const canPush = !!m.config.cwPush;
   const span = (canPush ? 2 : 0) + taskDefs.length + columns.length + 1;
   // On the header row the title takes every column after the task fields.
@@ -365,6 +370,33 @@ function EntryGroup({
   /** A task field in its column on the header row: click-to-copy when set (the ticket with ↗), else an input. */
   const taskField = (d: FieldDef) => {
     const value = copyValue(m, d, fields[d.key]);
+    // With an integration the values go there by push, not by hand: edit them in place.
+    if (editable) {
+      const isTicket = d.key === m.profile.connectwise?.ticketField;
+      const input =
+        d.type === "text" ? (
+          <CellInput
+            value={value}
+            shown={value ? fieldText(d, fields[d.key], m.view) : ""}
+            label={d.label}
+            placeholder={`Add ${d.label.toLowerCase()}`}
+            className="cell-ref"
+            inputMode={isTicket ? "numeric" : undefined}
+            onCommit={(v) => a.setTaskField(info.task.id, d.key, withoutPrefix(d, v))}
+          />
+        ) : (
+          <FieldInput def={d} value={fields[d.key]} resetKey={info.task.id} onChange={(v) => a.setTaskField(info.task.id, d.key, v)} />
+        );
+      if (!isTicket || !link) return <span className={value ? "" : "group-missing"}>{input}</span>;
+      return (
+        <span className="ticket-chip">
+          {input}
+          <a className="btn subtle sm icon ticket-open" href={link} target="_blank" rel="noreferrer" title="Open the ticket in ConnectWise" aria-label="Open the ticket in ConnectWise">
+            ↗
+          </a>
+        </span>
+      );
+    }
     if (value) {
       // Plain text: its column says what it is.
       const chip = <Copy label={d.label} value={value} shown={fieldText(d, fields[d.key], m.view)} />;
@@ -381,7 +413,13 @@ function EntryGroup({
     return (
       <span className="group-missing">
         {d.type === "text" ? (
-          <CommitInput placeholder={`Add ${d.label.toLowerCase()}`} onCommit={(v) => a.setTaskField(info.task.id, d.key, v)} />
+          <CellInput
+            value=""
+            label={d.label}
+            placeholder={`Add ${d.label.toLowerCase()}`}
+            className="ref-input"
+            onCommit={(v) => v && a.setTaskField(info.task.id, d.key, v.replace(/^#/, ""))}
+          />
         ) : (
           <FieldInput def={d} value={undefined} onChange={(v) => a.setTaskField(info.task.id, d.key, v)} />
         )}
@@ -601,7 +639,7 @@ function SessionRows({
   const m = useM();
   const a = useA();
   const running = s.end === null;
-  const { fmt, def, columns, target } = layout(m);
+  const { fmt, def, columns, target, editable } = layout(m);
   const canPush = !!m.config.cwPush;
   const problem = canPush ? pushProblem(m, s) : null;
   const inCw = !!s.ext?.cw?.entryId;
@@ -621,6 +659,36 @@ function SessionRows({
       else if (k === "start") value = entryTime(s.start, fmt.time);
       else if (k === "end") value = running ? null : entryTime(s.end!, fmt.time);
       else value = entryHours(durationMs(s, now), fmt.hours);
+      if (editable && value !== null) {
+        // Native date and time boxes (the iPhone's wheel); hours typed, which moves the end.
+        const save = (patch: SessionPatch | null) => patch && a.updateSession(s.id, patch);
+        const box =
+          k === "date" ? (
+            <input type="date" className="cell-input cell-time" aria-label={label} value={dateValue(s.start)} onChange={(e) => save(dayPatch(s, e.target.value))} />
+          ) : k === "start" ? (
+            <input type="time" className="cell-input cell-time" aria-label={label} value={timeValue(s.start)} onChange={(e) => save(startPatch(s, e.target.value))} />
+          ) : k === "end" ? (
+            <input type="time" className="cell-input cell-time" aria-label={label} value={timeValue(s.end!)} onChange={(e) => save(endPatch(s, e.target.value))} />
+          ) : running ? (
+            <span className="cell-static">{value}</span>
+          ) : (
+            <CellInput
+              value={value}
+              label={`${label} (changes the end)`}
+              className="cell-hours"
+              inputMode="decimal"
+              onCommit={(v) => {
+                const h = parseHours(v);
+                if (h !== null) save({ end: s.start + Math.round(h * 60) * 60_000 + s.deductMin * 60_000 });
+              }}
+            />
+          );
+        return (
+          <td key={k} className={`col-${k}`} data-label={label}>
+            {box}
+          </td>
+        );
+      }
       return (
         <td key={k} className={`col-${k}`} data-label={label}>
           {value === null ? <span className="muted">running</span> : <Copy label={label} value={value} />}
@@ -813,19 +881,77 @@ function Copy({
   );
 }
 
-/** Saves on Enter or blur, so the row doesn't swap the input out mid-typing. */
-function CommitInput({ placeholder, onCommit }: { placeholder: string; onCommit: (v: string) => void }) {
-  const [v, setV] = useState("");
-  const commit = () => v.trim() && onCommit(v.trim().replace(/^#/, ""));
+/**
+ * A value edited in place: saves on Enter or on leaving the box, and only then (a ticket # half
+ * typed would otherwise be looked up). Esc puts it back. `shown` is what it says while not
+ * being edited ("#106745" for "106745").
+ */
+function CellInput({
+  value,
+  shown = value,
+  label,
+  placeholder,
+  className = "",
+  inputMode,
+  onCommit,
+}: {
+  value: string;
+  shown?: string;
+  label: string;
+  placeholder?: string;
+  className?: string;
+  inputMode?: "decimal" | "numeric";
+  onCommit: (v: string) => void;
+}) {
+  // What's typed while the box has focus; null when it doesn't.
+  const [draft, setDraft] = useState<string | null>(null);
+  const drafted = useRef<string | null>(null);
+  const set = (v: string | null) => {
+    drafted.current = v;
+    setDraft(v);
+  };
+  const commit = () => {
+    const v = drafted.current?.trim();
+    set(null);
+    if (v !== undefined && v !== value) onCommit(v);
+  };
   return (
     <input
-      className="ref-input"
-      value={v}
+      className={`cell-input ${className}`}
+      value={draft ?? shown}
       placeholder={placeholder}
-      aria-label={placeholder}
-      onChange={(e) => setV(e.target.value)}
+      aria-label={label}
+      title={label}
+      inputMode={inputMode}
+      onFocus={(e) => {
+        set(value);
+        const el = e.currentTarget;
+        requestAnimationFrame(() => el.select());
+      }}
+      onChange={(e) => set(e.target.value)}
       onBlur={commit}
-      onKeyDown={(e) => e.key === "Enter" && commit()}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.currentTarget.blur();
+        else if (e.key === "Escape") {
+          e.stopPropagation();
+          set(value);
+          e.currentTarget.blur();
+        }
+      }}
     />
   );
+}
+
+/** A typed value without the field's prefix ("#106745" → "106745"). */
+function withoutPrefix(d: FieldDef, v: string): string {
+  let t = v.trim();
+  while (d.prefix && t.startsWith(d.prefix)) t = t.slice(d.prefix.length).trimStart();
+  return t;
+}
+
+/** Hours typed as 1.5, 1.50 or 1:30; null if it isn't a length of time. */
+function parseHours(v: string): number | null {
+  const hm = /^(\d+):([0-5]?\d)$/.exec(v);
+  const h = hm ? Number(hm[1]) + Number(hm[2]) / 60 : Number(v.replace(",", "."));
+  return Number.isFinite(h) && h > 0 && h < 24 ? h : null;
 }

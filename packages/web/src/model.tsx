@@ -35,6 +35,7 @@ import { api, SignedOut, sync, type Snapshot } from "./sync";
 import { showToast } from "./toast";
 import { getWeekly, refreshWeekly } from "./weekly";
 import { send, undoable } from "./undo";
+import { workspaceId } from "./workspace";
 
 // Everything the UI reads (derived from the synced state) and every action it can take.
 
@@ -586,7 +587,7 @@ export function useActionsFactory(): Actions {
         try {
           const res = await fetch("/api/cw/tickets", {
             method: "POST",
-            headers: { "content-type": "application/json" },
+            headers: { "content-type": "application/json", "x-sideshow-workspace": workspaceId },
             body: JSON.stringify(t),
             redirect: "manual",
           });

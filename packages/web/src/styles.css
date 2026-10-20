@@ -1010,8 +1010,13 @@ textarea.title-input {
 }
 .day-nav {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
+}
+/* Stays at the right end, even when a narrow row wraps it onto a line of its own. */
+.nav-total {
+  margin-left: auto;
 }
 .day-input {
   min-height: var(--tap);
@@ -1439,6 +1444,47 @@ textarea.title-input {
   height: 22px;
   accent-color: var(--primary);
   vertical-align: middle;
+}
+
+/* Edited in place (with CW): reads as the value until hovered or focused. */
+.cell-input {
+  min-height: 34px;
+  padding: 0 6px;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  background: none;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cell-input:hover {
+  border-color: var(--border-strong);
+  background: var(--surface);
+}
+.cell-input:focus {
+  background: var(--surface);
+}
+.cell-input::placeholder {
+  color: var(--muted);
+  font-weight: 400;
+}
+.cell-ref {
+  width: 7.5rem;
+}
+.cell-hours {
+  width: 4.5rem;
+}
+.cell-static {
+  padding: 0 8px;
+  font-weight: 600;
+}
+/* The browser's clock / calendar button shows on hover (its room is kept, so nothing shifts). */
+.cell-time:not(:hover):not(:focus)::-webkit-calendar-picker-indicator {
+  opacity: 0;
+}
+/* Unset: a dashed box, like the other fields still to fill. */
+.group-missing .cell-input,
+.cell-ref:placeholder-shown {
+  border: 1.5px dashed var(--border-strong);
 }
 
 /* Click to copy. The value is the button; "Copied ✓" flashes over it. */
@@ -2694,4 +2740,80 @@ p.picker-footer {
 }
 .new-entry-q {
   flex-basis: 100%;
+}
+
+/* ---- Workspaces (Settings › Workspaces; the header badge with more than one) ---- */
+.ws-badge {
+  min-height: 28px;
+  max-width: 10rem;
+  padding: 0 10px;
+  border: 1.5px solid var(--primary);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.ws-list {
+  list-style: none;
+  margin: 12px 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ws-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+}
+.ws-row.here {
+  border-color: var(--primary);
+}
+.ws-main {
+  flex: 1 1 12rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.ws-name {
+  font-weight: 700;
+}
+.ws-name-input {
+  font-weight: 700;
+  min-height: var(--control);
+  padding: 0 8px;
+  margin-left: -8px;
+  border: 1.5px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+}
+.ws-name-input:hover {
+  border-color: var(--border);
+}
+.ws-here {
+  color: var(--primary);
+  font-weight: 700;
+}
+.ws-profile {
+  flex: 1 1 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ws-add {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ws-add .search {
+  flex: 1 1 12rem;
 }

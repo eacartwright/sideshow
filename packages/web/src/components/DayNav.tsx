@@ -2,7 +2,8 @@ import { startOfDay, type Ms } from "@sideshow/shared";
 import type { ReactNode } from "react";
 
 // ‹ [date] › with a Today button when away from today. Used by Time entries' By day
-// and the task list's day view. `children` go at the right end (a day total).
+// and the task list's day view. `after` goes right after the date (the task list's company
+// filter), `children` at the right end (a day total).
 
 const pad = (n: number) => n.toString().padStart(2, "0");
 
@@ -14,7 +15,19 @@ const toInputDate = (t: Ms) => {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
 
-export function DayNav({ day, onDay, now, children }: { day: Ms; onDay: (day: Ms) => void; now: Ms; children?: ReactNode }) {
+export function DayNav({
+  day,
+  onDay,
+  now,
+  after,
+  children,
+}: {
+  day: Ms;
+  onDay: (day: Ms) => void;
+  now: Ms;
+  after?: ReactNode;
+  children?: ReactNode;
+}) {
   return (
     <div className="day-nav">
       <button className="btn icon" onClick={() => onDay(addDays(day, -1))} aria-label="Previous day">
@@ -38,6 +51,7 @@ export function DayNav({ day, onDay, now, children }: { day: Ms; onDay: (day: Ms
           Today
         </button>
       )}
+      {after}
       <span className="spacer" />
       {children}
     </div>

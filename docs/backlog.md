@@ -78,6 +78,11 @@ under Status in [CLAUDE.md](../CLAUDE.md).
     feels slower to start.
   - Project descriptions are still plain text boxes.
 
+- **Connections tab in Settings (2026-10-20, Evan asked; after workspaces).** The CW settings
+  now in `.env` (site, company, client id, public key, member; the private key write-only,
+  shown as "set" with Replace, never sent back), with **Test connection**, applied without a
+  restart. Kept on the server, not in the synced state or the DB (so not in the NAS
+  backups). Port, database and backup folders stay in `.env`: wrong values there lock you out.
 - **Edit the profile in the app (later).** Fields, lists and the entry format from Settings,
   instead of editing the profile JSON in the repo.
 

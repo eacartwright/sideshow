@@ -1,4 +1,4 @@
-import { durationMs, startOfDay, type Ms, type Session } from "@sideshow/shared";
+import { durationMs, startOfDay, type Ms, type Session, type SessionPatch } from "@sideshow/shared";
 import { useState } from "react";
 import { hm } from "../format";
 import { useA, useNow } from "../model";
@@ -14,7 +14,7 @@ const pad = (n: number) => n.toString().padStart(2, "0");
 const DAY = 86_400_000;
 const QUARTER = 15 * 60_000;
 
-const dateValue = (t: Ms) => {
+export const dateValue = (t: Ms) => {
   const d = new Date(t);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 };
@@ -43,31 +43,45 @@ function NowButton({ label, disabled, onClick }: { label: string; disabled: bool
   );
 }
 
+// What a typed date or time changes on a session, or null if it doesn't make sense.
+// Shared with the Day page's table, where the times are edited in place.
+
+/** A date ("2026-10-19"): the whole session moves to that day, keeping its times. */
+export function dayPatch(s: Session, value: string): SessionPatch | null {
+  const [y, mo, d] = value.split("-").map(Number);
+  if (!y || !mo || !d) return null;
+  const shift = startOfDay(new Date(y, mo - 1, d, 12).getTime()) - startOfDay(s.start);
+  if (!shift) return null;
+  return s.end === null ? { start: s.start + shift } : { start: s.start + shift, end: s.end + shift };
+}
+
+/** A start time ("09:15") on the session's day: before its end (or now, while it runs). */
+export function startPatch(s: Session, value: string): SessionPatch | null {
+  const t = at(startOfDay(s.start), value);
+  if (t === null || t === s.start || !(s.end === null ? t <= Date.now() : t < s.end)) return null;
+  return { start: t };
+}
+
+/** An end time ("17:30"); one at or before the start means past midnight. */
+export function endPatch(s: Session, value: string): SessionPatch | null {
+  if (s.end === null) return null;
+  let t = at(startOfDay(s.start), value);
+  if (t === null) return null;
+  if (t <= s.start) t += DAY;
+  return t === s.end ? null : { end: t };
+}
+
 export function SessionEditor({ session: s, onDone }: { session: Session; onDone?: () => void }) {
   const a = useA();
   const now = useNow(30_000);
   const [moving, setMoving] = useState(false);
   const running = s.end === null;
-  const day = startOfDay(s.start);
   const snapped = snap(s.start) === s.start && (running || snap(s.end!) === s.end);
 
-  const setDay = (value: string) => {
-    const [y, mo, d] = value.split("-").map(Number);
-    if (!y || !mo || !d) return;
-    // Move the whole session to that day, keeping its times.
-    const shift = startOfDay(new Date(y, mo - 1, d, 12).getTime()) - day;
-    if (shift) a.updateSession(s.id, running ? { start: s.start + shift } : { start: s.start + shift, end: s.end! + shift });
-  };
-  const setStart = (value: string) => {
-    const t = at(day, value);
-    if (t !== null && (running ? t <= Date.now() : t < s.end!)) a.updateSession(s.id, { start: t });
-  };
-  const setEnd = (value: string) => {
-    let t = at(day, value);
-    if (t === null) return;
-    if (t <= s.start) t += DAY; // past midnight
-    a.updateSession(s.id, { end: t });
-  };
+  const apply = (patch: SessionPatch | null) => patch && a.updateSession(s.id, patch);
+  const setDay = (value: string) => apply(dayPatch(s, value));
+  const setStart = (value: string) => apply(startPatch(s, value));
+  const setEnd = (value: string) => apply(endPatch(s, value));
 
   return (
     <div className="session-editor">

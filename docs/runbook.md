@@ -72,21 +72,30 @@ line. **This `.env` is not the desktop's:** the desktop's has no `PORT` or backu
 on 8787 and backs up to `data\backups`), so copying it over this one moves the server off 8081
 and the site goes down (happened 2026-10-10). To fix it, run `install.ps1` again with
 `-Port 8081 -BackupDir \\evnas\Junk\Tech\DBBackups\sideshow`. Added by hand:
-- `PROFILE=veritaz-cw`: the job fields (client, ticket #, work type, billing). Without it they're
-  hidden, not lost. The log says which profile loaded.
+- `PROFILE=veritaz-cw`: the job fields (client, ticket #, work type, billing) of the main
+  workspace. Without it they're hidden, not lost. The log says which profile each workspace
+  loaded. Once a workspace's profile is changed in Settings › Workspaces, `data\workspaces.json`
+  holds it and `PROFILE` no longer applies to it.
 - `CW_*`: ConnectWise credentials, copied from the desktop's `.env`. Without them the ticket
   lookup is off. `CW_MEMBER` (e.g. `ecartwright`) is whose time pushed entries are; without it
   the Push buttons don't appear.
 
 Restart after changing `.env`: `Stop-ScheduledTask sideshow; Start-ScheduledTask sideshow`.
 
+**Workspaces** (2026-10-20; DESIGN.md §4). Made in Settings › Workspaces. The main one is
+`data\sideshow.db`, as always; each other one is `data\workspaces\<id>.db`, listed with its
+name and profile in `data\workspaces.json` (no such file = just the main one).
+
 **Backups.** The server writes `sideshow-YYYY-MM-DD.db` (a `VACUUM INTO` snapshot) at startup and
-at the first hourly check of each new day, keeping 30. The server runs as SYSTEM, which reaches
+at the first hourly check of each new day, keeping 30; for each other workspace,
+`sideshow-<id>-YYYY-MM-DD.db`. Changing a workspace's profile first writes
+`sideshow-<id>-before-profile-<time>.db` (kept). The server runs as SYSTEM, which reaches
 the NAS as a guest, so the TrueNAS `Junk` share needs **guest access** on. If the share is down,
 the log says `backup failed` and it retries hourly; the app keeps running.
 
 **Restore a backup:** `Stop-ScheduledTask sideshow`, copy the backup over `data\sideshow.db`,
-delete `data\sideshow.db-wal` and `data\sideshow.db-shm`, `Start-ScheduledTask sideshow`.
+delete `data\sideshow.db-wal` and `data\sideshow.db-shm`, `Start-ScheduledTask sideshow`. Another
+workspace: the same with `data\workspaces\<id>.db` and its own backups.
 
 **Signed out.** The Access session lasts a month. When it expires, the app's status badge turns
 into **Signed out · Sign in**; tapping it goes through the login again. Changes made meanwhile wait
