@@ -66,7 +66,9 @@ export function TaskList({ onOpen, onOpenProject }: { onOpen: (id: Id) => void; 
   }
 
   const filter = m.groupBy && (
-    <CompanyFilter field={m.groupBy} value={company ?? null} onChange={setCompanyId} counted={view === "projects" ? [] : [...base, ...archivedAll]} />
+    <span className="company-filter">
+      <CompanyFilter field={m.groupBy} value={company ?? null} onChange={setCompanyId} counted={view === "projects" ? [] : [...base, ...archivedAll]} />
+    </span>
   );
 
   return (

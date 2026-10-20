@@ -651,7 +651,14 @@ textarea.title-input {
   flex-wrap: wrap;
   gap: 6px;
 }
-.list-filter .chip-set {
+/* The company filter is a control, not a field still to fill in: solid, not dashed. Blue while
+   a company is picked. */
+.company-filter .chip {
+  border-style: solid;
+  /* Like the date box beside it on Day. */
+  background: var(--surface);
+}
+.company-filter .chip-set {
   border-color: var(--primary);
 }
 .filter-option {
