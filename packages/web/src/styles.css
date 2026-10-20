@@ -1151,8 +1151,11 @@ textarea.title-input {
   font-weight: 600;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
 }
+/* A pill inside the pill: same curve as the toast around it. */
 .toast .btn {
   min-height: 36px;
+  padding: 0 16px;
+  border-radius: 999px;
   background: var(--bg);
   color: var(--text);
   border-color: var(--bg);
