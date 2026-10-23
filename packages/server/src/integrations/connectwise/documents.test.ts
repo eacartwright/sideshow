@@ -25,8 +25,9 @@ describe("notes for CW", () => {
         "Printer offline at **FD2**\n\n- rebooted spooler\n- ++reinstalled driver++\n  ![screenshot.png](/api/files/abc/screenshot.png)\n\nSee [the log](/api/files/def/log.txt) and [docs](https://x.y)",
       ),
     ).toBe(
-      "Printer offline at **FD2**\n\n- rebooted spooler\n- __reinstalled driver__\n  *Attachment: screenshot.png*\n\nSee *Attachment: the log* and [docs](https://x.y)",
+      "Printer offline at **FD2**\n\n* rebooted spooler\n* __reinstalled driver__\n  *Attachment: screenshot.png*\n\nSee *Attachment: the log* and [docs](https://x.y)",
     );
+    expect(cwNotes("- one\n  - nested\n1. first\n---\nwell - fine")).toBe("* one\n  * nested\n1. first\n---\nwell - fine");
     expect(cwNotes("![](/api/files/abc/screen%20shot.png)")).toBe("*Attachment: screen shot.png*");
   });
 });

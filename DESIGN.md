@@ -737,6 +737,8 @@ folders stay `.env`-only: a wrong value there locks you out.
   when the notes go to Internal) before the entry is made, once per ticket (`cw_documents`). If
   one can't be attached, the entry isn't made. In the entry's notes each picture or file link
   becomes "*Attachment: name*", and underline (`++…++` in sideshow) goes as CW's `__…__`.
+  Bullets go as `* ` (2026-10-22): CW shows sideshow's `- ` as a plain dash, and `* ` is what
+  its editor writes (3,621 of 3,880 bulleted lines in the last 1,000 entries).
 - **Keep the name "sideshow" out of CW** for now: no app name in summaries, descriptions or
   notes that sideshow writes. New tickets default the contact to the company's primary contact
   (Veritaz: Vitoria Bianci), which is another reason CW's automatic contact emails stay off.

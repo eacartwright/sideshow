@@ -29,6 +29,7 @@ export interface PushResult {
  * sideshow, which CW users can't open: they go to the ticket as documents, and the note names
  * them instead ("*Attachment: screenshot.png*"). Underline is ++text++ in sideshow and
  * __text__ in CW (its editor's own form, seen 2026-10-13; plain Markdown would read it as bold).
+ * Bullets are "* " in CW (what its editor writes; it shows "- " as a plain dash, 2026-10-22).
  */
 export function cwNotes(markdown: string): string {
   const name = (label: string, src: string) => {
@@ -42,6 +43,7 @@ export function cwNotes(markdown: string): string {
   return markdown
     .replace(/!?\[([^\]]*)\]\((\/api\/files\/[^)\s]*)[^)]*\)/g, (_m, label: string, src: string) => `*Attachment: ${name(label, src)}*`)
     .replace(/\+\+(.+?)\+\+/g, "__$1__")
+    .replace(/^([ \t]*)[-+] /gm, "$1* ")
     .trim();
 }
 
