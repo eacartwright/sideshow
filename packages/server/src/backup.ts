@@ -32,7 +32,7 @@ export function snapshot(db: DB, dir: string, name: string): string {
 export function startBackups(db: DB, dir: string, filesDir?: string, prefix = "sideshow") {
   let latest: string | null = null;
   // fieldtime-* are from before the rename; they count toward KEEP and age out first (they sort first).
-  const pattern = prefix === "sideshow" ? /^(sideshow|fieldtime)-\d{4}-\d{2}-\d{2}\.db$/ : new RegExp(`^${prefix}-\d{4}-\d{2}-\d{2}\.db$`);
+  const pattern = prefix === "sideshow" ? /^(sideshow|fieldtime)-\d{4}-\d{2}-\d{2}\.db$/ : new RegExp(String.raw`^${prefix}-\d{4}-\d{2}-\d{2}\.db$`);
 
   const run = () => {
     try {
