@@ -690,7 +690,7 @@ folders stay `.env`-only: a wrong value there locks you out.
 - **Client mapping**: CW has duplicates (active / lead / former…). Filter to active client types
   and map each local client to one CW company **once**.
 - **Ticket # workflow** (works today): find the ticket in CW manually, paste its number into the
-  task → sideshow fetches the summary + company (the summary becomes the task's title,
+  task → once you leave the field (2026-10-29; it was 0.8 s after typing stopped), sideshow fetches the summary + company (the summary becomes the task's title,
   replacing whatever it was), and from then on **pushes each of that task's
   sessions as its own time entry on that ticket**. From M5, searching CW and choosing **Track**
   replaces the manual search; pasting a number still works.

@@ -56,7 +56,7 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   marked (`companies.ts`; the browser keeps a copy, `web/src/companies.ts`); `POST /api/cw/push {sessionIds}` →
   per-session results (`integrations/connectwise/push.ts`; needs `CW_MEMBER` in `.env`, else
   `config.cwPush` is false and the UI shows Mark entered only). Ticket lookup: entering a ticket #
-  fetches it once the number settles and records it with the `task.refInfo` op, which is ignored
+  fetches it once you leave the field (Enter, Tab, a click elsewhere; it saves then, not per keystroke) and records it with the `task.refInfo` op, which is ignored
   if the ref changed since, and replaces the title with the ticket's summary. The ticket's company
   then **replaces** the task's company. Changing the ref clears `refInfo`. Tasks on the Now
   stack are looked up again on every load (`keepTitle`: a renamed title stays).

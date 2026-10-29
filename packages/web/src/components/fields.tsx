@@ -537,7 +537,8 @@ export function FieldInput({
 
 /**
  * A text field with a prefix (the ticket #): shows "#106745", but while you're in it just the
- * number, and saves it without the "#" (typed or pasted ones are dropped).
+ * number, and saves it without the "#" (typed or pasted ones are dropped). Saved when you leave
+ * the field (or press Enter), not as you type, so the ticket lookup waits until you're done.
  */
 function PrefixedInput({
   def,
@@ -558,6 +559,8 @@ function PrefixedInput({
     return t;
   };
   const shown = bare(value);
+  // What's typed, and for which record: one that changed while typing doesn't get it.
+  const typed = useRef({ v: shown, key: resetKey });
   return (
     <DraftInput
       className="ref-input"
@@ -566,9 +569,17 @@ function PrefixedInput({
       aria-label={def.label}
       // Switching between "#106745" and "106745" replaces the text, focused or not.
       resetKey={`${String(resetKey)}:${editing}`}
-      onFocus={() => setEditing(true)}
-      onBlur={() => setEditing(false)}
-      onValue={(v) => onChange(bare(v))}
+      onFocus={() => {
+        typed.current = { v: shown, key: resetKey };
+        setEditing(true);
+      }}
+      onBlur={() => {
+        if (typed.current.key === resetKey && typed.current.v !== shown) onChange(typed.current.v);
+        setEditing(false);
+      }}
+      onValue={(v) => {
+        typed.current = { v: bare(v), key: resetKey };
+      }}
     />
   );
 }
@@ -674,7 +685,7 @@ export function ticketUrl(m: { config: { cwTicketUrl?: string | null }; profile:
 
 /**
  * The CW ticket behind a task's ticket field: summary and company, looked up once the number
- * has settled (and again with ↻). Shows nothing without a ticket number or without CW.
+ * is saved, i.e. on leaving the field (and again with ↻). Shows nothing without a ticket number or without CW.
  */
 export function TicketInfo({
   task,
@@ -707,7 +718,8 @@ export function TicketInfo({
 
   useEffect(() => {
     if (!on || !n || info || tried?.n === n) return;
-    const id = setTimeout(() => void lookup(), 800);
+    // The ticket field saves when you leave it, so the number is final: look it up now.
+    const id = setTimeout(() => void lookup(), 0);
     return () => clearTimeout(id);
   }, [on, n, info, tried?.n]);
 
