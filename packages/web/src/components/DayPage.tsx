@@ -78,12 +78,16 @@ function copyValue(m: Model, d: FieldDef, v: FieldValue | undefined): string {
   return fieldText(d, v, m.view);
 }
 
+/** What the Day page shows, for a dev note's "this page" ("Entries · Thu, Oct 29"). */
+export let dayPageShown = "Entries";
+
 export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTask: (taskId: Id) => void }) {
   const m = useM();
   const now = useNow(30_000);
   const [mode, setMode] = useState<Mode>("day");
   const undoLabel = useUndoLabel();
   const [day, setDay] = useState(() => startOfDay(Date.now()));
+  dayPageShown = `Entries · ${mode === "todo" ? "To enter" : new Date(day).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}`;
   // The session picked in the calendar or the table; the other one highlights it too.
   const [selectedId, setSelectedId] = useState<Id | null>(null);
   // A span dragged out on the calendar, waiting for a task to be picked.

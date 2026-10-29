@@ -546,6 +546,31 @@ How: an undoable action records the ops it sends and the state before them; undo
 ops that put back each record they touched (`undoOps` in `shared/src/undo.ts`, tested), so no
 op needs its own inverse. Undo is itself ordinary ops, so it syncs like anything else.
 
+### Dev notes (2026-10-29)
+
+Ideas, bugs and oddities about **sideshow itself**, kept apart from the work (from foodlab,
+where it's 🧪 too). **🧪** in the header, or **Alt+B** (which also works over a dialog, since
+a dialog covers 🧪), opens one box for a new note (Enter adds, Shift+Enter is a new line) and
+the open notes below it, each with a **Done** box, ✎ to edit the text, 📎 and ✕ (with Undo).
+Done ones are under **Show done**. **Copy** puts the open ones on the clipboard as a Markdown
+list, to paste into a work session.
+
+- **Files**: 📎 attaches any file as it is (a screenshot stays sharp), up to 25 MB, and a
+  picture pasted into the new note's box (or one being edited) is attached the same way. The
+  files go in the attachments folder notes already use. Pictures show as small previews that
+  open full size; other files open in a new tab.
+- **Include this page** (off to start, remembered per device): the note says where it was
+  written: "Now", "Entries · Thu, Oct 29", "Entries · To enter", a dialog ("Schedule holds"),
+  or "Task details: *title*", which opens that task again from the note.
+- **One list for the whole server**, not per workspace (they're about the app, not the data),
+  kept in the main workspace's database (`dev_notes`) and so in its backups. Not in the
+  synced state: the dialog asks the server, so adding one needs the connection. The server also
+  rewrites `data/dev-notes.md` (beside the main database) on every change, so Claude can read
+  them on the mini PC without opening the live database; attachments are listed by their path
+  from there (`files/<id>`).
+- On a phone the top bar has Holds (as 🗓️), ↻, 🧪 and ⚙; to make room, "Synced" there is just
+  its green dot (other states keep their words, cut short if need be).
+
 ### Look & feel (TBD, but these are the requirements)
 
 - High contrast, readable at arm's length and in sunlight.

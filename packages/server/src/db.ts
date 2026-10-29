@@ -194,6 +194,21 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (hold_id, date)
   );
   `,
+  // Dev notes (2026-10-29): ideas and bugs about sideshow itself, one list for the whole server
+  // (only the main workspace's database holds them). Not synced; the dialog asks the server.
+  `
+  CREATE TABLE dev_notes (
+    id TEXT PRIMARY KEY,
+    text TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    done INTEGER NOT NULL DEFAULT 0,
+    -- Where it was written (JSON: label, taskId?), or NULL.
+    page TEXT,
+    -- Attached files (JSON: [{id, name, type}]), in the shared files folder.
+    files TEXT NOT NULL DEFAULT '[]',
+    deleted INTEGER NOT NULL DEFAULT 0
+  );
+  `,
 ];
 
 export type DB = DatabaseSync;

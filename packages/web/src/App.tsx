@@ -1,7 +1,9 @@
 import type { Id } from "@sideshow/shared";
 import { useEffect, useRef, useState } from "react";
 import { ClientsDialog } from "./components/ClientsDialog";
-import { DayPage } from "./components/DayPage";
+import { DayPage, dayPageShown } from "./components/DayPage";
+import { DevNotesDialog } from "./components/DevNotes";
+import type { DevNotePage } from "./devnotes";
 import { HoldsDialog } from "./components/HoldsDialog";
 import { InboxAdd } from "./components/InboxAdd";
 import { NowPanel } from "./components/NowPanel";
@@ -25,6 +27,8 @@ type Overlay =
   | { kind: "settings"; tab?: SettingsTab }
   | { kind: "clients" }
   | { kind: "holds" }
+  /** `page`: what was on screen when it opened, for "Include this page". */
+  | { kind: "devnotes"; page: DevNotePage }
   | { kind: "project"; projectId: Id }
   /** `back`: where closing returns to (the project page it was opened from). */
   | { kind: "detail"; taskId: Id; back?: Overlay }
@@ -87,6 +91,8 @@ export function App() {
             else startWeekly(e.shiftKey);
           },
           KeyI: () => setOverlay({ kind: "inbox" }),
+          // Dev notes, even over a dialog (which covers 🧪), so the note can name it.
+          KeyB: () => setOverlay({ kind: "devnotes", page: here() }),
           KeyE: () => setPage((p) => (p === "day" ? "now" : "day")),
         };
         const fn = act[e.code];
@@ -132,6 +138,23 @@ export function App() {
     }
     actions.startWeekly(alongside);
   }
+  // What's on screen, for a dev note: the dialog that's open, else the page.
+  const here = (): DevNotePage => {
+    // Called from the keyboard handler too, so the latest model and page come from refs.
+    const m = modelRef.current;
+    if (overlay?.kind === "detail") return { label: `Task details: ${m.tasks.get(overlay.taskId)?.titleText || "(untitled)"}`, taskId: overlay.taskId };
+    if (overlay?.kind === "project") return { label: `Project: ${m.view.projects[overlay.projectId]?.title ?? ""}` };
+    const dialogs: Partial<Record<NonNullable<Overlay>["kind"], string>> = {
+      switcher: "Find",
+      inbox: "Add to inbox",
+      settings: "Settings",
+      clients: "Settings › Companies",
+      holds: "Schedule holds",
+    };
+    if (overlay && dialogs[overlay.kind]) return { label: dialogs[overlay.kind]! };
+    return { label: pageRef.current === "day" ? dayPageShown : "Now" };
+  };
+
   useEffect(() => {
     if (page === "now" && focusNotesOnNow.current) {
       focusNotesOnNow.current = false;
@@ -181,13 +204,20 @@ export function App() {
           </nav>
           {/* Beside Entries on a desktop; in the top bar on a phone, where the bottom bar is full. */}
           {model.config.cwHolds && (
-            <button className="btn holds-btn" onClick={() => setOverlay({ kind: "holds" })} title="Schedule holds: blocks that repeat on your ConnectWise calendar">
-              Holds
+            <button className="btn holds-btn" onClick={() => setOverlay({ kind: "holds" })} title="Schedule holds: blocks that repeat on your ConnectWise calendar" aria-label="Holds">
+              <span className="wide-only">Holds</span>
+              {/* A phone's top bar has room for icons only. */}
+              <span className="narrow-only" aria-hidden>
+                🗓️
+              </span>
             </button>
           )}
           {/* The installed iPhone app has no browser reload; unsent changes are already in the outbox. */}
           <button className="btn icon refresh-btn" onClick={() => location.reload()} title="Refresh" aria-label="Refresh">
             <RefreshIcon />
+          </button>
+          <button className="btn icon devnotes-btn" onClick={() => setOverlay({ kind: "devnotes", page: here() })} title="Dev notes: ideas and bugs about sideshow (Alt+B)" aria-label="Dev notes">
+            <span aria-hidden>🧪</span>
           </button>
           <button className="btn icon settings-btn" onClick={() => setOverlay({ kind: "settings" })} title="Settings" aria-label="Settings">
             <GearIcon />
@@ -216,6 +246,9 @@ export function App() {
         {overlay?.kind === "settings" && <SettingsDialog initialTab={overlay.tab} onClose={close} onClients={() => setOverlay({ kind: "clients" })} />}
         {overlay?.kind === "clients" && <ClientsDialog onClose={() => setOverlay({ kind: "settings" })} />}
         {overlay?.kind === "holds" && <HoldsDialog onClose={close} />}
+        {overlay?.kind === "devnotes" && (
+          <DevNotesDialog page={overlay.page} onClose={close} onOpenTask={(taskId) => setOverlay({ kind: "detail", taskId })} />
+        )}
         <ToastBar />
         {overlay?.kind === "project" && (
           <ProjectDetail
@@ -274,8 +307,8 @@ function SyncBadge({ model }: { model: Model }) {
   else if (pending) [text, tone] = ["Saving…", "wait"];
   return (
     <>
-      <span className={`sync sync-${tone}`} role="status">
-        <span className="sync-dot" aria-hidden /> {text}
+      <span className={`sync sync-${tone}`} role="status" title={text}>
+        <span className="sync-dot" aria-hidden /> <span className="sync-text">{text}</span>
       </span>
       {model.config.cw && <CwSyncBadge />}
     </>

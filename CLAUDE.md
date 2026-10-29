@@ -90,6 +90,12 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   Attachments: `POST /api/files` → `server/src/files.ts` (`data/files/`, backed up); a push
   uploads a note's files to the ticket first (`connectwise/documents.ts`) and `cwNotes` rewrites
   the note for CW.
+- **Dev notes** (DESIGN.md §7, 🧪 / Alt+B): notes about the app itself, one list for the server
+  (`server/src/devnotes.ts`, table `dev_notes` in the main DB; `GET|POST /api/devnotes`,
+  `POST /api/devnotes/:id` {text, done, files, deleted}; not per workspace, not synced state).
+  Mirrored to `data/dev-notes.md` beside the main DB on every change: **read Evan's dev notes
+  there** (on the mini PC, `C:\Apps\sideshow\data\dev-notes.md`). UI: `components/DevNotes.tsx`,
+  `web/src/devnotes.ts`; "this page" comes from `here()` in `App.tsx` (+ `dayPageShown`).
 
 Every change is an **op**. To add one: type in `shared/src/ops.ts` (+ `OP_TYPES`), handle it in
 `shared/src/reducer.ts`, add tests in `reducer.test.ts`. The reducer must be deterministic and
@@ -166,6 +172,9 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 
 ## Status (2026-10-29)
 
+- **Built 2026-10-29:** **dev notes** (🧪, from foodlab; DESIGN.md §7): files, pasted pictures,
+  "Include this page" (off by default). The phone's top bar went icon-only to fit it (Holds as
+  🗓️, "Synced" as its dot). Browser-checked on a scratch server; not yet on the iPhone.
 - **Built 2026-10-29:** **schedule holds** (header › Holds; DESIGN.md §10): repeating Schedule
   Hold entries on Evan's CW calendar, made a day at a time 4 weeks ahead. Live-checked the same
   day (with Evan's OK): create, change incl. clearing the reminder (`reminder: null` PATCH), and

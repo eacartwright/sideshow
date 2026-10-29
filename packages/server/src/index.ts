@@ -9,6 +9,7 @@ import { newId, OP_TYPES, type OpEnvelope } from "@sideshow/shared";
 import { FileStore, MAX_FILE } from "./files";
 import { ConnectWiseClient, CwError } from "./integrations/connectwise/client";
 import { ENV_KEYS, resolve, settingsFromEnv, shown, testConnection, type CwSettings } from "./integrations/connectwise/connection";
+import { DevNotes, devNotesFile, parseFiles, parsePage, TEXT_MAX as DEV_NOTE_MAX } from "./devnotes";
 import { updateEnvFile } from "./envfile";
 import { parseRule } from "./integrations/connectwise/holds";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
@@ -205,6 +206,31 @@ app.get("/api/files/:id/:name?", (c) => {
       "content-disposition": `${inline ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(file.info.name)}`,
     },
   });
+});
+
+// Dev notes (devnotes.ts): about the app itself, so one list for the whole server, not per
+// workspace. Every change answers with the notes as they are after it.
+const devNotes = new DevNotes(workspaces.main.db, devNotesFile(DB_FILE), FILES_DIR);
+app.get("/api/devnotes", (c) => c.json({ notes: devNotes.list() }));
+app.post("/api/devnotes", async (c) => {
+  const b = await c.req.json().catch(() => null);
+  const text = typeof b?.text === "string" ? b.text.trim() : "";
+  const files = parseFiles(b?.files ?? []);
+  const page = b?.page == null ? null : parsePage(b.page);
+  if (!text || text.length > DEV_NOTE_MAX || !files || page === undefined) return c.json({ error: "A note (text, files, page) needed" }, 400);
+  devNotes.add(text, page, files);
+  return c.json({ notes: devNotes.list() });
+});
+app.post("/api/devnotes/:id", async (c) => {
+  const b = await c.req.json().catch(() => null);
+  const text = typeof b?.text === "string" ? b.text.trim() : undefined;
+  const files = b?.files === undefined ? undefined : parseFiles(b.files);
+  const bool = (v: unknown) => (typeof v === "boolean" ? v : undefined);
+  if (text === "" || (text && text.length > DEV_NOTE_MAX) || files === null) return c.json({ error: "Not a change to a note" }, 400);
+  if (!devNotes.update(c.req.param("id"), { text, files: files ?? undefined, done: bool(b?.done), deleted: bool(b?.deleted) })) {
+    return c.json({ error: "No such note" }, 404);
+  }
+  return c.json({ notes: devNotes.list() });
 });
 
 // Everything else is for one workspace: the X-Sideshow-Workspace header says which (the

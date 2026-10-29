@@ -1050,6 +1050,35 @@ textarea.title-input {
 .holds-btn {
   margin-left: auto;
 }
+/* The phone's top bar: the buttons keep their size; the sync badge gives way (its text cut short). */
+@media (max-width: 599px) {
+  .app-header {
+    gap: 8px;
+  }
+  .app-header > .btn,
+  .app-header h1,
+  .sync-dot {
+    flex: none;
+  }
+  .holds-btn {
+    min-width: var(--tap);
+    padding: 0;
+    justify-content: center;
+  }
+  .app-header > .sync {
+    min-width: 0;
+  }
+  .sync-text {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  /* All saved: the green dot says it (Offline, Saving… and unsent changes keep their words). */
+  .sync-ok .sync-text {
+    display: none;
+  }
+}
 .holds-btn + .refresh-btn {
   margin-left: 0;
 }
@@ -1060,6 +1089,116 @@ textarea.title-input {
   /* Next to Entries, as if in the action bar. */
   .holds-btn {
     margin-left: -4px;
+  }
+}
+
+/* ---- Dev notes (DevNotes.tsx) ---- */
+.dialog.dev-notes {
+  max-width: 600px;
+}
+.dev-intro {
+  margin: 0;
+}
+.dev-add {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.dev-text {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  field-sizing: content;
+  min-height: 3.2rem;
+  padding: 8px 10px;
+  border-radius: var(--radius);
+  border: 1.5px solid var(--border-strong);
+  background: var(--surface);
+  resize: vertical;
+}
+.dev-page {
+  padding-top: 0;
+  min-height: 0;
+}
+.dev-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.dev-note {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.dev-note > input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-top: 4px;
+  accent-color: var(--primary);
+}
+.dev-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.dev-note-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.dev-note.done .dev-note-text {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.dev-actions {
+  display: flex;
+  gap: 2px;
+}
+.dev-done-toggle {
+  align-self: flex-start;
+}
+.dev-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dev-file {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.dev-thumb {
+  padding: 0;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: none;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.dev-thumb img {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+}
+.link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+@media (max-width: 599px) {
+  .dev-note {
+    grid-template-columns: auto 1fr;
+  }
+  .dev-actions {
+    grid-column: 2;
   }
 }
 
