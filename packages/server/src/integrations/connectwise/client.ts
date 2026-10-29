@@ -90,6 +90,28 @@ export interface CwTimeEntry {
   actualHours?: number;
 }
 
+/** A schedule entry as sent to CW (POST /schedule/entries): a block on a member's calendar. Times are UTC ISO. */
+export interface CwScheduleEntryInput {
+  /** What the calendar shows (CW's "Description"). */
+  name: string;
+  member: { identifier: string };
+  type: { id: number };
+  status: { id: number };
+  where: { id: number };
+  dateStart: string;
+  dateEnd: string;
+  /** None: no reminder. */
+  reminder?: { id: number } | null;
+  allowScheduleConflictsFlag: boolean;
+}
+
+export interface CwScheduleEntry {
+  id: number;
+  name: string;
+  dateStart: string;
+  dateEnd: string;
+}
+
 /** Just enough of a ticket to tell when its company last had one. */
 export interface CwTicketStamp {
   id: number;
@@ -168,7 +190,8 @@ export class ConnectWiseClient {
         headers: form ? formHeaders : this.headers,
         body: body === undefined ? undefined : form ? body : JSON.stringify(body),
       });
-      if (res.ok) return (await res.json()) as T;
+      // A DELETE answers 204 with no body.
+      if (res.ok) return (res.status === 204 ? undefined : await res.json()) as T;
       const text = await res.text();
       // Too many requests: CW turned the request away without doing it, so it's safe to send
       // again (even a POST) once the wait it asks for is over.
@@ -417,6 +440,41 @@ export class ConnectWiseClient {
   /** Active work types, e.g. "Remote - Business Hours" → id 3. */
   getWorkTypes() {
     return this.getAll<CwRef & { inactiveFlag?: boolean }>("/time/workTypes", "inactiveFlag=false");
+  }
+
+  // ---- Schedule ----
+
+  /** Adds the entry to the member's calendar. allowScheduleConflictsFlag lets it overlap others. */
+  createScheduleEntry(entry: CwScheduleEntryInput) {
+    return this.post<CwScheduleEntry>("/schedule/entries", entry);
+  }
+
+  updateScheduleEntry(id: number, values: Partial<Pick<CwScheduleEntryInput, "name" | "dateStart" | "dateEnd" | "reminder">>) {
+    return this.patch<CwScheduleEntry>(`/schedule/entries/${id}`, values);
+  }
+
+  deleteScheduleEntry(id: number) {
+    return this.request<void>("DELETE", `/schedule/entries/${id}`);
+  }
+
+  /** Schedule entry types (Service, Meeting, Schedule Hold…). */
+  getScheduleTypes() {
+    return this.getAll<CwRef>("/schedule/types");
+  }
+
+  /** Firm, Tentative… */
+  getScheduleStatuses() {
+    return this.getAll<CwRef>("/schedule/statuses");
+  }
+
+  /** Where the work happens: On-Site, In-house, Remote… */
+  getServiceLocations() {
+    return this.getAll<CwRef>("/service/locations");
+  }
+
+  /** A schedule entry's reminder choices; `time` is minutes before. */
+  getReminderTimes() {
+    return this.getAll<CwRef & { time: number }>("/schedule/reminderTimes");
   }
 
   // ---- Lookups (ids vary per instance) ----

@@ -162,6 +162,38 @@ const MIGRATIONS: string[] = [
     PRIMARY KEY (file_id, ticket)
   );
   `,
+  // Schedule holds (2026-10-29): a repeating block on the CW calendar (days of the week, a
+  // time), and the CW schedule entry made for each day. Not synced; the client fetches them.
+  `
+  CREATE TABLE cw_holds (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    -- Days of the week, 0 = Sunday: "1,2,3,4,5".
+    days TEXT NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    from_date TEXT NOT NULL,
+    until_date TEXT,
+    -- Minutes before; NULL = no reminder.
+    reminder INTEGER,
+    time_zone TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    -- Deleted: its entries still to come are being removed from CW; then the row goes.
+    removed INTEGER NOT NULL DEFAULT 0,
+    -- Why the last pass couldn't do everything (CW unreachable…), or NULL.
+    error TEXT
+  );
+  CREATE TABLE cw_hold_days (
+    hold_id TEXT NOT NULL REFERENCES cw_holds(id) ON DELETE CASCADE,
+    date TEXT NOT NULL,
+    -- made: entry_id is in CW as sent; skipped: removed here; gone: deleted in CW.
+    state TEXT NOT NULL,
+    entry_id INTEGER,
+    -- What CW has (JSON: name, start, end, reminder), to tell when the hold changed.
+    sent TEXT,
+    PRIMARY KEY (hold_id, date)
+  );
+  `,
 ];
 
 export type DB = DatabaseSync;

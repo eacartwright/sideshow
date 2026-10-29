@@ -28,6 +28,8 @@ export interface Config {
   cwTicketUrl?: string | null;
   /** The server finds the weekly recurring internal ticket (▶ WRIT). */
   cwWeekly?: boolean;
+  /** Schedule holds can be made on the member's CW calendar (the header's Holds). */
+  cwHolds?: boolean;
   /** The workspace this is (DESIGN.md §4), and every workspace there is. Missing from servers before workspaces. */
   workspace?: { id: string; name: string };
   workspaces?: { id: string; name: string }[];

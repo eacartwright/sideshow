@@ -7,6 +7,7 @@ import { FileStore } from "./files";
 import type { ConnectWiseClient } from "./integrations/connectwise/client";
 import { CompanyCache } from "./integrations/connectwise/companies";
 import { CwDocuments } from "./integrations/connectwise/documents";
+import { ScheduleHolds } from "./integrations/connectwise/holds";
 import { TicketMaker } from "./integrations/connectwise/tickets";
 import { WeeklyTickets } from "./integrations/connectwise/weekly";
 import { defaultsBackfill, loadProfile, profileListChanges } from "./profile";
@@ -89,7 +90,7 @@ export class Workspace {
   readonly files: FileStore;
   readonly backups: { latest: () => string | null; stop: () => void };
   profile!: Profile;
-  cwParts: { companies: CompanyCache; documents: CwDocuments; tickets: TicketMaker; weekly: WeeklyTickets | null } | null = null;
+  cwParts: { companies: CompanyCache; documents: CwDocuments; tickets: TicketMaker; weekly: WeeklyTickets | null; holds: ScheduleHolds | null } | null = null;
   private timers: ReturnType<typeof setInterval>[] = [];
   private configListeners = new Set<() => void>();
 
@@ -196,7 +197,13 @@ export class Workspace {
       weekly.checkIfDue();
       this.timers.push(setInterval(() => weekly.checkIfDue(), 15 * 60_000).unref());
     }
-    this.cwParts = { companies, documents, tickets, weekly };
+    // Schedule holds: the next few weeks of each kept on the member's CW calendar (DESIGN.md §10).
+    const holds = cwMember ? new ScheduleHolds(this.db, cw, cwMember, log) : null;
+    if (holds) {
+      void holds.sync();
+      this.timers.push(setInterval(() => void holds.sync(), 3_600_000).unref());
+    }
+    this.cwParts = { companies, documents, tickets, weekly, holds };
   }
 }
 

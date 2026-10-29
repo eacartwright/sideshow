@@ -211,7 +211,7 @@ export async function checkPushed(client: ConnectWiseClient, store: Store, sessi
 }
 
 /** CW's error bodies are JSON with a message (and sometimes per-field errors); keep them short. */
-function cwMessage(err: unknown): string {
+export function cwMessage(err: unknown): string {
   if (!(err instanceof CwError)) return err instanceof Error && err.message.startsWith("Couldn't attach") ? err.message : "ConnectWise didn't answer";
   try {
     const body = JSON.parse(err.body) as { message?: string; errors?: { message?: string }[] };

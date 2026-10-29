@@ -48,6 +48,10 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   pushes those sessions). The client retries CW's 429s after the wait CW asks for;
   `GET /api/cw/weekly` (+ `POST …/refresh`) → this week's recurring internal ticket (▶ WRIT,
   `weekly.ts`); `POST /api/cw/tickets/:id/summary` → rename a ticket;
+  `GET|POST /api/cw/holds`, `POST|DELETE /api/cw/holds/:id`, `POST …/:id/days/:date {skip}`,
+  `POST …/sync` → schedule holds, an entry per day on the CW calendar kept 4 weeks ahead
+  (`holds.ts`, tables `cw_holds` / `cw_hold_days`; needs `CW_MEMBER`, `config.cwHolds`; header ›
+  Holds, `HoldsDialog.tsx`, DESIGN.md §10);
   `GET /api/cw/companies` (+ `POST …/refresh[?full=1]`) → the cached CW companies, duplicates
   marked (`companies.ts`; the browser keeps a copy, `web/src/companies.ts`); `POST /api/cw/push {sessionIds}` →
   per-session results (`integrations/connectwise/push.ts`; needs `CW_MEMBER` in `.env`, else
@@ -160,7 +164,12 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-10-20)
+## Status (2026-10-29)
+
+- **Built 2026-10-29:** **schedule holds** (header › Holds; DESIGN.md §10): repeating Schedule
+  Hold entries on Evan's CW calendar, made a day at a time 4 weeks ahead. Live-checked the same
+  day (with Evan's OK): create, change incl. clearing the reminder (`reminder: null` PATCH), and
+  delete (204) all work. Ask how the first real holds went.
 
 - **Built 2026-10-20:** **workspaces** with a profile each (Settings › Workspaces; DESIGN.md
   §4); the Entries table **edited in place** with CW (dates, times, hours, ticket #, company;

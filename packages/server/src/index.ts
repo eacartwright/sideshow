@@ -10,6 +10,7 @@ import { FileStore, MAX_FILE } from "./files";
 import { ConnectWiseClient, CwError } from "./integrations/connectwise/client";
 import { ENV_KEYS, resolve, settingsFromEnv, shown, testConnection, type CwSettings } from "./integrations/connectwise/connection";
 import { updateEnvFile } from "./envfile";
+import { parseRule } from "./integrations/connectwise/holds";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
 import type { NewTicket } from "./integrations/connectwise/tickets";
 import { listProfiles } from "./profile";
@@ -232,6 +233,7 @@ app.get("/api/state", (c) => {
       cw: on,
       cwPush: on && !!ctx.cwMember,
       cwWeekly: on && !!ws.cwParts?.weekly,
+      cwHolds: on && !!ws.cwParts?.holds,
       cwTicketUrl: on ? ticketUrl() : null,
       workspace: { id: ws.id, name: ws.entry.name },
       workspaces: workspaces.all().map((w) => ({ id: w.id, name: w.entry.name })),
@@ -280,6 +282,78 @@ app.post("/api/cw/weekly/refresh", async (c) => {
   const weekly = cwOf(c.get("ws"))?.weekly;
   if (!weekly) return c.json({ error: "ConnectWise push isn't set up for this workspace" }, 503);
   return c.json({ weekly: await weekly.check() });
+});
+
+// Schedule holds (holds.ts): blocks that repeat on the member's CW calendar, an entry per day.
+// Every change answers with the holds as they are after it; a hold's `error` says what CW refused.
+const holdsOf = (ws: Workspace) => (cwOf(ws) ? ws.cwParts?.holds : null) ?? null;
+const NO_HOLDS = { error: "Schedule holds need ConnectWise with a member (Settings › Connections)" };
+const holdsError = (c: Context, err: unknown) => {
+  console.error(err);
+  return c.json({ error: "Something went wrong saving that" }, 500);
+};
+app.get("/api/cw/holds", (c) => {
+  const holds = holdsOf(c.get("ws"));
+  if (!holds) return c.json(NO_HOLDS, 503);
+  return c.json({ holds: holds.list() });
+});
+app.post("/api/cw/holds", async (c) => {
+  const holds = holdsOf(c.get("ws"));
+  if (!holds) return c.json(NO_HOLDS, 503);
+  const rule = parseRule(await c.req.json().catch(() => null));
+  if ("error" in rule) return c.json(rule, 400);
+  try {
+    const id = await holds.create(rule);
+    return c.json({ id, holds: holds.list() });
+  } catch (err) {
+    return holdsError(c, err);
+  }
+});
+// Try again now (otherwise hourly). Before /:id, which would match it too.
+app.post("/api/cw/holds/sync", async (c) => {
+  const holds = holdsOf(c.get("ws"));
+  if (!holds) return c.json(NO_HOLDS, 503);
+  try {
+    await holds.sync();
+    return c.json({ holds: holds.list() });
+  } catch (err) {
+    return holdsError(c, err);
+  }
+});
+app.post("/api/cw/holds/:id", async (c) => {
+  const holds = holdsOf(c.get("ws"));
+  if (!holds) return c.json(NO_HOLDS, 503);
+  const rule = parseRule(await c.req.json().catch(() => null));
+  if ("error" in rule) return c.json(rule, 400);
+  try {
+    if (!(await holds.update(c.req.param("id"), rule))) return c.json({ error: "No such hold" }, 404);
+    return c.json({ holds: holds.list() });
+  } catch (err) {
+    return holdsError(c, err);
+  }
+});
+app.delete("/api/cw/holds/:id", async (c) => {
+  const holds = holdsOf(c.get("ws"));
+  if (!holds) return c.json(NO_HOLDS, 503);
+  try {
+    if (!(await holds.remove(c.req.param("id")))) return c.json({ error: "No such hold" }, 404);
+    return c.json({ holds: holds.list() });
+  } catch (err) {
+    return holdsError(c, err);
+  }
+});
+// Skip one day ({skip: true}), or make it again ({skip: false}).
+app.post("/api/cw/holds/:id/days/:date", async (c) => {
+  const holds = holdsOf(c.get("ws"));
+  if (!holds) return c.json(NO_HOLDS, 503);
+  const b = await c.req.json().catch(() => null);
+  if (typeof b?.skip !== "boolean") return c.json({ error: "skip needed" }, 400);
+  try {
+    const problem = await holds.skip(c.req.param("id"), c.req.param("date"), b.skip);
+    return c.json({ holds: holds.list(), ...(problem ? { error: problem } : {}) }, problem === "No such hold" ? 404 : 200);
+  } catch (err) {
+    return holdsError(c, err);
+  }
 });
 
 // Rename a ticket: its summary in CW becomes the task's title (Task details' "Update ticket").

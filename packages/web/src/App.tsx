@@ -2,6 +2,7 @@ import type { Id } from "@sideshow/shared";
 import { useEffect, useRef, useState } from "react";
 import { ClientsDialog } from "./components/ClientsDialog";
 import { DayPage } from "./components/DayPage";
+import { HoldsDialog } from "./components/HoldsDialog";
 import { InboxAdd } from "./components/InboxAdd";
 import { NowPanel } from "./components/NowPanel";
 import { ProjectDetail } from "./components/ProjectDetail";
@@ -23,6 +24,7 @@ type Overlay =
   | { kind: "inbox" }
   | { kind: "settings"; tab?: SettingsTab }
   | { kind: "clients" }
+  | { kind: "holds" }
   | { kind: "project"; projectId: Id }
   /** `back`: where closing returns to (the project page it was opened from). */
   | { kind: "detail"; taskId: Id; back?: Overlay }
@@ -177,6 +179,12 @@ export function App() {
               Entries
             </button>
           </nav>
+          {/* Beside Entries on a desktop; in the top bar on a phone, where the bottom bar is full. */}
+          {model.config.cwHolds && (
+            <button className="btn holds-btn" onClick={() => setOverlay({ kind: "holds" })} title="Schedule holds: blocks that repeat on your ConnectWise calendar">
+              Holds
+            </button>
+          )}
           {/* The installed iPhone app has no browser reload; unsent changes are already in the outbox. */}
           <button className="btn icon refresh-btn" onClick={() => location.reload()} title="Refresh" aria-label="Refresh">
             <RefreshIcon />
@@ -207,6 +215,7 @@ export function App() {
         {overlay?.kind === "inbox" && <InboxAdd onClose={close} />}
         {overlay?.kind === "settings" && <SettingsDialog initialTab={overlay.tab} onClose={close} onClients={() => setOverlay({ kind: "clients" })} />}
         {overlay?.kind === "clients" && <ClientsDialog onClose={() => setOverlay({ kind: "settings" })} />}
+        {overlay?.kind === "holds" && <HoldsDialog onClose={close} />}
         <ToastBar />
         {overlay?.kind === "project" && (
           <ProjectDetail

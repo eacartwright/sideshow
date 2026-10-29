@@ -1046,10 +1046,113 @@ textarea.title-input {
 .refresh-btn {
   margin-left: auto;
 }
+/* Holds (with CW) leads that group on the phone. */
+.holds-btn {
+  margin-left: auto;
+}
+.holds-btn + .refresh-btn {
+  margin-left: 0;
+}
 @media (min-width: 900px) {
   .refresh-btn {
     margin-left: 0;
   }
+  /* Next to Entries, as if in the action bar. */
+  .holds-btn {
+    margin-left: -4px;
+  }
+}
+
+/* ---- Schedule holds (HoldsDialog) ---- */
+.dialog.holds {
+  max-width: 560px;
+}
+.holds-intro,
+.holds-empty p {
+  margin: 0;
+}
+.hold {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+}
+.hold p {
+  margin: 0;
+}
+.hold-removed {
+  border-style: dashed;
+}
+.hold-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.hold-name {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.hold-toggle {
+  align-self: flex-start;
+  max-width: 100%;
+  /* Wraps on a phone instead of widening the dialog. */
+  white-space: normal;
+  text-align: left;
+  gap: 6px;
+}
+.hold-days {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.hold-day {
+  display: grid;
+  grid-template-columns: 7rem 5.5rem 1fr auto;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  border-top: 1px solid var(--border);
+}
+.hold-day.off .hold-day-date,
+.hold-day.off .hold-day-time {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+.hold-day-state {
+  color: var(--muted);
+}
+.hold-day-state.waiting {
+  color: var(--warn);
+  font-weight: 600;
+}
+@media (max-width: 599px) {
+  .hold-day {
+    grid-template-columns: 1fr auto auto;
+  }
+  .hold-day-time {
+    display: none;
+  }
+}
+.dialog.hold-form {
+  max-width: 480px;
+}
+.hold-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+.hold-week {
+  align-self: flex-start;
+  max-width: 100%;
+}
+.hold-week .seg {
+  min-width: 0;
+  flex: 1;
+  min-height: var(--control);
+  padding: 0 10px;
 }
 .setting {
   display: grid;

@@ -834,6 +834,33 @@ folders stay `.env`-only: a wrong value there locks you out.
   the WRIT (Shift = alongside). Each week is its own task, so last week's unpushed time
   still goes to last week's ticket. The browser keeps the current ticket (`web/src/weekly.ts`)
   so it works offline. Shown when CW push is set up.
+- **Schedule holds** (2026-10-29; `integrations/connectwise/holds.ts`, `web/.../HoldsDialog.tsx`):
+  blocks that repeat on my CW calendar, e.g. "End of day time entries", Mon–Fri 4–5 PM, so
+  nobody books over them. CW's schedule entries (Schedule Record) don't repeat, and a ticket
+  template would make a ticket I don't want. **Holds** in the header (Evan's pick over a
+  Settings tab; the top bar on a phone, where the bottom bar is full) lists them with **+ New
+  hold**, **Edit**, **Delete**. A hold is a description, days of the week, a time, a first day
+  and an optional last day, and a reminder (None, 0, 5, 10 or 15 minutes). Each day becomes one
+  CW schedule entry: type **Schedule Hold**, **In-house**, **Firm**, on CW_MEMBER's calendar, no
+  company or ticket, allowed to overlap other entries (names looked up, since ids vary per
+  instance).
+  - **Ongoing** (Evan's pick over a fixed date range): the server keeps the next **4 weeks** of
+    each hold made, with a pass on every change and hourly, so each new day is added as time
+    passes. A hold with a last day stops there.
+  - Each day's entry is recorded (`cw_hold_days`), so a day is made once. A day **skipped** in
+    the dialog (PTO; its entry is removed) or **deleted in CW** isn't made again; either can be
+    restored.
+  - **Changing** a hold changes its entries that haven't started (sending CW only what changed);
+    **deleting** it removes them. Started and earlier ones stay as they are. A day that's
+    already started isn't made.
+  - Times are in the time zone of the browser it was made in, kept with the hold, so the UTC
+    times CW stores come out right on either side of a DST change.
+  - If CW refuses or can't be reached, the hold says why and the next pass tries again (**Try
+    again** does it now). A deleted hold whose entries couldn't all be removed stays, marked,
+    until they are.
+  - Not in the synced state: the server keeps holds in the workspace's database, and the dialog
+    asks for them each time it opens (every change needs CW anyway). Shown when CW push is set
+    up (CW_MEMBER).
 - **Ticket link**: the ticket # (Day page) and ↗ (Task details, running card) open the ticket
   in CW, in the form of CW's own Share link:
   `https://na.myconnectwise.net/v4_6_release/services/system_io/Service/fv_sr100_request.rails?service_recid={id}&companyName={CW_COMPANY_ID}`
