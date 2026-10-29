@@ -4,6 +4,7 @@ import { hm } from "../format";
 import { useA, useNow } from "../model";
 import { SessionFieldInputs } from "./fields";
 import { RichNotes } from "./RichNotes";
+import { CleanedNote, CleanupButton } from "./Cleanup";
 import { Switcher } from "./Switcher";
 
 // Edit one session: day, start/end (native time inputs, so the iPhone shows its wheel),
@@ -151,7 +152,9 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
         label="Notes"
         onValue={(notes) => a.updateSession(s.id, { notes })}
       />
+      <CleanedNote session={s} />
       <div className="row-actions">
+        <CleanupButton session={s} className="btn" />
         <button
           className="btn"
           disabled={snapped}

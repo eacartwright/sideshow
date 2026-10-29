@@ -896,10 +896,38 @@ folders stay `.env`-only: a wrong value there locks you out.
 
 ## 11. AI note cleanup
 
-A **"Clean up"** button on a session (or a task's day) sends the raw notes to the Claude API
-server-side and returns a formatted version per a **configurable template**. The current one is
-**Actions Taken**, **Communication**, **Next Steps**. I review it before accepting. Raw notes are
-always kept.
+Built 2026-10-29 (M7). **✨ Clean up** on a session with notes, in the session editor and on
+each Day page row (not the running card), sends its notes to a model on the server and shows
+the result for review: editable, with the model, time and cost, and the notes as they are
+below. **Use these notes** replaces the notes; the raw ones are kept on the session
+(`ext.ai.raw`, the first ones if it's cleaned up twice) and **Restore the original**, under the
+notes, puts them back. Undo works too. Pushing sends whatever the notes say then.
+
+- **Two providers** (Evan wants to try both): Anthropic (Claude) and OpenAI (GPT), each on when
+  the server has its key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in `.env`; never sent to the
+  browser). Models, with list prices checked on both providers' pages on 2026-10-29
+  (`shared/src/ai.ts`): Claude Haiku / Sonnet / Opus 5.5, GPT-6 Luna, GPT-6.1 Terra / Sol. The
+  premium tiers (Fable 5.1, GPT-6 Astra, $10 / $50) are left out. Effort is low: tidying
+  doesn't need much thinking.
+- **Settings › AI** (as in foodlab): the **Model** (Off or any model with a key; the dialog can
+  try another each time), **this month** (estimated cost against the cap, a bar per day, a
+  table by model, recent calls), **Monthly cap** (default $5; at it no more calls),
+  **Alerts at** 50 / 75 / 90% (75 and 90 to start; a toast when a call crosses one),
+  **Templates**, and **Compare** (raw notes through every model with a key, side by side, to
+  choose between them). One set for the whole server, not per workspace (one bill), kept in
+  the main database (`meta` `ai.settings`; calls in `ai_usage`).
+- **Templates**: a name and the shape of the notes. The first is the default and the dialog
+  can pick another (more are coming, e.g. scope recommendations). Built-in rules go with every
+  template: keep every fact, add nothing, plain past tense, Markdown, keep every picture and
+  link where it is, answer with the notes only. The model also gets the task's title, for
+  context only. The first template is **Actions Taken / Communication / Next Steps** (bold
+  headings, "- " bullets, an empty section left out).
+- Client notes go to the provider: check the employer's policy on that (both say API data
+  isn't used for training by default).
+
+Settings also got **sections down the side** the same day (General · AI · Workspaces ·
+Connections · Experimental; icon over label on a phone; the last one opened is remembered per
+device), as in foodlab: the tabs across the top had run out of room.
 
 ## 12. Milestones
 
@@ -915,7 +943,7 @@ entries comes first. **M4 is built and pushed live (test ticket #106745); next i
 | **M4** | CW write | **Done** 2026-10-10 | Push sessions as time entries from the Day page (one, a ticket's, or ticked ones) through a preview; notes Internal / Discussion; email per entry, off by default; edits update the same CW entry; ticket # links to CW (§10). |
 | **M5** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
 | **M6** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |
-| **M7** | AI note cleanup | Not started | Clean-up button with template. |
+| **M7** | AI note cleanup | **Built** 2026-10-29, Claude and GPT (§11) | Clean-up button with template. |
 | **M8** | Notes | Not started | Markdown Notes, standalone or on a project, tied to a client with CW; line → inbox task (§5, Notes). |
 | **M9** | Desktop app | Not started | Tauri: always-on-top Now bar, global hotkeys (▶ New, Switcher, Stop), tray. |
 | **M10** | Hands-free capture | Not started | Shortcuts endpoints → Back Tap, Control Center, Siri note. |

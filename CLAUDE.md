@@ -90,6 +90,13 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   Attachments: `POST /api/files` → `server/src/files.ts` (`data/files/`, backed up); a push
   uploads a note's files to the ticket first (`connectwise/documents.ts`) and `cwNotes` rewrites
   the note for CW.
+- **AI note cleanup** (DESIGN.md §11, ✨): Anthropic and OpenAI, each on with its key in `.env`
+  (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`). Models + prices, templates, the rules and the
+  prompt: `shared/src/ai.ts`; server `server/src/ai.ts` (`Ai`: one `Ask` per provider, usage in
+  `ai_usage`, settings in main DB `meta`), `GET /api/ai`, `POST /api/ai/settings|cleanup|compare`;
+  UI `components/Cleanup.tsx` (dialog, ✨ button, Restore), `components/AiSettings.tsx`,
+  `web/src/ai.ts`. Raw notes kept in `session.ext.ai.raw`. To try it without spending, point the
+  SDKs at a fake: `ANTHROPIC_BASE_URL` / `OPENAI_BASE_URL` (+ any key).
 - **Dev notes** (DESIGN.md §7, 🧪 / Alt+B): notes about the app itself, one list for the server
   (`server/src/devnotes.ts`, table `dev_notes` in the main DB; `GET|POST /api/devnotes`,
   `POST /api/devnotes/:id` {text, done, files, deleted}; not per workspace, not synced state).
@@ -172,6 +179,10 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 
 ## Status (2026-10-29)
 
+- **Built 2026-10-29:** **AI note cleanup** (M7, ✨; DESIGN.md §11), Claude and GPT, and
+  Settings with sections down the side. Tried against a fake provider only: the desktop's
+  `.env` had no AI keys yet, so no real call has been made. First real check: Compare in
+  Settings › AI with both keys.
 - **Built 2026-10-29:** **dev notes** (🧪, from foodlab; DESIGN.md §7): files, pasted pictures,
   "Include this page" (off by default). The phone's top bar went icon-only to fit it (Holds as
   🗓️, "Synced" as its dot). Browser-checked on a scratch server; not yet on the iPhone.

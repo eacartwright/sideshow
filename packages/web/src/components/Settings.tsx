@@ -8,6 +8,7 @@ import { setThemePref, themePref, type ThemePref } from "../theme";
 import { Dialog } from "./Dialog";
 import { WorkspaceSettings } from "./WorkspaceSettings";
 import { ConnectionSettings } from "./ConnectionSettings";
+import { AiSettings } from "./AiSettings";
 
 // Two kinds of settings. Appearance belongs to this device (localStorage). The reducer's
 // tunable rules are synced (every device and the server must apply the same thresholds),
@@ -22,36 +23,73 @@ const THEMES: { value: ThemePref; label: string }[] = [
 const BLIP_OPTIONS = [0, 10, 30, 60, 120];
 const GAP_OPTIONS = [0, 2, 5, 10, 15, 30, 60];
 
-export type SettingsTab = "general" | "workspaces" | "connections" | "experimental";
+// Sections down the side (2026-10-29, as in foodlab; the tabs across the top had run out of
+// room). On a phone the side column is narrow: icon over label.
+export type SettingsTab = "general" | "ai" | "workspaces" | "connections" | "experimental";
 type Tab = SettingsTab;
-const TABS: { value: Tab; label: string }[] = [
-  { value: "general", label: "General" },
-  { value: "workspaces", label: "Workspaces" },
-  { value: "connections", label: "Connections" },
-  { value: "experimental", label: "Experimental" },
+const TABS: { value: Tab; label: string; icon: string }[] = [
+  { value: "general", label: "General", icon: "⚙️" },
+  { value: "ai", label: "AI", icon: "✨" },
+  { value: "workspaces", label: "Workspaces", icon: "🗂️" },
+  { value: "connections", label: "Connections", icon: "🔌" },
+  { value: "experimental", label: "Experimental", icon: "🔬" },
 ];
+/** The section last opened on this device. */
+const LAST_TAB = "sideshow:settingsTab";
 
-export function SettingsDialog({ onClose, onClients, initialTab = "general" }: { onClose: () => void; onClients: () => void; initialTab?: Tab }) {
-  const [tab, setTab] = useState<Tab>(initialTab);
+export function SettingsDialog({ onClose, onClients, initialTab }: { onClose: () => void; onClients: () => void; initialTab?: Tab }) {
+  const [tab, setTab] = useState<Tab>(() => {
+    if (initialTab) return initialTab;
+    try {
+      const last = localStorage.getItem(LAST_TAB) as Tab | null;
+      if (last && TABS.some((t) => t.value === last)) return last;
+    } catch {
+      // Not remembered: General.
+    }
+    return "general";
+  });
+  const pick = (t: Tab) => {
+    setTab(t);
+    try {
+      localStorage.setItem(LAST_TAB, t);
+    } catch {
+      // Not remembered; fine.
+    }
+  };
   return (
     <Dialog title="Settings" onClose={onClose} className="settings">
-      <div className="tabs settings-tabs" role="tablist">
-        {TABS.map((t) => (
-          <button
-            key={t.value}
-            role="tab"
-            id={`settings-tab-${t.value}`}
-            aria-selected={tab === t.value}
-            aria-controls="settings-panel"
-            className={`tab ${tab === t.value ? "on" : ""}`}
-            onClick={() => setTab(t.value)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`}>
-        {tab === "general" ? <GeneralSettings onClients={onClients} /> : tab === "workspaces" ? <WorkspaceSettings /> : tab === "connections" ? <ConnectionSettings /> : <ExperimentalSettings />}
+      <div className="settings-layout">
+        <nav className="settings-nav" role="tablist" aria-orientation="vertical" aria-label="Settings sections">
+          {TABS.map((t) => (
+            <button
+              key={t.value}
+              role="tab"
+              id={`settings-tab-${t.value}`}
+              aria-selected={tab === t.value}
+              aria-controls="settings-panel"
+              className={tab === t.value ? "on" : ""}
+              onClick={() => pick(t.value)}
+            >
+              <span className="settings-icon" aria-hidden>
+                {t.icon}
+              </span>
+              {t.label}
+            </button>
+          ))}
+        </nav>
+        <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`} className="settings-panel">
+          {tab === "general" ? (
+            <GeneralSettings onClients={onClients} />
+          ) : tab === "ai" ? (
+            <AiSettings />
+          ) : tab === "workspaces" ? (
+            <WorkspaceSettings />
+          ) : tab === "connections" ? (
+            <ConnectionSettings />
+          ) : (
+            <ExperimentalSettings />
+          )}
+        </div>
       </div>
     </Dialog>
   );

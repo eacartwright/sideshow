@@ -9,6 +9,7 @@ import { newId, OP_TYPES, type OpEnvelope } from "@sideshow/shared";
 import { FileStore, MAX_FILE } from "./files";
 import { ConnectWiseClient, CwError } from "./integrations/connectwise/client";
 import { ENV_KEYS, resolve, settingsFromEnv, shown, testConnection, type CwSettings } from "./integrations/connectwise/connection";
+import { Ai, AiStopped, MAX_NOTES, parseAiSettings, providersFromEnv } from "./ai";
 import { DevNotes, devNotesFile, parseFiles, parsePage, TEXT_MAX as DEV_NOTE_MAX } from "./devnotes";
 import { updateEnvFile } from "./envfile";
 import { parseRule } from "./integrations/connectwise/holds";
@@ -233,6 +234,51 @@ app.post("/api/devnotes/:id", async (c) => {
   return c.json({ notes: devNotes.list() });
 });
 
+// AI note cleanup (ai.ts): one set of settings and one bill for the whole server, so not per
+// workspace. The keys stay here; the app only learns which providers have one.
+const ai = new Ai(workspaces.main.db, providersFromEnv());
+if (ai.configured().length) console.log(`AI: ${ai.configured().join(", ")}`);
+const aiState = () => ({ providers: ai.configured(), models: ai.available().map((m) => m.id), settings: ai.settings(), usage: ai.usage() });
+app.get("/api/ai", (c) => c.json(aiState()));
+app.post("/api/ai/settings", async (c) => {
+  if (!fromApp(c)) return c.json({ error: "Not from the app" }, 403);
+  const s = parseAiSettings(await c.req.json().catch(() => null));
+  if ("error" in s) return c.json(s, 400);
+  ai.saveSettings(s);
+  return c.json(aiState());
+});
+/** A cleanup's failure as the app shows it. */
+const aiFailure = (err: unknown) => {
+  if (err instanceof AiStopped) return { error: err.message, status: 409 as const };
+  console.error(err);
+  return { error: `The AI service refused or couldn't be reached: ${(err as Error).message?.slice(0, 200) ?? "no answer"}`, status: 502 as const };
+};
+app.post("/api/ai/cleanup", async (c) => {
+  const b = await c.req.json().catch(() => null);
+  const notes = typeof b?.notes === "string" ? b.notes.trim() : "";
+  if (!notes || notes.length > MAX_NOTES) return c.json({ error: notes ? "Those notes are too long to send" : "No notes to clean up" }, 400);
+  const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+  try {
+    return c.json(await ai.cleanUp(notes, { templateId: str(b.templateId), model: str(b.model), context: str(b.context)?.slice(0, 300) }));
+  } catch (err) {
+    const f = aiFailure(err);
+    return c.json({ error: f.error }, f.status);
+  }
+});
+// The same notes through every model that has a key, side by side (Settings › AI › Compare).
+app.post("/api/ai/compare", async (c) => {
+  const b = await c.req.json().catch(() => null);
+  const notes = typeof b?.notes === "string" ? b.notes.trim() : "";
+  if (!notes || notes.length > MAX_NOTES) return c.json({ error: notes ? "Those notes are too long to send" : "No notes to compare" }, 400);
+  const templateId = typeof b?.templateId === "string" ? b.templateId : undefined;
+  const results = await Promise.all(
+    ai.available().map((m) =>
+      ai.cleanUp(notes, { model: m.id, templateId, purpose: "compare" }).catch((err) => ({ model: m.id, error: aiFailure(err).error })),
+    ),
+  );
+  return c.json({ results });
+});
+
 // Everything else is for one workspace: the X-Sideshow-Workspace header says which (the
 // EventSource can't send headers, so ?ws= there). None means the main one, all an app from
 // before workspaces knows about.
@@ -260,6 +306,8 @@ app.get("/api/state", (c) => {
       cwPush: on && !!ctx.cwMember,
       cwWeekly: on && !!ws.cwParts?.weekly,
       cwHolds: on && !!ws.cwParts?.holds,
+      // A key for at least one AI provider: notes can be cleaned up (✨).
+      ai: ai.configured().length > 0,
       cwTicketUrl: on ? ticketUrl() : null,
       workspace: { id: ws.id, name: ws.entry.name },
       workspaces: workspaces.all().map((w) => ({ id: w.id, name: w.entry.name })),

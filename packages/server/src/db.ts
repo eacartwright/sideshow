@@ -209,6 +209,24 @@ const MIGRATIONS: string[] = [
     deleted INTEGER NOT NULL DEFAULT 0
   );
   `,
+  // AI note cleanup (2026-10-29): every call to a model, with its tokens and estimated cost, for
+  // the month's total and the cap. One log for the server (the main workspace's database).
+  `
+  CREATE TABLE ai_usage (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    month TEXT NOT NULL,
+    model TEXT NOT NULL,
+    purpose TEXT NOT NULL,
+    input_tokens INTEGER NOT NULL,
+    output_tokens INTEGER NOT NULL,
+    cache_read_tokens INTEGER NOT NULL,
+    cost_usd REAL NOT NULL,
+    ok INTEGER NOT NULL,
+    note TEXT NOT NULL DEFAULT ''
+  );
+  CREATE INDEX ai_usage_month ON ai_usage (month);
+  `,
 ];
 
 export type DB = DatabaseSync;

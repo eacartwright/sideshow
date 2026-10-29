@@ -30,6 +30,8 @@ export interface Config {
   cwWeekly?: boolean;
   /** Schedule holds can be made on the member's CW calendar (the header's Holds). */
   cwHolds?: boolean;
+  /** The server has a key for an AI provider: notes can be cleaned up (✨). */
+  ai?: boolean;
   /** The workspace this is (DESIGN.md §4), and every workspace there is. Missing from servers before workspaces. */
   workspace?: { id: string; name: string };
   workspaces?: { id: string; name: string }[];

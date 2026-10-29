@@ -81,6 +81,9 @@ and the site goes down (happened 2026-10-10). To fix it, run `install.ps1` again
   the Push buttons don't appear. Since 2026-10-20 these are easier to change in the app,
   Settings › Connections: it tests them, rewrites just these lines (the old file is kept as
   `.env.bak`) and needs no restart.
+- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` (2026-10-29): for ✨ Clean up (AI note cleanup). Either
+  or both; each turns its provider's models on in Settings › AI. Read at startup, so restart
+  after adding one. Never sent to the browser.
 
 Restart after changing `.env`: `Stop-ScheduledTask sideshow; Start-ScheduledTask sideshow`.
 

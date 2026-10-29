@@ -2615,8 +2615,226 @@ p.picker-footer {
     white-space: nowrap;
   }
 }
-.settings-tabs {
-  margin-bottom: 8px;
+/* Settings: sections down the side (as in foodlab); on a phone a narrow column, icon over label. */
+.dialog.settings {
+  max-width: 780px;
+}
+.settings-layout {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 18px;
+  min-height: 380px;
+}
+.settings-nav {
+  /* Stays put while a long section scrolls. */
+  position: sticky;
+  top: 0;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 10px;
+  border-right: 1.5px solid var(--border);
+}
+.settings-panel .setting-select {
+  min-width: 0;
+  max-width: 100%;
+}
+.settings-nav button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--control-radius);
+  background: none;
+  color: var(--text);
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.settings-nav button:hover {
+  background: var(--surface-2);
+}
+.settings-nav button.on {
+  background: var(--surface-2);
+  color: var(--primary);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+.settings-panel {
+  min-width: 0;
+}
+@media (max-width: 599px) {
+  .settings-layout {
+    grid-template-columns: 72px minmax(0, 1fr);
+    gap: 10px;
+  }
+  .settings-nav {
+    padding-right: 6px;
+  }
+  .settings-nav button {
+    flex-direction: column;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 2px;
+    font-size: 0.72rem;
+    text-align: center;
+  }
+  .settings-icon {
+    font-size: 1.2rem;
+  }
+}
+
+/* ---- Settings › AI (AiSettings.tsx) ---- */
+.ai-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 0 0 8px;
+}
+.ai-total {
+  font-size: 1.3rem;
+}
+.ai-spend p {
+  margin: 0;
+}
+.ai-meter {
+  position: relative;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.ai-meter-fill {
+  height: 100%;
+  background: var(--running);
+}
+.ai-meter.warn .ai-meter-fill,
+.ai-meter.over .ai-meter-fill {
+  background: var(--warn);
+}
+.ai-meter-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--border-strong);
+}
+.ai-days {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 36px;
+}
+.ai-day {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  border-bottom: 1px solid var(--border);
+}
+.ai-day > span {
+  width: 100%;
+  background: var(--primary);
+  border-radius: 2px 2px 0 0;
+}
+.ai-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.ai-table th,
+.ai-table td {
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.ai-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ai-recent {
+  margin: 6px 0 0;
+  padding-left: 18px;
+}
+.ai-cap {
+  width: 6rem;
+}
+.ai-templates {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ai-template {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.ai-template-name {
+  white-space: normal;
+  text-align: left;
+}
+.ai-instructions {
+  min-height: 10rem;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+}
+.ai-reset,
+.ai-add-template {
+  align-self: flex-start;
+}
+.ai-compare {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 10px;
+}
+.ai-compare-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  min-width: 0;
+}
+.ai-compare-text,
+.cleanup-original {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: var(--font);
+  font-size: 0.85rem;
+}
+
+/* ---- ✨ Clean up (Cleanup.tsx) ---- */
+.dialog.cleanup {
+  max-width: 680px;
+}
+.cleanup-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+}
+.cleanup-template {
+  margin: 0;
+}
+.cleanup-text {
+  min-height: 12rem;
+}
+.cleanup-original-toggle {
+  align-self: flex-start;
+}
+.cleanup-original {
+  padding: 10px;
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.cleaned-note {
+  margin: -4px 0 0;
 }
 
 /* With a mouse (desktop), the entries table's text is a step smaller to fit more; touch

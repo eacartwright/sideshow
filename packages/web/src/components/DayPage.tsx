@@ -16,6 +16,7 @@ import { useEffect, useRef, useState } from "react";
 import { copyText } from "../clipboard";
 import { entryDate, entryHours, entryTime, hm, whenLabel } from "../format";
 import { bareText, fieldText, useA, useM, useNow, type Model, type TaskInfo } from "../model";
+import { CleanupButton } from "./Cleanup";
 import { DayCalendar } from "./DayCalendar";
 import { addDays, DayNav } from "./DayNav";
 import { NewTicketButton } from "./CreateTicket";
@@ -787,6 +788,7 @@ function SessionRows({
                     ⚠
                   </span>
                 )}
+                {!s.enteredAt && <CleanupButton session={s} className="btn subtle sm icon" iconOnly />}
                 {leadSpan === 0 && (
                   <button className="btn subtle sm icon" onClick={onEdit} aria-label="Edit this entry" aria-expanded={editing} title={`Edit\n\nNotes: ${plainNote(s.notes).trim() || CONTINUATION}`}>
                     ✎
