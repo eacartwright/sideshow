@@ -177,6 +177,10 @@ function HoldCard({
       ? `${dateLabel(h.from)} to ${dateLabel(h.until)}`
       : `From ${dateLabel(h.from)}, no end date`;
   const working = busy === h.id;
+  // The days listed: the next few weeks, or up to the last day if that comes sooner.
+  const windowEnd = new Date();
+  windowEnd.setDate(windowEnd.getDate() + AHEAD_WEEKS * 7 - 1);
+  const span = h.until && new Date(`${h.until}T00:00`) <= windowEnd ? `Through ${dateLabel(h.until)}` : `Next ${AHEAD_WEEKS} weeks`;
 
   return (
     <section className={`hold ${h.removed ? "hold-removed" : ""}`} aria-label={h.name}>
@@ -217,7 +221,7 @@ function HoldCard({
       )}
       {!h.removed && h.upcoming.length > 0 && (
         <button className="btn subtle hold-toggle" aria-expanded={open} onClick={() => setOpen(!open)}>
-          <span aria-hidden>{open ? "▾" : "▸"}</span> Next {AHEAD_WEEKS} weeks: {entries(made)} in ConnectWise
+          <span aria-hidden>{open ? "▾" : "▸"}</span> {span}: {entries(made)} in ConnectWise
           {off ? `, ${off} skipped` : ""}
         </button>
       )}
