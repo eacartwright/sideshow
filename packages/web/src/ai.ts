@@ -1,4 +1,4 @@
-import type { AiProvider, AiSettings, AiUsage, CleanupResult } from "@sideshow/shared";
+import type { AiProvider, AiSettings, AiTemplate, AiUsage, CleanupResult } from "@sideshow/shared";
 import { showToast } from "./toast";
 
 // AI note cleanup (DESIGN.md §11): the server holds the keys and the settings (one set for the
@@ -10,6 +10,10 @@ export interface AiState {
   /** Models that can be used (their provider has a key). */
   models: string[];
   settings: AiSettings;
+  /** From the server's ai-templates/ files; the first is the default. */
+  templates: AiTemplate[];
+  /** What's wrong with those files, if anything (then there are no templates). */
+  templatesError?: string;
   usage: AiUsage;
 }
 

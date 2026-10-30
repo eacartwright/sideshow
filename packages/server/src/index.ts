@@ -238,7 +238,15 @@ app.post("/api/devnotes/:id", async (c) => {
 // workspace. The keys stay here; the app only learns which providers have one.
 const ai = new Ai(workspaces.main.db, providersFromEnv());
 if (ai.configured().length) console.log(`AI: ${ai.configured().join(", ")}`);
-const aiState = () => ({ providers: ai.configured(), models: ai.available().map((m) => m.id), settings: ai.settings(), usage: ai.usage() });
+/** The templates for the app's menus, or what's wrong with their files (ai-templates/). */
+const aiTemplates = () => {
+  try {
+    return { templates: ai.templates().templates };
+  } catch (err) {
+    return { templates: [], templatesError: (err as Error).message };
+  }
+};
+const aiState = () => ({ providers: ai.configured(), models: ai.available().map((m) => m.id), settings: ai.settings(), ...aiTemplates(), usage: ai.usage() });
 app.get("/api/ai", (c) => c.json(aiState()));
 app.post("/api/ai/settings", async (c) => {
   if (!fromApp(c)) return c.json({ error: "Not from the app" }, 403);

@@ -85,10 +85,11 @@ export function CleanupDialog({ sessionId, onClose }: { sessionId: Id; onClose: 
     void loadAi().then((st) => {
       if ("error" in st) return setError(st.error);
       setAi(st);
-      const t = st.settings.templates[0]?.id ?? "";
+      const t = st.templates[0]?.id ?? "";
       const md = st.models.includes(st.settings.model) ? st.settings.model : (st.models[0] ?? "");
       setTemplateId(t);
       setModel(md);
+      if (st.templatesError) return setError(st.templatesError);
       if (st.settings.model === "off") return setError("AI is off (Settings › AI). Pick a model here to try one anyway.");
       if (md) void run({ templateId: t, model: md });
     });
@@ -96,7 +97,7 @@ export function CleanupDialog({ sessionId, onClose }: { sessionId: Id; onClose: 
 
   if (!s) return null;
   const accept = () => {
-    const template = ai?.settings.templates.find((t) => t.id === templateId)?.name ?? "";
+    const template = ai?.templates.find((t) => t.id === templateId)?.name ?? "";
     // The first raw notes stay, however many times it's cleaned up.
     const raw = typeof s.ext?.ai?.raw === "string" ? s.ext.ai.raw : s.notes;
     a.updateSession(s.id, { notes: text.trim(), ext: { ai: { raw, model: result?.model ?? model, template, at: Date.now() } } });
@@ -108,11 +109,11 @@ export function CleanupDialog({ sessionId, onClose }: { sessionId: Id; onClose: 
     <Dialog title="Clean up notes" onClose={onClose} className="cleanup">
       {ai && (
         <div className="cleanup-controls">
-          {ai.settings.templates.length > 1 && (
+          {ai.templates.length > 1 && (
             <label className="field">
               <span className="field-label">Template</span>
               <select className="select" value={templateId} onChange={(e) => setTemplateId(e.target.value)} disabled={busy}>
-                {ai.settings.templates.map((t) => (
+                {ai.templates.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
                   </option>
@@ -137,7 +138,7 @@ export function CleanupDialog({ sessionId, onClose }: { sessionId: Id; onClose: 
           </button>
         </div>
       )}
-      {ai?.settings.templates.length === 1 && <p className="muted small cleanup-template">Template: {ai.settings.templates[0]!.name}</p>}
+      {ai?.templates.length === 1 && <p className="muted small cleanup-template">Template: {ai.templates[0]!.name}</p>}
 
       {busy && (
         <p className="muted small busy-line" role="status">

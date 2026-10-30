@@ -1,8 +1,8 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { DEFAULT_AI, DEFAULT_TEMPLATE } from "@sideshow/shared";
+import { DEFAULT_AI } from "@sideshow/shared";
 import { Ai, AiStopped, parseAiSettings, type Ask } from "./ai";
 import { openDb } from "./db";
 
@@ -13,12 +13,15 @@ afterEach(() => {
   for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
 });
 
-function setup(providers: { anthropic?: Ask; openai?: Ask }) {
+function setup(providers: { anthropic?: Ask; openai?: Ask }, templates?: Record<string, string>) {
   const dir = mkdtempSync(join(tmpdir(), "sideshow-ai-"));
   dirs.push(dir);
   const db = openDb(join(dir, "t.db"));
   dbs.push(db);
-  return new Ai(db, providers);
+  if (!templates) return new Ai(db, providers);
+  mkdirSync(join(dir, "templates"));
+  for (const [f, text] of Object.entries(templates)) writeFileSync(join(dir, "templates", f), text);
+  return new Ai(db, providers, join(dir, "templates"));
 }
 
 /** A provider that answers in capitals, and remembers what it was asked. */
@@ -40,7 +43,8 @@ describe("AI cleanup", () => {
     expect(r.model).toBe("claude-opus-5-5");
     // 1M in × $4 + 100K out × $20.
     expect(r.costUsd).toBeCloseTo(6);
-    expect(claude.asked[0]!.system).toContain(DEFAULT_TEMPLATE.instructions);
+    // The real files: rules.md, then the first template.
+    expect(claude.asked[0]!.system).toMatch(/^You tidy a technician's raw working notes[\s\S]*The shape of the notes:\n\nThree sections/);
     expect(claude.asked[0]!.input).toBe("About (for context only): Printer offline\n\nThe raw notes:\n\nrebooted printer");
     expect(ai.usage().calls).toBe(1);
     expect(ai.usage().byModel[0]).toMatchObject({ model: "claude-opus-5-5", calls: 1 });
@@ -73,19 +77,30 @@ describe("AI cleanup", () => {
   });
 
   it("picks the template asked for", async () => {
-    const claude = fake();
-    const ai = setup({ anthropic: claude.ask });
-    ai.saveSettings({ ...DEFAULT_AI, templates: [DEFAULT_TEMPLATE, { id: "scope", name: "Scope", instructions: "A scope recommendation." }] });
+    const claude = fake({ input: 100, output: 100, cacheRead: 0 });
+    const ai = setup({ anthropic: claude.ask }, { "rules.md": "Rules.", "1-sections.md": "# Sections\nActions Taken.", "2-scope.md": "# Scope\nA scope recommendation." });
     await ai.cleanUp("x", { templateId: "scope" });
-    expect(claude.asked[0]!.system).toContain("A scope recommendation.");
-    expect(claude.asked[0]!.system).not.toContain("Actions Taken");
+    expect(claude.asked[0]!.system).toBe("Rules.\n\nThe shape of the notes:\n\nA scope recommendation.");
+    await ai.cleanUp("x");
+    expect(claude.asked[1]!.system).toContain("Actions Taken.");
+  });
+
+  it("says what's wrong with the template files, and makes no call", async () => {
+    const claude = fake();
+    const ai = setup({ anthropic: claude.ask }, { "rules.md": "Rules.", "1-bad.md": "No heading" });
+    await expect(ai.cleanUp("x")).rejects.toThrow('ai-templates/1-bad.md: the first line is "# Its name"');
+    expect(claude.asked).toEqual([]);
+  });
+
+  it("drops templates from settings saved before they moved to files", () => {
+    const ai = setup({});
+    ai.saveSettings({ ...DEFAULT_AI, templates: [{ id: "a", name: "A", instructions: "B" }] } as typeof DEFAULT_AI);
+    expect(ai.settings()).toEqual(DEFAULT_AI);
   });
 
   it("checks settings from the app", () => {
     expect(parseAiSettings(DEFAULT_AI)).toEqual(DEFAULT_AI);
     expect(parseAiSettings({ ...DEFAULT_AI, model: "gpt-2" })).toEqual({ error: "Not a model" });
-    expect(parseAiSettings({ ...DEFAULT_AI, templates: [] })).toEqual({ error: "At least one template is needed" });
-    expect(parseAiSettings({ ...DEFAULT_AI, templates: [{ id: "a", name: "A", instructions: " " }] })).toEqual({ error: "Each template needs a name and instructions" });
     expect(parseAiSettings({ ...DEFAULT_AI, monthlyLimitUsd: null, alertsAt: [90, 50, 90] })).toMatchObject({ monthlyLimitUsd: null, alertsAt: [50, 90] });
   });
 });

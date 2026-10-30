@@ -11,11 +11,12 @@ import {
   monthOf,
   type AiProvider,
   type AiSettings,
-  type AiTemplate,
+  type AiTemplates,
   type AiTokens,
   type AiUsage,
   type CleanupResult,
 } from "@sideshow/shared";
+import { loadTemplates, TEMPLATES_DIR } from "./aiTemplates";
 import type { DB } from "./db";
 
 // AI note cleanup (DESIGN.md §11): a session's notes through Claude or GPT, from a template.
@@ -72,7 +73,17 @@ export class Ai {
   constructor(
     private db: DB,
     private providers: Partial<Record<AiProvider, Ask>>,
+    private templatesDir = TEMPLATES_DIR,
   ) {}
+
+  /** The templates as the files say now (they're read every time); throws AiStopped if they're wrong. */
+  templates(): AiTemplates {
+    try {
+      return loadTemplates(this.templatesDir);
+    } catch (err) {
+      throw new AiStopped((err as Error).message);
+    }
+  }
 
   /** Which providers have a key. */
   configured(): AiProvider[] {
@@ -81,7 +92,10 @@ export class Ai {
 
   settings(): AiSettings {
     const row = this.db.prepare("SELECT value FROM meta WHERE key = ?").get(SETTINGS_KEY) as { value: string } | undefined;
-    return row ? { ...DEFAULT_AI, ...(JSON.parse(row.value) as Partial<AiSettings>) } : DEFAULT_AI;
+    if (!row) return DEFAULT_AI;
+    // Templates were kept here until they moved to files (2026-10-29); old rows still have them.
+    const { model, monthlyLimitUsd, alertsAt } = { ...DEFAULT_AI, ...(JSON.parse(row.value) as Partial<AiSettings>) };
+    return { model, monthlyLimitUsd, alertsAt };
   }
 
   saveSettings(s: AiSettings) {
@@ -105,7 +119,8 @@ export class Ai {
     if (!info) throw new AiStopped(`Not a model sideshow knows: ${model}`);
     const ask = this.providers[info.provider];
     if (!ask) throw new AiStopped(`No ${info.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY"} on the server (.env)`);
-    const template: AiTemplate = ai.templates.find((t) => t.id === opts.templateId) ?? ai.templates[0] ?? DEFAULT_AI.templates[0]!;
+    const { rules, templates } = this.templates();
+    const template = templates.find((t) => t.id === opts.templateId) ?? templates[0]!;
     const before = this.monthSpend();
     if (ai.monthlyLimitUsd !== null && before >= ai.monthlyLimitUsd) throw new AiStopped(`This month's $${ai.monthlyLimitUsd} cap is spent (Settings › AI)`);
 
@@ -121,7 +136,7 @@ export class Ai {
     };
     let res;
     try {
-      res = await ask(model, cleanupSystem(template), cleanupInput(notes, opts.context));
+      res = await ask(model, cleanupSystem(rules, template), cleanupInput(notes, opts.context));
     } catch (err) {
       record({ input: 0, output: 0, cacheRead: 0 }, false, errorNote(err));
       throw err;
@@ -177,14 +192,5 @@ export function parseAiSettings(b: any): AiSettings | { error: string } {
   const cap = b.monthlyLimitUsd;
   if (cap !== null && !(typeof cap === "number" && cap >= 0 && cap <= 1000)) return { error: "The cap is a number of dollars (up to 1000), or none" };
   if (!Array.isArray(b.alertsAt) || b.alertsAt.some((p: unknown) => !Number.isInteger(p) || (p as number) < 1 || (p as number) > 99)) return { error: "Alerts are percentages" };
-  if (!Array.isArray(b.templates) || !b.templates.length) return { error: "At least one template is needed" };
-  const templates: AiTemplate[] = [];
-  for (const t of b.templates) {
-    const name = typeof t?.name === "string" ? t.name.trim() : "";
-    const instructions = typeof t?.instructions === "string" ? t.instructions.trim() : "";
-    if (typeof t?.id !== "string" || !t.id || !name || !instructions) return { error: "Each template needs a name and instructions" };
-    if (name.length > 100 || instructions.length > 10_000) return { error: "A template's name or instructions are too long" };
-    templates.push({ id: t.id, name, instructions });
-  }
-  return { model: b.model, monthlyLimitUsd: cap, alertsAt: [...new Set(b.alertsAt as number[])].sort((x, y) => x - y), templates };
+  return { model: b.model, monthlyLimitUsd: cap, alertsAt: [...new Set(b.alertsAt as number[])].sort((x, y) => x - y) };
 }

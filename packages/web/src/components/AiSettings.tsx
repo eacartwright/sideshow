@@ -1,8 +1,7 @@
-import { AI_MODELS, DEFAULT_TEMPLATE, modelLabel, newId, PROVIDER_NAMES, type AiProvider, type AiSettings as Settings, type AiUsage, type CleanupResult } from "@sideshow/shared";
+import { AI_MODELS, modelLabel, PROVIDER_NAMES, type AiProvider, type AiSettings as Settings, type AiUsage, type CleanupResult } from "@sideshow/shared";
 import { useEffect, useState } from "react";
 import { aiAlert, compareModels, loadAi, money, saveAiSettings, tokensK, type AiState } from "../ai";
 import { showToast } from "../toast";
-import { ConfirmDialog } from "./ConfirmDialog";
 import { Spinner } from "./Spinner";
 
 // Settings › AI (DESIGN.md §11): which model cleans up notes (Claude or GPT, whichever have a key
@@ -101,7 +100,7 @@ export function AiSettings() {
         <p className="muted small setting-help">A call that crosses one of these (or the cap) says so.</p>
       </section>
 
-      <Templates settings={s} save={save} />
+      <Templates st={st} />
 
       <h3 className="settings-group">Compare</h3>
       <Compare st={st} onDone={() => void loadAi().then(take)} />
@@ -214,98 +213,29 @@ function Spend({ use, ai }: { use: AiUsage; ai: Settings }) {
   );
 }
 
-/** The templates: a name and the shape the notes take. The first is the default. */
-function Templates({ settings: s, save }: { settings: Settings; save: (patch: Partial<Settings>) => Promise<void> }) {
+/** The templates, as the server's ai-templates/ files say: read here, edited there. */
+function Templates({ st }: { st: AiState }) {
   const [open, setOpen] = useState<string | null>(null);
-  const [removing, setRemoving] = useState<string | null>(null);
-  const change = (id: string, patch: { name?: string; instructions?: string }) =>
-    void save({ templates: s.templates.map((t) => (t.id === id ? { ...t, ...patch } : t)) });
   return (
     <>
       <h3 className="settings-group">Templates</h3>
       <p className="muted small setting-help">
-        What shape the cleaned-up notes take. The first one is the default; the cleanup dialog lets you pick another. The rules every template goes
-        with (keep every fact, add nothing, keep pictures and links) are built in.
+        What shape the cleaned-up notes take. They're Markdown files in <code>packages/server/ai-templates/</code> (its README says how), read on
+        every cleanup, so an edit shows on the next ✨ or Compare. The first one is the default; the cleanup dialog lets you pick another.
       </p>
+      {st.templatesError && <p className="warn small">{st.templatesError}</p>}
       <ul className="ai-templates">
-        {s.templates.map((t, i) => (
+        {st.templates.map((t, i) => (
           <li key={t.id} className="ai-template">
-            <div className="row-actions">
-              <button type="button" className="btn subtle ai-template-name" aria-expanded={open === t.id} onClick={() => setOpen(open === t.id ? null : t.id)}>
-                <span aria-hidden>{open === t.id ? "▾" : "▸"}</span> {t.name}
-                {i === 0 && <span className="muted small"> (default)</span>}
-              </button>
-              <span className="spacer" />
-              {i > 0 && (
-                <button type="button" className="btn subtle" onClick={() => void save({ templates: [t, ...s.templates.filter((x) => x.id !== t.id)] })}>
-                  Make default
-                </button>
-              )}
-              {s.templates.length > 1 && (
-                <button type="button" className="btn subtle" onClick={() => setRemoving(t.id)}>
-                  Delete
-                </button>
-              )}
-            </div>
-            {open === t.id && (
-              <div className="stack">
-                <label className="field">
-                  <span className="field-label">Name</span>
-                  <SavedText key={`${t.id}-name`} value={t.name} onSave={(name) => change(t.id, { name })} />
-                </label>
-                <label className="field">
-                  <span className="field-label">Shape of the notes</span>
-                  <SavedText key={`${t.id}-instr`} value={t.instructions} multiline onSave={(instructions) => change(t.id, { instructions })} />
-                </label>
-                {t.id === DEFAULT_TEMPLATE.id && t.instructions !== DEFAULT_TEMPLATE.instructions && (
-                  <button type="button" className="btn subtle ai-reset" onClick={() => change(t.id, { instructions: DEFAULT_TEMPLATE.instructions })}>
-                    Put back the original wording
-                  </button>
-                )}
-              </div>
-            )}
+            <button type="button" className="btn subtle ai-template-name" aria-expanded={open === t.id} onClick={() => setOpen(open === t.id ? null : t.id)}>
+              <span aria-hidden>{open === t.id ? "▾" : "▸"}</span> {t.name}
+              {i === 0 && <span className="muted small"> (default)</span>}
+            </button>
+            {open === t.id && <pre className="ai-instructions">{t.instructions}</pre>}
           </li>
         ))}
       </ul>
-      <button
-        type="button"
-        className="btn ai-add-template"
-        onClick={() => {
-          const id = newId();
-          void save({ templates: [...s.templates, { id, name: "New template", instructions: "Describe the shape the notes should take: sections, headings, bullets." }] });
-          setOpen(id);
-        }}
-      >
-        + New template
-      </button>
-      {removing && (
-        <ConfirmDialog
-          title="Delete template"
-          confirm="Delete"
-          onCancel={() => setRemoving(null)}
-          onConfirm={() => {
-            void save({ templates: s.templates.filter((t) => t.id !== removing) });
-            setRemoving(null);
-          }}
-        >
-          <p>Delete “{s.templates.find((t) => t.id === removing)?.name}”?</p>
-        </ConfirmDialog>
-      )}
     </>
-  );
-}
-
-/** A text box saved when you leave it (not as you type). */
-function SavedText({ value, onSave, multiline = false }: { value: string; onSave: (v: string) => void; multiline?: boolean }) {
-  const [draft, setDraft] = useState(value);
-  const commit = () => {
-    if (draft.trim() && draft.trim() !== value) onSave(draft.trim());
-    else setDraft(value);
-  };
-  return multiline ? (
-    <textarea className="dev-text ai-instructions" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={commit} />
-  ) : (
-    <input className="editor-input" value={draft} maxLength={100} onChange={(e) => setDraft(e.target.value)} onBlur={commit} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
   );
 }
 
@@ -314,7 +244,7 @@ type CompareRow = CleanupResult | { model: string; error: string };
 /** The same notes through every model with a key, side by side, to choose between them. */
 function Compare({ st, onDone }: { st: AiState; onDone: () => void }) {
   const [notes, setNotes] = useState("");
-  const [templateId, setTemplateId] = useState(st.settings.templates[0]?.id ?? "");
+  const [templateId, setTemplateId] = useState(st.templates[0]?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<CompareRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -337,9 +267,9 @@ function Compare({ st, onDone }: { st: AiState; onDone: () => void }) {
       </p>
       <textarea className="dev-text" rows={4} value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Raw notes to try" aria-label="Notes to compare" />
       <div className="row-actions">
-        {st.settings.templates.length > 1 && (
+        {st.templates.length > 1 && (
           <select className="select" value={templateId} onChange={(e) => setTemplateId(e.target.value)} aria-label="Template">
-            {st.settings.templates.map((t) => (
+            {st.templates.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.name}
               </option>

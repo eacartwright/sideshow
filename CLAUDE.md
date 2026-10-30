@@ -91,8 +91,9 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   uploads a note's files to the ticket first (`connectwise/documents.ts`) and `cwNotes` rewrites
   the note for CW.
 - **AI note cleanup** (DESIGN.md §11, ✨): Anthropic and OpenAI, each on with its key in `.env`
-  (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`). Models + prices, templates, the rules and the
-  prompt: `shared/src/ai.ts`; server `server/src/ai.ts` (`Ai`: one `Ask` per provider, usage in
+  (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`). Models + prices and the
+  prompt: `shared/src/ai.ts`; templates + rules are Markdown files in `server/ai-templates/`
+  (`aiTemplates.ts`, read per call; its README says the format); server `server/src/ai.ts` (`Ai`: one `Ask` per provider, usage in
   `ai_usage`, settings in main DB `meta`), `GET /api/ai`, `POST /api/ai/settings|cleanup|compare`;
   UI `components/Cleanup.tsx` (dialog, ✨ button, Restore), `components/AiSettings.tsx`,
   `web/src/ai.ts`. Raw notes kept in `session.ext.ai.raw`. To try it without spending, point the

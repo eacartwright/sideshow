@@ -71,6 +71,12 @@
 html {
   /* Room for the scrollbar even before there is one, so the layout doesn't shift. */
   scrollbar-gutter: stable;
+  /* Extra right padding in scroll boxes for overlay scrollbars, which take no room of their own
+     (set by index.html). */
+  --overlay-scrollbar: 0px;
+}
+html[data-scrollbars="overlay"] {
+  --overlay-scrollbar: 12px;
 }
 html,
 body {
@@ -331,6 +337,7 @@ select:focus {
     max-height: calc(100vh - 32px);
     overflow-y: auto;
     scrollbar-gutter: stable;
+    padding-right: var(--overlay-scrollbar);
   }
 }
 
@@ -824,6 +831,7 @@ textarea.title-input {
   border: 1.5px solid var(--border);
   border-radius: 14px;
   padding: 14px;
+  padding-right: calc(14px + var(--overlay-scrollbar));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -865,7 +873,7 @@ textarea.title-input {
 .results {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 0 var(--overlay-scrollbar) 0 0;
   overflow: auto;
   scrollbar-gutter: stable;
   display: grid;
@@ -923,7 +931,7 @@ textarea.title-input {
 .picker ul {
   list-style: none;
   margin: 6px 0 0;
-  padding: 0;
+  padding: 0 var(--overlay-scrollbar) 0 0;
   max-height: 240px;
   overflow: auto;
   scrollbar-gutter: stable;
@@ -1938,7 +1946,7 @@ textarea.title-input {
 .cal {
   overflow-y: auto;
   scrollbar-gutter: stable;
-  padding: 10px 6px 10px 0;
+  padding: 10px calc(6px + var(--overlay-scrollbar)) 10px 0;
   background: var(--surface);
   border: 1.5px solid var(--border);
   border-radius: var(--radius);
@@ -2775,15 +2783,17 @@ p.picker-footer {
 .ai-template-name {
   white-space: normal;
   text-align: left;
+  align-self: flex-start;
 }
 .ai-instructions {
-  min-height: 10rem;
+  margin: 0;
+  padding: 10px;
+  white-space: pre-wrap;
   font-family: var(--mono);
   font-size: 0.85rem;
-}
-.ai-reset,
-.ai-add-template {
-  align-self: flex-start;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
 }
 .ai-compare {
   display: grid;

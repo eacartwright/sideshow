@@ -29,11 +29,21 @@ export const PROVIDER_NAMES: Record<AiProvider, string> = { anthropic: "Anthropi
 export const modelInfo = (id: string) => AI_MODELS.find((m) => m.id === id);
 export const modelLabel = (id: string) => modelInfo(id)?.label ?? id;
 
-/** A way of cleaning up notes: its name, and what the model is told about the shape it wants. */
+/**
+ * A way of cleaning up notes: its name, and what the model is told about the shape it wants.
+ * From packages/server/ai-templates/ (a Markdown file each), not from the settings.
+ */
 export interface AiTemplate {
   id: string;
   name: string;
   instructions: string;
+}
+
+/** The templates and the rules they all go with, as the files say (or what's wrong with them). */
+export interface AiTemplates {
+  rules: string;
+  /** The first is the default. */
+  templates: AiTemplate[];
 }
 
 export interface AiSettings {
@@ -43,28 +53,9 @@ export interface AiSettings {
   monthlyLimitUsd: number | null;
   /** Percentages of the cap that raise an alert when a call crosses them. */
   alertsAt: number[];
-  /** At least one; the first is the default. */
-  templates: AiTemplate[];
 }
 
-export const DEFAULT_TEMPLATE: AiTemplate = {
-  id: "actions-communication-next",
-  name: "Actions Taken / Communication / Next Steps",
-  instructions: `Three sections, in this order, each a bold heading on its own line followed by "- " bullets:
-
-**Actions Taken**
-What was done, in the order it was done: checks, findings, changes, results.
-
-**Communication**
-Who was contacted or updated, how, and what was said or agreed.
-
-**Next Steps**
-What's left to do, and who is doing it.
-
-Leave out a section with nothing in it.`,
-};
-
-export const DEFAULT_AI: AiSettings = { model: "claude-opus-5-5", monthlyLimitUsd: 5, alertsAt: [75, 90], templates: [DEFAULT_TEMPLATE] };
+export const DEFAULT_AI: AiSettings = { model: "claude-opus-5-5", monthlyLimitUsd: 5, alertsAt: [75, 90] };
 
 /** Tokens as both providers' bills count them: input excludes the cached part. */
 export interface AiTokens {
@@ -86,20 +77,8 @@ export function crossed(ai: Pick<AiSettings, "monthlyLimitUsd" | "alertsAt">, be
   return [...ai.alertsAt, 100].filter((pct, i, all) => all.indexOf(pct) === i && before < (cap * pct) / 100 && after >= (cap * pct) / 100);
 }
 
-/** The general rules every template goes with. The template says what shape the note takes. */
-export const CLEANUP_RULES = `You tidy a technician's raw working notes into the notes of one time entry in a PSA (ConnectWise), at an IT managed service provider. The notes are read by colleagues and sometimes by the client.
-
-- Keep every fact: names, devices, error messages, numbers, times, what was tried and what happened. Don't add anything that isn't in the notes: no guesses, causes, advice or steps that weren't taken.
-- Write plainly and briefly, in the past tense for what was done. Fix spelling and grammar; expand shorthand only when its meaning is certain.
-- Markdown: **bold**, "- " bullets, "1. " numbers. Keep every picture or link exactly as written (![…](…) or […](…)), each where it belongs.
-- Answer with the cleaned-up notes only: no preamble, no title, no remarks about them.
-
-The shape of the notes:
-
-`;
-
-/** What the model is told, as its instructions (system prompt). */
-export const cleanupSystem = (t: AiTemplate) => CLEANUP_RULES + t.instructions;
+/** What the model is told, as its instructions (system prompt): the rules, then the template. */
+export const cleanupSystem = (rules: string, t: AiTemplate) => `${rules}\n\nThe shape of the notes:\n\n${t.instructions}`;
 
 /** What the model is given: the notes, and what they're about (not to be repeated). */
 export function cleanupInput(notes: string, context?: string): string {

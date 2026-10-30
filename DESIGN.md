@@ -913,15 +913,19 @@ notes, puts them back. Undo works too. Pushing sends whatever the notes say then
   try another each time), **this month** (estimated cost against the cap, a bar per day, a
   table by model, recent calls), **Monthly cap** (default $5; at it no more calls),
   **Alerts at** 50 / 75 / 90% (75 and 90 to start; a toast when a call crosses one),
-  **Templates**, and **Compare** (raw notes through every model with a key, side by side, to
+  **Templates** (read-only; files, below), and **Compare** (raw notes through every model with a key, side by side, to
   choose between them). One set for the whole server, not per workspace (one bill), kept in
   the main database (`meta` `ai.settings`; calls in `ai_usage`).
 - **Templates**: a name and the shape of the notes. The first is the default and the dialog
-  can pick another (more are coming, e.g. scope recommendations). Built-in rules go with every
-  template: keep every fact, add nothing, plain past tense, Markdown, keep every picture and
-  link where it is, answer with the notes only. The model also gets the task's title, for
-  context only. The first template is **Actions Taken / Communication / Next Steps** (bold
-  headings, "- " bullets, an empty section left out).
+  can pick another (e.g. scope recommendations later). Built-in rules go with every
+  template: keep every fact, add nothing, plain past tense, Markdown with "* " bullets (CW's),
+  keep every picture and link where it is, answer with the notes only. The model also gets
+  the task's title, for context only. Since 2026-10-29 (Evan's pick) they're **Markdown files**
+  in `packages/server/ai-templates/`, not settings: `rules.md`, then `<number>-<id>.md` each,
+  first line `# Name`, `<!-- comments -->` not sent; read on every call, so an edit shows on
+  the next ✨ without a restart; in git, so both machines have the same; Settings › AI shows
+  them read-only. Two to start: **Communication / Actions Taken / Next Steps** (bold headings,
+  an empty section left out) and **General cleanup** (no sections).
 - Client notes go to the provider: check the employer's policy on that (both say API data
   isn't used for training by default).
 
