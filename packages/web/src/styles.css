@@ -76,7 +76,8 @@ html {
   --overlay-scrollbar: 0px;
 }
 html[data-scrollbars="overlay"] {
-  --overlay-scrollbar: 12px;
+  /* Wide enough for Firefox's, which grows to about 16px under the pointer. */
+  --overlay-scrollbar: 18px;
 }
 html,
 body {
