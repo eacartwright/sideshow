@@ -1,14 +1,15 @@
-import { durationMs, startOfDay, type Ms, type Session, type SessionPatch } from "@sideshow/shared";
+import { durationMs, startOfDay, ticketNumber, type Ms, type Session, type SessionPatch } from "@sideshow/shared";
 import { useState } from "react";
 import { hm } from "../format";
-import { useA, useNow } from "../model";
+import { useA, useM, useNow } from "../model";
 import { SessionFieldInputs } from "./fields";
 import { RichNotes } from "./RichNotes";
 import { CleanedNote, CleanupButton } from "./Cleanup";
+import { isUpdate, PushDialog, pushProblem } from "./PushDialog";
 import { Switcher } from "./Switcher";
 
 // Edit one session: day, start/end (native time inputs, so the iPhone shows its wheel),
-// deduct, work type, notes; snap to the quarter hour; move to another task; delete.
+// deduct, work type, notes; push to CW; move to another task; delete.
 // Used in Task details, Time entries and the running card. Every change saves as you go.
 
 const pad = (n: number) => n.toString().padStart(2, "0");
@@ -31,7 +32,6 @@ export function at(day: Ms, hhmm: string): Ms | null {
   d.setHours(h, m, 0, 0);
   return d.getTime();
 }
-const snap = (t: Ms) => Math.round(t / QUARTER) * QUARTER;
 /** Now, to the minute (CW's entries are to the minute). */
 const nowMinute = () => Math.floor(Date.now() / 60_000) * 60_000;
 
@@ -73,11 +73,17 @@ export function endPatch(s: Session, value: string): SessionPatch | null {
 }
 
 export function SessionEditor({ session: s, onDone }: { session: Session; onDone?: () => void }) {
+  const m = useM();
   const a = useA();
   const now = useNow(30_000);
   const [moving, setMoving] = useState(false);
+  const [pushing, setPushing] = useState(false);
+  // Push… only when the task's ticket # was found in CW (refInfo), and the entry isn't in CW as it is.
+  const cw = m.config.cwPush ? m.profile.connectwise : undefined;
+  const task = m.view.tasks[s.taskId];
+  const ticket = cw && task?.refInfo ? ticketNumber(String(task.fields[cw.ticketField] ?? "")) : "";
+  const pushBlock = ticket && !s.enteredAt ? pushProblem(m, s) : null;
   const running = s.end === null;
-  const snapped = snap(s.start) === s.start && (running || snap(s.end!) === s.end);
 
   const apply = (patch: SessionPatch | null) => patch && a.updateSession(s.id, patch);
   const setDay = (value: string) => apply(dayPatch(s, value));
@@ -156,16 +162,6 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
       <div className="row-actions">
         <CleanupButton session={s} className="btn" />
         <button
-          className="btn"
-          disabled={snapped}
-          title="Round start and end to the nearest 15 minutes"
-          onClick={() =>
-            a.updateSession(s.id, running ? { start: Math.min(snap(s.start), Date.now()) } : { start: snap(s.start), end: snap(s.end!) })
-          }
-        >
-          Snap to 15 min
-        </button>
-        <button
           className="btn subtle"
           onClick={() => setMoving(true)}
           title="Move this entry, notes and all, to another task (another ticket) or a new one"
@@ -176,6 +172,16 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
           Delete
         </button>
         <span className="spacer" />
+        {ticket && !s.enteredAt && (
+          <button
+            className="btn"
+            disabled={!!pushBlock}
+            title={pushBlock ? `Can't push yet: ${pushBlock}` : isUpdate(s) ? `Update entry #${String(s.ext!.cw!.entryId)} on ticket #${ticket}` : `Add this entry to ticket #${ticket} in ConnectWise`}
+            onClick={() => setPushing(true)}
+          >
+            {isUpdate(s) ? "Update…" : "Push…"}
+          </button>
+        )}
         {onDone && (
           <button className="btn primary" onClick={onDone}>
             Done
@@ -183,6 +189,7 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
         )}
       </div>
       {moving && <Switcher move={s} onClose={() => setMoving(false)} />}
+      {pushing && <PushDialog sessionIds={[s.id]} onClose={() => setPushing(false)} onDone={() => {}} />}
     </div>
   );
 }

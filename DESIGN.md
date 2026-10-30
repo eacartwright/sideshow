@@ -514,7 +514,7 @@ touch screens (docs/backlog.md).
 One **session editor**, used in Task details (tap a session), Time entries (the ✎ notes cell)
 and the running card (tap a session under "Earlier on this task", 2026-10-19): Date (moves the whole session), Start, End (native time inputs, so the iPhone shows
 its wheel; an end before the start means past midnight), Deduct (min), Work type, Notes,
-**Snap to 15 min** (rounds start/end to the nearest quarter hour), **Move to…** (another task,
+**Push…** (§10; Snap to 15 min removed 2026-10-30, unused), **Move to…** (another task,
 or a new one: the switcher opens as "Move 9:00 AM–10:30 AM to…"; `session.move`, as WRIT uses),
 **Delete** (with an Undo toast). Changes save as you go. Recorded timer times are stored exactly until edited.
 **Now** beside Start and End sets it to the current minute, like CW's clock button (2026-10-13):
@@ -806,7 +806,9 @@ folders stay `.env`-only: a wrong value there locks you out.
     the id, else a new one. Skipped if the ticket # changed while the lookup ran. Creating a
     ticket needs a company from CW.
 - **Pushing time entries** (M4, built 2026-10-10). From the Day page: a row's **Push…**, a
-  ticket group's **Push all N…**, or tick rows and **Push N selected…**. Every push goes through
+  ticket group's **Push all N…**, or tick rows and **Push N selected…**. Since 2026-10-30 also
+  **Push…** (or **Update…**) in the session editor, wherever it opens, for one entry: only when
+  the task's ticket # was found in CW and the entry isn't entered. Every push goes through
   a preview (ticket, date, times, hours, work type, billing, where the notes go, who gets
   emailed, what can't go yet and why), then shows each entry's result. Per entry:
   - **Notes to** `🔒 | 💬` (Internal | Discussion; icons since 2026-10-14, the profile's
