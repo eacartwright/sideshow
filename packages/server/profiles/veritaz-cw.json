@@ -9,18 +9,20 @@
   ],
   "lists": {
     "workTypes": [
+      { "name": "Office", "defaults": { "billing": "Do Not Bill" } },
       { "name": "Remote - Business Hours", "defaults": { "billing": "Billable" } },
       { "name": "Onsite - Business Hours", "defaults": { "billing": "Billable" } },
       { "name": "In-house - Business Hours", "defaults": { "billing": "Billable" } },
-      { "name": "Office", "defaults": { "billing": "Do Not Bill" } },
+      { "name": "Travel - To Client", "defaults": { "billing": "Do Not Bill" } },
+      { "name": "Travel - From Client", "defaults": { "billing": "Do Not Bill" } },
       { "name": "Internal Meeting", "defaults": { "billing": "Do Not Bill" } },
       { "name": "Internal Technical", "defaults": { "billing": "Do Not Bill" } },
       { "name": "Communications", "defaults": { "billing": "Do Not Bill" } },
       { "name": "Project Coordination", "defaults": { "billing": "Do Not Bill" } },
       { "name": "SALES - Quoting", "defaults": { "billing": "Do Not Bill" } },
-      { "name": "Travel - To Client", "defaults": { "billing": "Do Not Bill" } },
-      { "name": "Travel - From Client", "defaults": { "billing": "Do Not Bill" } },
-      { "name": "Training - Providing", "defaults": { "billing": "Do Not Bill" } }
+      { "name": "Onsite - Emergency", "defaults": { "billing": "Billable" } },
+      { "name": "Training - Providing", "defaults": { "billing": "Do Not Bill" } },
+      { "name": "Training - Receiving", "defaults": { "billing": "Do Not Bill" } }
     ]
   },
   "entryFormat": {
