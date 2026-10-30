@@ -107,6 +107,17 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
               ■ Stop
             </button>
           )}
+          <button
+            className="btn subtle"
+            onClick={() => {
+              const { start, end } = defaultManualSpan(null);
+              setMerging(false);
+              clear();
+              setEditingId(a.createSession(taskId, start, end));
+            }}
+          >
+            + Add time
+          </button>
           <span className="spacer" />
           {task.status === "open" ? (
             <button
@@ -142,19 +153,8 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
         </div>
       </div>
 
-      <div className="row-actions">
-        <button
-          className="btn subtle"
-          onClick={() => {
-            const { start, end } = defaultManualSpan(null);
-            setMerging(false);
-            clear();
-            setEditingId(a.createSession(taskId, start, end));
-          }}
-        >
-          + Add time
-        </button>
-        {chrono.length > 1 && !merging && (
+      {chrono.length > 1 && !merging && (
+        <div className="row-actions">
           <button
             className="btn subtle"
             onClick={() => {
@@ -164,8 +164,8 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
           >
             Merge…
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {merging && (
         <div className={`merge-bar ${selected.length ? "on" : ""}`} role="status">
