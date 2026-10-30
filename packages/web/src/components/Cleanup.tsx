@@ -10,6 +10,16 @@ import { Spinner } from "./Spinner";
 // reviewed (and editable) before they replace the notes. The raw notes are kept on the session
 // (ext.ai.raw, the first ones if it's cleaned up twice), so they can always be put back.
 
+// The template last used on this device: the dialog starts on it.
+const LAST_TEMPLATE = "sideshow:aiTemplate";
+const readLastTemplate = () => {
+  try {
+    return localStorage.getItem(LAST_TEMPLATE) ?? "";
+  } catch {
+    return "";
+  }
+};
+
 /** ✨ beside a session's notes: shown when the server has an AI key and there are notes. */
 export function CleanupButton({ session: s, className = "btn subtle", iconOnly = false }: { session: Session; className?: string; iconOnly?: boolean }) {
   const m = useM();
@@ -70,6 +80,11 @@ export function CleanupDialog({ sessionId, onClose }: { sessionId: Id; onClose: 
 
   const run = async (opts: { templateId: string; model: string }) => {
     if (!s) return;
+    try {
+      localStorage.setItem(LAST_TEMPLATE, opts.templateId);
+    } catch {
+      // Not remembered.
+    }
     setBusy(true);
     setError(null);
     const r = await cleanUpNotes({ notes: s.notes, templateId: opts.templateId, model: opts.model, context });
@@ -80,18 +95,20 @@ export function CleanupDialog({ sessionId, onClose }: { sessionId: Id; onClose: 
     aiAlert(r);
   };
 
-  // Opening it is asking for it: the settings' template and model run straight away.
+  // With one template, opening it is asking for it: it runs straight away. With more, it waits
+  // for the template (the last one used here to start with), so a call isn't spent on the wrong one.
   useEffect(() => {
     void loadAi().then((st) => {
       if ("error" in st) return setError(st.error);
       setAi(st);
-      const t = st.templates[0]?.id ?? "";
+      const last = readLastTemplate();
+      const t = st.templates.some((x) => x.id === last) ? last : (st.templates[0]?.id ?? "");
       const md = st.models.includes(st.settings.model) ? st.settings.model : (st.models[0] ?? "");
       setTemplateId(t);
       setModel(md);
       if (st.templatesError) return setError(st.templatesError);
       if (st.settings.model === "off") return setError("AI is off (Settings › AI). Pick a model here to try one anyway.");
-      if (md) void run({ templateId: t, model: md });
+      if (md && st.templates.length === 1) void run({ templateId: t, model: md });
     });
   }, []);
 
@@ -132,7 +149,7 @@ export function CleanupDialog({ sessionId, onClose }: { sessionId: Id; onClose: 
               ))}
             </select>
           </label>
-          <button className="btn busy-line" disabled={busy || !model} onClick={() => void run({ templateId, model })}>
+          <button className={result ? "btn busy-line" : "btn primary busy-line"} disabled={busy || !model} onClick={() => void run({ templateId, model })} autoFocus>
             {busy && <Spinner />}
             {result ? "Again" : "Clean up"}
           </button>

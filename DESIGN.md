@@ -917,7 +917,10 @@ notes, puts them back. Undo works too. Pushing sends whatever the notes say then
   choose between them). One set for the whole server, not per workspace (one bill), kept in
   the main database (`meta` `ai.settings`; calls in `ai_usage`).
 - **Templates**: a name and the shape of the notes. The first is the default and the dialog
-  can pick another (e.g. scope recommendations later). Built-in rules go with every
+  can pick another (e.g. scope recommendations later). Since 2026-10-30 (Evan's dev note) the
+  dialog **waits for the template** when there's more than one, starting on the one last used
+  on that device (Enter runs it), so no call is spent on the wrong one; with one, it runs on
+  opening. Built-in rules go with every
   template: keep every fact, add nothing, plain past tense, Markdown with "* " bullets (CW's),
   keep every picture and link where it is, answer with the notes only. The model also gets
   the task's title, for context only. Since 2026-10-29 (Evan's pick) they're **Markdown files**
