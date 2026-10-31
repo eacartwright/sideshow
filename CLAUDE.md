@@ -189,12 +189,11 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 ## Status (2026-10-31)
 
 - **Built 2026-10-31:** **notifications** while a timer runs (Settings › Alerts; DESIGN.md
-  §7): what's running, reminders for a long timer, the icon badge. Tried in headless Edge
-  through the real push service; **check on the iPhone** (from the Home Screen icon: turn on,
-  Send a test, start/stop on the desktop, the badge). Unknowns there: whether a new
-  notification replaces the old one, and whether Cloudflare Access lets `/sw.js` through (if
-  registering fails, add it to the `sideshow icons` bypass app). The native Live Activity is
-  written up in DESIGN.md §7, not started.
+  §7): what's running, reminders for a long timer, the icon badge. **Works on the iPhone**
+  (badge and notifications, from Chrome's Home Screen icon). iOS moves a seen notification off
+  the lock screen into Notification Center; only a native Live Activity stays pinned (written
+  up in DESIGN.md §7, not started). Still to see: reminders, and whether each notification
+  replaces the last there.
 - **Built 2026-10-29:** **AI note cleanup** (M7, ✨; DESIGN.md §11), Claude and GPT, and
   Settings with sections down the side. Tried against a fake provider only: the desktop's
   `.env` had no AI keys yet, so no real call has been made. First real check: Compare in

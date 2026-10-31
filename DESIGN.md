@@ -615,7 +615,14 @@ built: **Settings › Alerts**, turned on per device.
   one; that's why stopping says "Nothing running" instead of quietly clearing it.
 - iPhone needs: iOS 16.4+, sideshow opened from its **Home Screen icon** (added from Safari or
   Chrome; in a browser tab there's no push), notifications allowed. Not possible on the web:
-  notification buttons (Stop), a count that ticks, a notification that removes itself.
+  notification buttons (Stop), a count that ticks, a notification that removes itself, one
+  pinned to the lock screen.
+- **On the iPhone (2026-10-31):** the badge and notifications work (from Chrome's Home Screen
+  icon). But iOS keeps a notification on the lock screen only until it's seen: after an unlock,
+  or if it arrived while the phone was in use, it's in Notification Center (swipe up). Helps:
+  Settings › Notifications › Display As › List, and sideshow's Lock Screen on. Re-sending it
+  periodically to bring it back was considered and not done (it alerts every time; iOS web
+  push can't be quiet). Pinned = the Live Activity below.
 
 **The native version: a Live Activity** (not built; Evan is fine with what it takes). A Live
 Activity is the lock-screen / Dynamic Island card that counts up by itself (like the Clock
