@@ -9,6 +9,7 @@ import { Dialog } from "./Dialog";
 import { WorkspaceSettings } from "./WorkspaceSettings";
 import { ConnectionSettings } from "./ConnectionSettings";
 import { AiSettings } from "./AiSettings";
+import { NotificationSettings } from "./NotificationSettings";
 
 // Two kinds of settings. Appearance belongs to this device (localStorage). The reducer's
 // tunable rules are synced (every device and the server must apply the same thresholds),
@@ -25,10 +26,11 @@ const GAP_OPTIONS = [0, 2, 5, 10, 15, 30, 60];
 
 // Sections down the side (2026-10-29, as in foodlab; the tabs across the top had run out of
 // room). On a phone the side column is narrow: icon over label.
-export type SettingsTab = "general" | "ai" | "workspaces" | "connections" | "experimental";
+export type SettingsTab = "general" | "notifications" | "ai" | "workspaces" | "connections" | "experimental";
 type Tab = SettingsTab;
 const TABS: { value: Tab; label: string; icon: string }[] = [
   { value: "general", label: "General", icon: "⚙️" },
+  { value: "notifications", label: "Alerts", icon: "🔔" },
   { value: "ai", label: "AI", icon: "✨" },
   { value: "workspaces", label: "Workspaces", icon: "🗂️" },
   { value: "connections", label: "Connections", icon: "🔌" },
@@ -80,6 +82,8 @@ export function SettingsDialog({ onClose, onClients, initialTab }: { onClose: ()
         <div id="settings-panel" role="tabpanel" aria-labelledby={`settings-tab-${tab}`} className="settings-panel">
           {tab === "general" ? (
             <GeneralSettings onClients={onClients} />
+          ) : tab === "notifications" ? (
+            <NotificationSettings />
           ) : tab === "ai" ? (
             <AiSettings />
           ) : tab === "workspaces" ? (

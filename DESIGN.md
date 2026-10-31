@@ -585,17 +585,64 @@ list, to paste into a work session.
   or Dark per device (not synced).
 
 ### Safety nets
-- A running timer past a threshold (e.g. 3h, or past end of workday) triggers a nudge: "Still
-  working on X?"
+- A running timer past a threshold triggers a nudge: "Still running: X" (built 2026-10-31 as a
+  notification, every 3 h by default; see Notifications, below). Past the end of the workday:
+  not yet.
 - Deleting is soft (archive) by default. Hard delete requires confirmation.
 - Undo for this device's recent changes (see Undo, above).
+
+### Notifications (2026-10-31)
+
+Evan asked for something persistent on the iPhone while a timer runs. What a web app can do,
+built: **Settings › Alerts**, turned on per device.
+
+- **What's running.** Whenever that changes in the device's workspace (start, switch, pause,
+  stop, a title edit; on any device), the device gets one notification: "▶ Fix printer · Since
+  9:14", "▶ 2 running" with a line each, "⏸ Paused", or "Nothing running · Stopped: …". Each
+  replaces the last (tag `sideshow-running`), so there's only ever one. It stays on the iPhone's
+  lock screen until swiped away. It says when the timer started, not a running count: a web
+  notification can't update itself.
+- **Reminders** for a forgotten timer: "Still running: X · 3h 05m so far", each time a session
+  has run another N hours (per device: off, 1–8, default 3). Kept in memory, so a server
+  restart can repeat one.
+- **The badge**: the number running on the app icon (iPhone Home Screen app, installed Edge or
+  Chrome app), set by the push and by the app while it's open.
+- How: Web Push. The server (`server/src/push.ts`) keeps the VAPID keys and each device's
+  subscription (with its workspace and choices) in `data/push.json`, watches every workspace,
+  and sends 4 s after a change settles, only if what's running differs. The service worker
+  (`web/public/sw.js`, notifications only, no fetch handler) words it in the phone's own time
+  zone. iOS drops a subscription whose push doesn't show a notification, so every push shows
+  one; that's why stopping says "Nothing running" instead of quietly clearing it.
+- iPhone needs: iOS 16.4+, sideshow opened from its **Home Screen icon** (added from Safari or
+  Chrome; in a browser tab there's no push), notifications allowed. Not possible on the web:
+  notification buttons (Stop), a count that ticks, a notification that removes itself.
+
+**The native version: a Live Activity** (not built; Evan is fine with what it takes). A Live
+Activity is the lock-screen / Dynamic Island card that counts up by itself (like the Clock
+app's stopwatch), the real answer to "persistent while running", with a Stop button. Apple
+allows it only for native apps. It would take:
+- **A Mac with Xcode** to build and sign the app: a Mac, a cloud Mac (MacinCloud and the like),
+  or a cloud build service (e.g. Xcode Cloud, GitHub Actions macOS runners).
+- **An Apple Developer account**, $99/year. Without one an app installed on your own phone
+  expires every 7 days; with one it installs through TestFlight and lasts.
+- **A small Swift app plus a widget extension** (ActivityKit + WidgetKit). The Live Activity's
+  view is SwiftUI; `Text(timerInterval:)` counts on its own with no updates. The app could
+  otherwise be a thin shell around the web app (a WKWebView of sideshow.evans.tools), so the UI
+  stays one codebase.
+- **Server**: start, update and end the Live Activity from sideshow's server through APNs
+  (Apple's push service; ActivityKit push tokens and a `.p8` key from the developer account), so
+  a timer started on the desktop shows on the phone. iOS 17.2+ can start one by push.
+- Buttons on it (Stop, Pause) as App Intents that call the server's API.
+
+The web notifications stay useful either way (desktop, and as a fallback).
 
 ## 8. Platforms
 
 **iPhone 13 (iOS 18+), installed as a home-screen PWA.**
 
 - iOS PWAs can't sync in the background, so the outbox sends when the app is opened, comes to
-  the foreground or regains signal.
+  the foreground or regains signal. They can get push notifications, though (iOS 16.4+): what's
+  running and reminders (§7, Notifications). A native Live Activity is written up there too.
 - **iOS Shortcuts are a first-class input.** The server exposes simple endpoints (*new & start*,
   *back*, *pause*, *note*), and Shortcuts call them. On an iPhone 13 that gives:
   - **Back Tap** (Settings → Accessibility → Touch): double-tap the back of the phone for
@@ -957,7 +1004,7 @@ entries comes first. **M4 is built and pushed live (test ticket #106745); next i
 | **M9** | Desktop app | Not started | Tauri: always-on-top Now bar, global hotkeys (▶ New, Switcher, Stop), tray. |
 | **M10** | Hands-free capture | Not started | Shortcuts endpoints → Back Tap, Control Center, Siri note. |
 | **M11** | Bad-signal hardening | Not started; only if still needed | Airplane-mode test on iPhone, no lost ops. (The "pending sync" indicator is done.) |
-| later | Nice-to-haves | — | Plain-text export, AI-generated task titles from notes (like chat titles), natural-language quick capture, Obsidian mirroring, Google Calendar/Maps, native iOS app. |
+| later | Nice-to-haves | — | Plain-text export, AI-generated task titles from notes (like chat titles), natural-language quick capture, Obsidian mirroring, Google Calendar/Maps, native iOS app (a Live Activity for the running timer: §7, Notifications). |
 
 ## 13. Open questions
 

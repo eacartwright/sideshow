@@ -91,6 +91,14 @@ Restart after changing `.env`: `Stop-ScheduledTask sideshow; Start-ScheduledTask
 `data\sideshow.db`, as always; each other one is `data\workspaces\<id>.db`, listed with its
 name and profile in `data\workspaces.json` (no such file = just the main one).
 
+**Notifications** (2026-10-31; DESIGN.md §7). `data\push.json` holds the server's push keys
+and each device that turned notifications on. It isn't backed up and doesn't need to be: if it's
+lost, the server makes new keys and each device subscribes again by itself the next time the app
+is opened (with notifications still allowed). The log says `[main] push: 1 running, sent to 1 of
+1 devices` on each change. The server must reach Apple's push service (`web.push.apple.com`,
+outbound https). The service worker is `/sw.js`; if Cloudflare Access blocks it (the
+Alerts section can't turn on), add `/sw.js` to the `sideshow icons` bypass app.
+
 **Backups.** The server writes `sideshow-YYYY-MM-DD.db` (a `VACUUM INTO` snapshot) at startup and
 at the first hourly check of each new day, keeping 30; for each other workspace,
 `sideshow-<id>-YYYY-MM-DD.db`. Changing a workspace's profile first writes

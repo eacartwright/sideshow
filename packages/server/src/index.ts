@@ -16,6 +16,7 @@ import { parseRule } from "./integrations/connectwise/holds";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
 import type { NewTicket } from "./integrations/connectwise/tickets";
 import { listProfiles } from "./profile";
+import { Push } from "./push";
 import { MAIN, Workspaces, type Workspace, type WorkspaceContext } from "./workspaces";
 
 const PORT = Number(process.env.PORT ?? 8787);
@@ -73,6 +74,10 @@ for (const ws of workspaces.all()) {
   console.log(`workspace ${ws.id} (${ws.entry.name}): ${file ? `profile ${ws.profile.name}` : "no profile"}`);
 }
 if (!process.env.PROFILE && !workspaces.main.entry.profile) console.log("(set PROFILE in .env for job fields)");
+// Notifications on devices while something runs (push.ts).
+const push = new Push(join(ctx.dataDir, "push.json"));
+for (const ws of workspaces.all()) push.watch(ws.id, ws.store);
+
 if (ctx.cw && !ctx.cwMember && workspaces.all().some((w) => w.profile.connectwise)) console.log("ConnectWise push is off: set CW_MEMBER");
 
 /** New ConnectWise settings (saved in .env already): every workspace starts using them. */
@@ -124,6 +129,7 @@ app.post("/api/workspaces", async (c) => {
   if (!name || name.length > 60) return c.json({ error: "A name (up to 60 characters) is needed" }, 400);
   try {
     const ws = workspaces.create(name, profile);
+    push.watch(ws.id, ws.store);
     return c.json({ id: ws.id });
   } catch (err) {
     console.error(err);
@@ -579,6 +585,31 @@ app.post("/api/files", async (c) => {
   }
   const info = c.get("ws").files.save(data, name, c.req.header("content-type") ?? "");
   return c.json({ ...info, url: FileStore.url(info) });
+});
+
+// Notifications (push.ts): the key a device subscribes with, and turning them on, changing what
+// they're for, testing and turning them off. Subscribing again (each load) moves the device's
+// notifications to the workspace it's in now.
+app.get("/api/push", (c) => c.json({ publicKey: push.publicKey }));
+app.post("/api/push/subscribe", async (c) => {
+  if (!fromApp(c)) return c.json({ error: "Not from the app" }, 403);
+  const b = await c.req.json().catch(() => null);
+  const origin = c.req.header("origin") ?? new URL(c.req.url).origin;
+  const prefs = push.subscribe(b?.subscription, c.get("ws").id, origin, b?.prefs);
+  return prefs ? c.json({ prefs }) : c.json({ error: "Not a push subscription" }, 400);
+});
+app.post("/api/push/unsubscribe", async (c) => {
+  if (!fromApp(c)) return c.json({ error: "Not from the app" }, 403);
+  const b = await c.req.json().catch(() => null);
+  if (typeof b?.endpoint === "string") push.unsubscribe(b.endpoint);
+  return c.json({ ok: true });
+});
+app.post("/api/push/test", async (c) => {
+  if (!fromApp(c)) return c.json({ error: "Not from the app" }, 403);
+  const b = await c.req.json().catch(() => null);
+  const endpoint = typeof b?.endpoint === "string" ? b.endpoint : "";
+  if (!push.has(endpoint)) return c.json({ error: "This device isn't subscribed" }, 404);
+  return (await push.test(endpoint)) ? c.json({ ok: true }) : c.json({ error: "The push service didn't take it" }, 502);
 });
 
 app.post("/api/ops", async (c) => {

@@ -82,6 +82,14 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   `web/src/workspace.ts` (`workspaceId`, `wsKey()` for per-workspace localStorage; main keeps
   the old keys), switching reloads. `/api/ops` refuses a batch whose `workspace` differs (409).
   Tests: `workspaces.test.ts` (incl. the CW → none → CW round trip).
+- **Notifications** (DESIGN.md §7, 2026-10-31): Web Push. `server/src/push.ts` (VAPID keys +
+  subscriptions in `data/push.json`, not per workspace; watches each workspace's store and
+  pushes what's running when it changes, reminders every minute; `/api/push[/subscribe|
+  unsubscribe|test]`), `web/public/sw.js` (the service worker: words the notification, badge;
+  no fetch handler), `web/src/push.ts` + `NotificationSettings.tsx` (Settings › Alerts,
+  per device). Every push must show a notification (iOS revokes otherwise). Headless Edge can
+  test it for real: a **persistent** context (`launchPersistentContext`; incognito has no
+  push) with `grantPermissions(["notifications"])`; delivery can take several seconds.
 - `packages/web` — React + Vite. `sync.ts`: view = server state + pending ops replayed through the
   same reducer; pending ops persist in localStorage before sending (the outbox).
 - **Notes are Markdown** (DESIGN.md §7 "Rich notes"): edited in `RichNotes` (TipTap; Markdown
@@ -178,8 +186,15 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-10-29)
+## Status (2026-10-31)
 
+- **Built 2026-10-31:** **notifications** while a timer runs (Settings › Alerts; DESIGN.md
+  §7): what's running, reminders for a long timer, the icon badge. Tried in headless Edge
+  through the real push service; **check on the iPhone** (from the Home Screen icon: turn on,
+  Send a test, start/stop on the desktop, the badge). Unknowns there: whether a new
+  notification replaces the old one, and whether Cloudflare Access lets `/sw.js` through (if
+  registering fails, add it to the `sideshow icons` bypass app). The native Live Activity is
+  written up in DESIGN.md §7, not started.
 - **Built 2026-10-29:** **AI note cleanup** (M7, ✨; DESIGN.md §11), Claude and GPT, and
   Settings with sections down the side. Tried against a fake provider only: the desktop's
   `.env` had no AI keys yet, so no real call has been made. First real check: Compare in
