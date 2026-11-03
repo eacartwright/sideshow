@@ -14,7 +14,7 @@ Write-Host @'
     / ___/ / __  / _ \/ ___/ __ \/ __ \ | /| / /
    (__  ) / /_/ /  __(__  ) / / / /_/ / |/ |/ /
   /____/_/\__,_/\___/____/_/ /_/\____/|__/|__/
-'@ -ForegroundColor Magenta
+'@ -ForegroundColor DarkCyan
 Write-Host "  updating $(Split-Path $PSScriptRoot -Parent)`n" -ForegroundColor DarkGray
 
 $ErrorActionPreference = "Stop"
