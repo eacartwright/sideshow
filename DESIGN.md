@@ -606,7 +606,10 @@ built: **Settings › Alerts**, turned on per device.
   has run another N hours (per device: off, 1–8, default 3). Kept in memory, so a server
   restart can repeat one.
 - **The badge**: the number running on the app icon (iPhone Home Screen app, installed Edge or
-  Chrome app), set by the push and by the app while it's open.
+  Chrome app), set by the push and by the app while it's open. Cleared only after one was set
+  (2026-11-02): on Windows, Chrome with several profiles puts the profile picture on the
+  taskbar icon whenever a badge is cleared, and clearing on every load kept it there. It still
+  shows after the last timer stops; a site can't prevent that.
 - How: Web Push. The server (`server/src/push.ts`) keeps the VAPID keys and each device's
   subscription (with its workspace and choices) in `data/push.json`, watches every workspace,
   and sends 4 s after a change settles, only if what's running differs. The service worker

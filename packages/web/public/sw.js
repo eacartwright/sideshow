@@ -8,6 +8,23 @@ const TAG = "sideshow-running";
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
+// The app icon's badge. Clearing it only when one was set: on Windows, Chrome fills the icon's
+// overlay with the profile picture whenever a badge is cleared (when it has several profiles).
+// The flag is shared with the page (web/src/push.ts, setBadge) through Cache Storage.
+const BADGE_CACHE = "sideshow-badge";
+const BADGE_KEY = "/badge-set";
+async function setBadge(count) {
+  if (!self.navigator.setAppBadge) return;
+  const cache = await caches.open(BADGE_CACHE);
+  if (count) {
+    await self.navigator.setAppBadge(count);
+    await cache.put(BADGE_KEY, new Response("1"));
+  } else if (await cache.match(BADGE_KEY)) {
+    await self.navigator.clearAppBadge();
+    await cache.delete(BADGE_KEY);
+  }
+}
+
 const hm = (t) => new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
 function duration(ms) {
@@ -47,8 +64,7 @@ self.addEventListener("push", (e) => {
     (async () => {
       // Badging: on an iPhone, a Home Screen app with notifications allowed.
       try {
-        if (count) await self.navigator.setAppBadge?.(count);
-        else await self.navigator.clearAppBadge?.();
+        await setBadge(count);
       } catch {
         /* no badges here */
       }

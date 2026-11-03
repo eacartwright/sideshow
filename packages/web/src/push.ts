@@ -86,7 +86,29 @@ export async function disable() {
   if (!sub) return;
   await post("/api/push/unsubscribe", { endpoint: sub.endpoint }).catch(() => {});
   await sub.unsubscribe();
-  await (navigator as { clearAppBadge?: () => Promise<void> }).clearAppBadge?.().catch(() => {});
+  await setBadge(0).catch(() => {});
+}
+
+// The app icon's badge, set from here and from the service worker (sw.js, setBadge, the same
+// rules). It's cleared only when one was set: on Windows, Chrome fills the icon's overlay with
+// the profile picture whenever a badge is cleared (when it has several profiles), so clearing
+// on every load put the picture there for good. The "one is set" flag is in Cache Storage,
+// which the service worker can read too.
+const BADGE_CACHE = "sideshow-badge";
+const BADGE_KEY = "/badge-set";
+type BadgeNav = { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
+
+async function setBadge(count: number) {
+  const nav = navigator as BadgeNav;
+  if (!nav.setAppBadge || !nav.clearAppBadge || !("caches" in window)) return;
+  const cache = await caches.open(BADGE_CACHE);
+  if (count) {
+    await nav.setAppBadge(count);
+    await cache.put(BADGE_KEY, new Response("1"));
+  } else if (await cache.match(BADGE_KEY)) {
+    await nav.clearAppBadge();
+    await cache.delete(BADGE_KEY);
+  }
 }
 
 export async function sendTest() {
@@ -101,8 +123,7 @@ export function startPush() {
   navigator.serviceWorker.register("/sw.js").catch((err) => console.warn("service worker:", err));
   if (pushSupport() === "ok") void refresh().catch(() => {});
 
-  const nav = navigator as { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
-  if (!nav.setAppBadge) return;
+  if (!(navigator as BadgeNav).setAppBadge) return;
   let shown = -1;
   const badge = () => {
     const snap = sync.getSnapshot();
@@ -110,7 +131,7 @@ export function startPush() {
     const n = openSessions(snap.view).length;
     if (n === shown) return;
     shown = n;
-    void (n ? nav.setAppBadge!(n) : nav.clearAppBadge!()).catch(() => {});
+    void setBadge(n).catch(() => {});
   };
   sync.subscribe(badge);
   badge();
