@@ -186,7 +186,12 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-10-31)
+## Status (2026-11-02)
+
+- **2026-11-02:** the tab title and Home Screen name are "Sideshow" (the header's wordmark
+  stays lowercase, Evan's choice). Evan's dev notes of the day are sorted into the backlog
+  Inbox; the big new one is the **wrapper entry** (fill the day: workday − real lunch, at
+  least 8 h, on the WRIT).
 
 - **Built 2026-10-31:** **notifications** while a timer runs (Settings › Alerts; DESIGN.md
   §7): what's running, reminders for a long timer, the icon badge. **Works on the iPhone**

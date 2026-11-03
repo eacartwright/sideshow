@@ -1,6 +1,6 @@
 {
-  "name": "sideshow",
-  "short_name": "sideshow",
+  "name": "Sideshow",
+  "short_name": "Sideshow",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0e1116",

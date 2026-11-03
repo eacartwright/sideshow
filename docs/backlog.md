@@ -8,6 +8,55 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 
 ## Inbox
 
+Dev notes of 2026-11-02 (🧪 on the live site), sorted here; each is marked with that date.
+Folded into existing items: the ticket pickers, travel / GPS, the notes toolbar on the phone.
+- **AI summary of an existing ticket (2026-11-02).** On a linked task, ✨ Summarize: fetch the
+  ticket's description and notes from CW and have the AI model sum them up (where it stands,
+  what's been tried, what's next). Same providers and settings as note cleanup (DESIGN.md
+  §11); probably its own template in `server/ai-templates/`. Pin down: shown where (Task
+  details?), kept or redone each time.
+- **Running sessions in the Entries view (2026-11-02).** Mark rows still running (a ▶ / pulse
+  and a live duration) so they aren't mistaken for finished time, and so pushing one is
+  clearly early.
+- **Collapse pushed (2026-11-02).** On the Day page / Entries, a group whose sessions are all
+  pushed starts collapsed, so what's left to do stands out. A group you open stays open.
+- **More work types (2026-11-02).** Research & Development, Service Coordination, others. A
+  profile edit (`profiles/veritaz-cw.json`), but each name must match a CW work type exactly
+  or the push fails ("ConnectWise has no work type"); check CW's list and each one's billing.
+- **Hover highlight (2026-11-02).** A hover state on rows and buttons: the task list, the
+  header's buttons, and generally anything clickable. A token in styles.css (light + dark),
+  only under `@media (hover: hover)` so the phone doesn't get sticky highlights.
+- **Undo button in the header (2026-11-02).** Undo exists (Ctrl+Z anywhere; ↶ only on the Day
+  page). Put ↶ in the header so it's in reach everywhere, phone included (icon-only there,
+  like 🗓️). Disabled when there's nothing to undo; the title says what it would undo.
+- **Plan time ahead from Entries (2026-11-02, the "preset tickets upcoming work" note).** Prep
+  the day ahead without starting a timer: from the Entries / Day page, make a new task (ticket
+  # optional), and put time on it, e.g. tomorrow's travel, then adjust it on the day if it
+  differs. Today "+ Add time" exists per group on the Day page (and future times are allowed),
+  but a new task can only come from ▶ New or the Inbox. Pin down: does planned time look
+  different until the day comes (so it isn't pushed early), and does it ever need New ticket…
+  right there.
+- **Ticket note templates (2026-11-02, the "template tickets" note; Evan to bring examples).**
+  Preset text for the notes field (a checklist or skeleton per kind of work). Waiting on
+  Evan's examples before designing. Maybe the same Markdown-file format as
+  `server/ai-templates/`.
+- **Wrapper entry: fill the day (2026-11-02, the "auto wrapper" note).** What Evan does by
+  hand in CW today: one entry on **this week's WRIT** spanning the workday (say 8:00–17:00),
+  work type **Admin** (exists in CW; not in the profile's list yet), with a **deduct** so it
+  adds only the missing part. Note: "Wrapper for Mon 11/2/2026". Settled with Evan:
+  - Target = the workday minus the **real lunch** (asked each time, default 1 h), and never
+    under 8.00 h; over 8 is fine. Wrapper = max(workday − lunch, 8) − logged; none if ≤ 0.
+    Deduct = workday − wrapper. E.g. 9 h day, 1 h lunch, 7.45 logged: wrapper 0.55, deduct
+    8.45 (Evan's example); 0.5 h lunch: wrapper 1.05, a day of 8.50 h.
+  - Always the WRIT.
+  - Still open: billing (Do Not Bill?); the day's start / end and the 8 h minimum as
+    settings; adding Admin to the profile (the server only seeds empty lists, so on the live
+    site it's added in the app or by a fill like the work-type defaults).
+  - Proposed: a button on the Day page ("Wrap up the day…", a preview before it pushes), not
+    automatic; redoing it after more time is added updates the same entry.
+  - Overlap: the wrapper deliberately overlaps the day's real entries, so the planned overlap
+    warnings (Day page improvements, item 1) must skip it.
+
 - **A ticket per session, for CW projects (2026-10-19, Evan; proposed, waiting on his go).**
   A project job is one piece of work but several tickets (travel, coordination / client
   communication, onsite delivery). Proposed: a task can link a CW project (#302) instead of a
@@ -67,7 +116,8 @@ under Status in [CLAUDE.md](../CLAUDE.md).
   Still to do: projects (proposed: their tasks and subprojects move up to the parent), tasks
   with a ticket or pushed time (warn; their CW entries stay), and notes once M8 Notes exist.
 - **Ticket and project-ticket picker (2026-10-12, M5/M6), next.** See the
-  Ticket search window and Track a CW project below.
+  Ticket search window and Track a CW project below. Asked again 2026-11-02 (dev note):
+  "project and project-ticket picker, and service ticket picker".
 - **Rich notes, follow-ups (2026-10-13).** Built: the editor, attachments, push to CW
   (DESIGN.md §7 "Rich notes", §10 "Attachments on push").
   - Check on the iPhone: ▶ New still raises the keyboard (the notes field is now an editor).
@@ -77,6 +127,8 @@ under Status in [CLAUDE.md](../CLAUDE.md).
   - The editor made the app's script ~820 kB (256 kB gzipped); load it lazily if the phone
     feels slower to start.
   - Project descriptions are still plain text boxes.
+  - Show / hide the toolbar on the phone (2026-11-02, dev note): a toggle to fold it away for
+    room. The running card already shows it only while the notes have focus.
 
 - **Edit the profile in the app (later).** Fields, lists and the entry format from Settings,
   instead of editing the profile JSON in the repo.
@@ -93,6 +145,11 @@ Items marked **(?)** need a word from Evan on what was meant before building.
 
 - **Travel quick buttons (M5).** One tap to add a travel session / set the travel work type.
   Pin down: does it add a separate session, and with which work type(s) and default length?
+  2026-11-02 (dev notes): a **Start traveling** button, and travel **with GPS location**
+  (where from / to, maybe distance). Location needs https (the live site has it, not the LAN
+  address) and a permission prompt; on the iPhone it's only read while the app is open, so
+  arriving can't be detected in the background. Decide what the location is for (the note,
+  mileage, picking the company) before building.
 
 - **Ticket search window (M5, larger).** A dense results window for finding the right ticket:
   search all open tickets at minimum, and closed ones too, since the work may belong to a
