@@ -7,6 +7,16 @@
 #>
 param([switch]$NoPull)
 
+# The banner (figlet, Slant font). ASCII only: Windows PowerShell reads a BOM-less script as ANSI.
+Write-Host @'
+           _     __          __
+     _____(_)___/ /__  _____/ /_  ____ _      __
+    / ___/ / __  / _ \/ ___/ __ \/ __ \ | /| / /
+   (__  ) / /_/ /  __(__  ) / / / /_/ / |/ |/ /
+  /____/_/\__,_/\___/____/_/ /_/\____/|__/|__/
+'@ -ForegroundColor Magenta
+Write-Host "  updating $(Split-Path $PSScriptRoot -Parent)`n" -ForegroundColor DarkGray
+
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
 Set-Location $root
