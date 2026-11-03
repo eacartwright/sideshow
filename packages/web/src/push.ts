@@ -92,16 +92,36 @@ export async function disable() {
 // The app icon's badge, set from here and from the service worker (sw.js, setBadge, the same
 // rules). It's cleared only when one was set: on Windows, Chrome fills the icon's overlay with
 // the profile picture whenever a badge is cleared (when it has several profiles), so clearing
-// on every load put the picture there for good. The "one is set" flag is in Cache Storage,
-// which the service worker can read too.
+// on every load put the picture there for good. Clearing after the last timer stops still does,
+// so the badge is a per-device choice (Settings › Alerts), off by default on Windows. The "one
+// is set" flag and the choice are in Cache Storage, which the service worker can read too.
 const BADGE_CACHE = "sideshow-badge";
 const BADGE_KEY = "/badge-set";
+const BADGE_PREF = "/badge-pref";
 type BadgeNav = { setAppBadge?: (n: number) => Promise<void>; clearAppBadge?: () => Promise<void> };
 
-async function setBadge(count: number) {
+export const badgeSupported = () => !!(navigator as BadgeNav).setAppBadge && window.isSecureContext && "caches" in window;
+const badgeDefault = () => !/Windows/.test(navigator.userAgent);
+
+/** Whether this device shows the number running on the app's icon. */
+export async function badgeOn(): Promise<boolean> {
+  if (!badgeSupported()) return false;
+  const r = await (await caches.open(BADGE_CACHE)).match(BADGE_PREF);
+  return r ? (await r.text()) === "on" : badgeDefault();
+}
+
+let updateBadge: (() => void) | null = null;
+
+export async function setBadgeOn(on: boolean) {
+  await (await caches.open(BADGE_CACHE)).put(BADGE_PREF, new Response(on ? "on" : "off"));
+  updateBadge?.();
+}
+
+async function setBadge(running: number) {
   const nav = navigator as BadgeNav;
   if (!nav.setAppBadge || !nav.clearAppBadge || !("caches" in window)) return;
   const cache = await caches.open(BADGE_CACHE);
+  const count = (await badgeOn()) ? running : 0;
   if (count) {
     await nav.setAppBadge(count);
     await cache.put(BADGE_KEY, new Response("1"));
@@ -132,6 +152,10 @@ export function startPush() {
     if (n === shown) return;
     shown = n;
     void setBadge(n).catch(() => {});
+  };
+  updateBadge = () => {
+    shown = -1;
+    badge();
   };
   sync.subscribe(badge);
   badge();

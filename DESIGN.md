@@ -609,7 +609,10 @@ built: **Settings › Alerts**, turned on per device.
   Chrome app), set by the push and by the app while it's open. Cleared only after one was set
   (2026-11-02): on Windows, Chrome with several profiles puts the profile picture on the
   taskbar icon whenever a badge is cleared, and clearing on every load kept it there. It still
-  shows after the last timer stops; a site can't prevent that.
+  showed after the last timer stopped (a site can't prevent that), so the badge is a per-device
+  switch in Settings › Alerts, "Number running on the app icon" (separate from notifications;
+  kept in Cache Storage so the service worker reads it too), **off by default on Windows**, on
+  elsewhere.
 - How: Web Push. The server (`server/src/push.ts`) keeps the VAPID keys and each device's
   subscription (with its workspace and choices) in `data/push.json`, watches every workspace,
   and sends 4 s after a change settles, only if what's running differs. The service worker

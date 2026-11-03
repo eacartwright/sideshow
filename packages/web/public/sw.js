@@ -10,12 +10,17 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 
 // The app icon's badge. Clearing it only when one was set: on Windows, Chrome fills the icon's
 // overlay with the profile picture whenever a badge is cleared (when it has several profiles).
-// The flag is shared with the page (web/src/push.ts, setBadge) through Cache Storage.
+// The flag, and the device's choice (Settings › Alerts; off by default on Windows), are shared
+// with the page (web/src/push.ts, setBadge) through Cache Storage.
 const BADGE_CACHE = "sideshow-badge";
 const BADGE_KEY = "/badge-set";
-async function setBadge(count) {
+const BADGE_PREF = "/badge-pref";
+async function setBadge(running) {
   if (!self.navigator.setAppBadge) return;
   const cache = await caches.open(BADGE_CACHE);
+  const pref = await cache.match(BADGE_PREF);
+  const on = pref ? (await pref.text()) === "on" : !/Windows/.test(self.navigator.userAgent);
+  const count = on ? running : 0;
   if (count) {
     await self.navigator.setAppBadge(count);
     await cache.put(BADGE_KEY, new Response("1"));

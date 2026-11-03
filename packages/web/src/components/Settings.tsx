@@ -9,7 +9,7 @@ import { Dialog } from "./Dialog";
 import { WorkspaceSettings } from "./WorkspaceSettings";
 import { ConnectionSettings } from "./ConnectionSettings";
 import { AiSettings } from "./AiSettings";
-import { NotificationSettings } from "./NotificationSettings";
+import { BadgeSetting, NotificationSettings } from "./NotificationSettings";
 
 // Two kinds of settings. Appearance belongs to this device (localStorage). The reducer's
 // tunable rules are synced (every device and the server must apply the same thresholds),
@@ -83,7 +83,10 @@ export function SettingsDialog({ onClose, onClients, initialTab }: { onClose: ()
           {tab === "general" ? (
             <GeneralSettings onClients={onClients} />
           ) : tab === "notifications" ? (
-            <NotificationSettings />
+            <>
+              <NotificationSettings />
+              <BadgeSetting />
+            </>
           ) : tab === "ai" ? (
             <AiSettings />
           ) : tab === "workspaces" ? (

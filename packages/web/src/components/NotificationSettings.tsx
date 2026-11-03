@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { disable, enable, pushSupport, refresh, sendTest, setPrefs, type PushPrefs } from "../push";
+import { badgeOn, badgeSupported, disable, enable, pushSupport, refresh, sendTest, setBadgeOn, setPrefs, type PushPrefs } from "../push";
 import { showToast } from "../toast";
 import { Spinner } from "./Spinner";
 
@@ -69,7 +69,7 @@ export function NotificationSettings() {
       <>
         <p className="muted small setting-help">
           On this device: a notification saying what's running whenever that changes (on an iPhone it sits on the lock
-          screen), the number running on the app's icon, and a reminder when a timer has run a long time.
+          screen), and a reminder when a timer has run a long time.
         </p>
         {error && <p className="warn small setting-help">{error}</p>}
         <div className="row-actions">
@@ -152,5 +152,35 @@ export function NotificationSettings() {
         </button>
       </div>
     </>
+  );
+}
+
+/** The number running on the app's icon, per device. Off by default on Windows, where Chrome puts
+ *  the profile picture on the taskbar icon whenever the number is cleared. */
+export function BadgeSetting() {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (badgeSupported()) void badgeOn().then(setOn).catch(() => {});
+  }, []);
+  if (on === null) return null;
+  return (
+    <section className="setting">
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={on}
+          onChange={(e) => {
+            const next = e.target.checked;
+            setOn(next);
+            void setBadgeOn(next).catch(() => {});
+          }}
+        />
+        <span className="setting-label">Number running on the app icon</span>
+      </label>
+      <p className="muted small setting-help">
+        On this device. Off by default on Windows: there Chrome puts your profile picture on the taskbar icon each time
+        the number goes away.
+      </p>
+    </section>
   );
 }
