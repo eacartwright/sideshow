@@ -2,9 +2,8 @@
 <#
   Sets this PC up to run sideshow around the clock:
     - writes .env (port, backup folder)
-    - registers the "sideshow" scheduled task (replacing the old "fieldtime" one): starts at
-      boot, runs whether or not anyone is signed in, and restarts the server if it exits
-      (scripts\run.cmd)
+    - registers the "sideshow" scheduled task: starts at boot, runs whether or not anyone is
+      signed in, and restarts the server if it exits (scripts\run.cmd)
     - allows the port through Windows Firewall on private networks (LAN / Tailscale)
     - builds the app and starts it
   Run once from an admin PowerShell in the server's clone (C:\Apps\sideshow):
@@ -47,15 +46,6 @@ if ($BackupDir) { $envLines += "SIDESHOW_BACKUP_DIR=$BackupDir" }
 [IO.File]::WriteAllLines("$root\.env", $envLines, (New-Object Text.UTF8Encoding $false))
 Write-Host "== .env" -ForegroundColor Cyan
 $envLines | Where-Object { $_ -match "^(PORT|SIDESHOW_BACKUP_DIR)=" } | ForEach-Object { Write-Host "   $_" }
-
-# Before the rename (2026-10) the task and firewall rule were called fieldtime. Stop and remove
-# them; update.ps1 below ends any server process still running from this folder.
-if (Get-ScheduledTask -TaskName fieldtime -ErrorAction SilentlyContinue) {
-  Write-Host "== removing the old 'fieldtime' task" -ForegroundColor Cyan
-  Stop-ScheduledTask -TaskName fieldtime
-  Unregister-ScheduledTask -TaskName fieldtime -Confirm:$false
-}
-Get-NetFirewallRule -DisplayName "fieldtime" -ErrorAction SilentlyContinue | Remove-NetFirewallRule
 
 Write-Host "== scheduled task 'sideshow'" -ForegroundColor Cyan
 $action = New-ScheduledTaskAction -Execute "cmd.exe" -Argument "/c `"$root\scripts\run.cmd`"" -WorkingDirectory $root

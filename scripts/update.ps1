@@ -7,7 +7,10 @@
 #>
 param([switch]$NoPull)
 
-# The banner (figlet, Slant font). ASCII only: Windows PowerShell reads a BOM-less script as ANSI.
+$ErrorActionPreference = "Stop"
+$root = Split-Path $PSScriptRoot -Parent
+Set-Location $root
+
 Write-Host @'
            _     __          __
      _____(_)___/ /__  _____/ /_  ____ _      __
@@ -17,10 +20,6 @@ Write-Host @'
 
 '@ -ForegroundColor DarkCyan
 
-$ErrorActionPreference = "Stop"
-$root = Split-Path $PSScriptRoot -Parent
-Set-Location $root
-
 function Invoke-Step($what, [scriptblock]$cmd) {
   Write-Host "== $what" -ForegroundColor Cyan
   & $cmd
@@ -29,17 +28,10 @@ function Invoke-Step($what, [scriptblock]$cmd) {
 
 if (-not $NoPull) { Invoke-Step "git pull" { git pull --ff-only } }
 
-# The task was called fieldtime before the rename (2026-10); install.ps1 replaces it.
-$task = "sideshow"
-if (-not (Get-ScheduledTask -TaskName sideshow -ErrorAction SilentlyContinue)) {
-  $task = "fieldtime"
-  Write-Host "Still the old 'fieldtime' task: run scripts\install.ps1 once to rename it." -ForegroundColor Yellow
-}
-
 # Stop first: the running server holds files in node_modules (esbuild.exe), so npm ci fails
 # with EPERM while it's up.
 Write-Host "== stop" -ForegroundColor Cyan
-Stop-ScheduledTask -TaskName $task
+Stop-ScheduledTask -TaskName sideshow
 # Stopping the task ends run.cmd but can leave its node child running; end the whole tree.
 Get-CimInstance Win32_Process -Filter "Name = 'cmd.exe'" |
   Where-Object { $_.CommandLine -like "*$root\scripts\run.cmd*" } |
@@ -51,7 +43,7 @@ try {
 } finally {
   # Start again even if a step failed, so a bad update doesn't leave the app down.
   Write-Host "== start" -ForegroundColor Cyan
-  Start-ScheduledTask -TaskName $task
+  Start-ScheduledTask -TaskName sideshow
 }
 
 $port = (Get-Content .env | Where-Object { $_ -match "^PORT=" }) -replace "^PORT=", ""

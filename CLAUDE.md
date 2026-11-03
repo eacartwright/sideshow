@@ -268,7 +268,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - Compatibility code that can go once nothing old is left anywhere (say after M5): the reducer's
   `upgradeOp` / `LEGACY_KEYS`, reading `FIELDTIME_*` settings, renaming `data/fieldtime.db`,
   pruning `fieldtime-*` backups, carrying over the `fieldtime:pending` outbox, and install.ps1
-  removing the old `fieldtime` task.
+  reading `FIELDTIME_BACKUP_DIR`. (The scripts' handling of the old `fieldtime` task went
+  2026-11-02.)
 
 ## Working with Evan
 
