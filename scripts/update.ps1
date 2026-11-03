@@ -15,7 +15,6 @@ Write-Host @'
    (__  ) / /_/ /  __(__  ) / / / /_/ / |/ |/ /
   /____/_/\__,_/\___/____/_/ /_/\____/|__/|__/
 '@ -ForegroundColor DarkCyan
-Write-Host "  updating $(Split-Path $PSScriptRoot -Parent)`n" -ForegroundColor DarkGray
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
