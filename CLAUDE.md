@@ -259,9 +259,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   (§7); **rich notes** with attachments pushed to the ticket as documents (§7 "Rich notes");
   Now buttons in the session editor; ↗ / ↻ and "Update ticket" (rename the CW summary) for
   linked tasks. Tried against a fake CW; live so far: company sync, ticket creation, pushes.
-- **Next, Evan's pick (2026-10-13): the task description.** Backlog Inbox, "Task description":
-  keep it sideshow-only scratch space (recommended), say so in its placeholder and in New
-  ticket…, maybe show the ticket's own initial description read-only.
+- **The task description, settled 2026-11-04:** sideshow-only, its box hidden once a task has a
+  ticket (unless it already has text).
 - **New entry built (2026-10-13)**, for Evan to try on 2026-10-14: split a running session when
   the work type changes (DESIGN.md §5 Session). Ask how it went before building anything else.
 - **▶ WRIT built (2026-10-13)**: finds this week's recurring internal ticket (DESIGN.md §10).

@@ -107,14 +107,9 @@ were built 2026-11-04.)
   data). Proposed: an orange **DEV** pill after "sideshow" in the header (`--warn` token), and
   the tab title "sideshow · DEV". Optional: an orange-dot favicon. ~10 minutes.
 
-- **Task description: decide what it is (Evan to look at next, 2026-10-13).** Today it's
-  sideshow-only: New ticket… copies it into the ticket's initial description once, and after
-  that nothing syncs either way. Recommended: keep it as private scratch space and say so
-  (placeholder "Your notes on this task (stay in sideshow)"; New ticket… says it's copied once).
-  Not syncing with CW's initial description: it's usually the client's own text (their email),
-  the API sets it only at creation (after that it's the ticket's first note), and two-way sync
-  needs conflict rules. Optional: on a linked task, the ticket's initial description read-only
-  and collapsed ("Ticket description"), one extra lookup per ticket.
+- **Ticket's own description (2026-11-04, maybe).** On a linked task, CW's initial description
+  read-only and collapsed, one extra lookup per ticket. The task's own description box is now
+  hidden on tasks with a ticket (DESIGN.md §5).
 
 - **Fonts: picked 2026-10-12** (Unbounded for the header, Bricolage Grotesque for the rest),
   loaded from Google Fonts by one `<link>` in index.html and set as `--font-brand` / `--font` in

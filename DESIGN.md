@@ -206,7 +206,7 @@ it as a task.
 | `location` | Free text. Tapping it opens Maps. |
 | `links[]` | URLs (docs, RMM, vendor portals, ticket URL…). |
 | `doDate` / `dueDate` | When I intend to work on it / when it must be done. |
-| `description` | Optional context (see above). Low-prominence in the UI. |
+| `description` | Optional context (see above), kept only in sideshow. Task details hides the box on a task with a ticket unless it already has text (Evan, 2026-11-04: it ties to nothing in CW). |
 | `status` | `open` · `done` · `archived`. Whether it's running is *derived*, never stored here. |
 | `deleted` | **Delete** in Task details (after "Are you sure…?"), only while the task has no ticket # (nothing in CW points at it): a tombstone (`task.delete` op) that stops it and takes its sessions with it (`deletedWithTask`), with Undo, which brings back exactly those. |
 

@@ -24,6 +24,13 @@ describe("notes as Markdown", () => {
     expect(round("![screenshot.png](/api/files/abc/screenshot.png)")).toBe("![screenshot.png](/api/files/abc/screenshot.png)");
   });
 
+  it("gives an empty note one empty line, which saves as empty", () => {
+    for (const note of ["", "   ", "\n\n"]) {
+      expect(parseNote(note)).toEqual({ type: "doc", content: [{ type: "paragraph" }] });
+      expect(round(note)).toBe("");
+    }
+  });
+
   it("writes underline as ++text++", () => {
     expect(round("a ++b++ c")).toBe("a ++b++ c");
   });

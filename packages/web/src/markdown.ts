@@ -41,9 +41,14 @@ function md(): MarkdownManager {
   return manager;
 }
 
-/** Markdown → the editor's document. */
+/**
+ * Markdown → the editor's document. Empty notes parse to a document with nothing in it, so the
+ * editor would open with no line: no placeholder (it sits on the first line) and no proper cursor.
+ * They get one empty paragraph instead, which is what the editor has after deleting everything.
+ */
 export function parseNote(markdown: string): JSONContent {
-  return md().parse(markdown);
+  const doc = markdown.trim() ? md().parse(markdown) : null;
+  return doc?.content?.length ? doc : { type: "doc", content: [{ type: "paragraph" }] };
 }
 
 /** The editor's document → Markdown, without trailing blank lines. */

@@ -1,5 +1,5 @@
 import { durationMs, startOfDay, type Id, type Session } from "@sideshow/shared";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { dayLabel, hm, timeOfDay } from "../format";
 import { sessionFieldTexts, useA, useM, useNow } from "../model";
 import { NewTicketButton } from "./CreateTicket";
@@ -23,13 +23,21 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
   const [merging, setMerging] = useState(false);
   const [editingId, setEditingId] = useState<Id | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The task that had description text while open here: see showDescription.
+  const describedTask = useRef<Id | null>(null);
   const info = m.tasks.get(taskId);
   if (!info) return null;
   const { task } = info;
   const running = m.running.find((s) => s.taskId === taskId);
   // Only tasks not tied to a ticket yet: nothing in the other system points at them.
   const ticketField = m.profile.connectwise?.ticketField;
-  const deletable = !(ticketField && task.fields[ticketField]) && !info.sessions.some((s) => s.ext?.cw?.entryId);
+  const hasTicket = !!ticketField && !!task.fields[ticketField];
+  const deletable = !hasTicket && !info.sessions.some((s) => s.ext?.cw?.entryId);
+  // The description stays in sideshow, so with a ticket (which has its own) the box only confuses.
+  // Text already there still shows, and the box stays while you empty it rather than vanishing
+  // mid-keystroke; it's gone the next time the task is opened.
+  if (task.description.trim()) describedTask.current = taskId;
+  const showDescription = !hasTicket || describedTask.current === taskId;
 
   // Selection is a range over the task's sessions in time order.
   const chrono = info.sessions;
@@ -77,14 +85,16 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
           <ProjectPicker value={task.projectId ?? null} onChange={(projectId) => a.updateTask(taskId, { projectId })} />
         </div>
         <TicketInfo task={task} refreshButton={false} />
-        <RichNotes
-          className="description"
-          value={task.description}
-          resetKey={taskId}
-          placeholder="Description (optional context)"
-          label="Description"
-          onValue={(description) => a.updateTask(taskId, { description })}
-        />
+        {showDescription && (
+          <RichNotes
+            className="description"
+            value={task.description}
+            resetKey={taskId}
+            placeholder={m.profile.connectwise && !hasTicket ? "Your notes on this task. They stay here; New ticket… starts its description from them." : "Your notes on this task. They stay here."}
+            label="Description"
+            onValue={(description) => a.updateTask(taskId, { description })}
+          />
+        )}
         <div className="row-actions">
           {running ? (
             <button className="btn pause" onClick={() => a.pause(running.id)}>
