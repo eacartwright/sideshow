@@ -1,7 +1,8 @@
 import { durationMs, startOfDay, ticketNumber, type Ms, type Session, type SessionPatch } from "@sideshow/shared";
 import { useState } from "react";
-import { hm } from "../format";
+import { hm, timeOfDay } from "../format";
 import { useA, useM, useNow } from "../model";
+import { mapUrl, stampOf } from "../location";
 import { SessionFieldInputs } from "./fields";
 import { RichNotes } from "./RichNotes";
 import { CleanedNote, CleanupButton } from "./Cleanup";
@@ -72,7 +73,7 @@ export function endPatch(s: Session, value: string): SessionPatch | null {
   return t === s.end ? null : { end: t };
 }
 
-export function SessionEditor({ session: s, onDone }: { session: Session; onDone?: () => void }) {
+export function SessionEditor({ session: s, onDone, onMovedDay }: { session: Session; onDone?: () => void; onMovedDay?: (day: Ms) => void }) {
   const m = useM();
   const a = useA();
   const now = useNow(30_000);
@@ -86,7 +87,11 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
   const running = s.end === null;
 
   const apply = (patch: SessionPatch | null) => patch && a.updateSession(s.id, patch);
-  const setDay = (value: string) => apply(dayPatch(s, value));
+  const setDay = (value: string) => {
+    const patch = dayPatch(s, value);
+    apply(patch);
+    if (patch?.start !== undefined) onMovedDay?.(startOfDay(patch.start));
+  };
   const setStart = (value: string) => apply(startPatch(s, value));
   const setEnd = (value: string) => apply(endPatch(s, value));
 
@@ -159,6 +164,7 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
         onValue={(notes) => a.updateSession(s.id, { notes })}
       />
       <CleanedNote session={s} />
+      <LocationLine session={s} />
       <div className="row-actions">
         <CleanupButton session={s} className="btn" />
         <button
@@ -172,6 +178,21 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
           Delete
         </button>
         <span className="spacer" />
+        {m.config.cwPush && !s.ext?.cw?.entryId && (
+          <button
+            className={`btn subtle email-toggle ${s.ext?.cw?.email === true ? "on" : ""}`}
+            aria-pressed={s.ext?.cw?.email === true}
+            title={s.ext?.cw?.email === true ? "CW will email the ticket's contact, CCs and resources when this is pushed" : "No emails (click to have CW email the contact, CCs and resources)"}
+            onClick={() => a.updateSession(s.id, { ext: { cw: { email: s.ext?.cw?.email === true ? null : true } } })}
+          >
+            ✉ {s.ext?.cw?.email === true ? "On" : "Off"}
+          </button>
+        )}
+        {!s.enteredAt && !running && (
+          <button className="btn subtle" title="Mark entered without pushing (you entered it yourself)" onClick={() => a.updateSession(s.id, { enteredAt: Date.now() })}>
+            ✓ Mark entered
+          </button>
+        )}
         {ticket && !s.enteredAt && (
           <button
             className="btn"
@@ -190,6 +211,24 @@ export function SessionEditor({ session: s, onDone }: { session: Session; onDone
       </div>
       {moving && <Switcher move={s} onClose={() => setMoving(false)} />}
       {pushing && <PushDialog sessionIds={[s.id]} onClose={() => setPushing(false)} onDone={() => {}} />}
+    </div>
+  );
+}
+
+/** Where this entry started and ended, if the device that ran it kept that (location.ts). */
+function LocationLine({ session: s }: { session: Session }) {
+  const start = stampOf(s, "start");
+  const end = stampOf(s, "end");
+  if (!start && !end) return null;
+  const place = (label: string, p: NonNullable<typeof start>) => (
+    <a href={mapUrl(p.lat, p.lon)} target="_blank" rel="noreferrer" title={`Within about ${p.acc} m. Open the map.`}>
+      📍 {label} {p.at ? timeOfDay(p.at) : ""}
+    </a>
+  );
+  return (
+    <div className="location-line small muted">
+      {start && place("Started", start)}
+      {end && place("Ended", end)}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { DEFAULT_AI } from "@sideshow/shared";
-import { Ai, AiStopped, parseAiSettings, type Ask } from "./ai";
+import { Ai, AiStopped, parseAiSettings, type Ask, type Transcribe } from "./ai";
 import { openDb } from "./db";
 
 const dirs: string[] = [];
@@ -102,5 +102,49 @@ describe("AI cleanup", () => {
     expect(parseAiSettings(DEFAULT_AI)).toEqual(DEFAULT_AI);
     expect(parseAiSettings({ ...DEFAULT_AI, model: "gpt-2" })).toEqual({ error: "Not a model" });
     expect(parseAiSettings({ ...DEFAULT_AI, monthlyLimitUsd: null, alertsAt: [90, 50, 90] })).toMatchObject({ monthlyLimitUsd: null, alertsAt: [50, 90] });
+  });
+});
+
+describe("dictation", () => {
+  const audio = { data: new Uint8Array([1, 2, 3]), type: "audio/mp4" };
+  function withWords(transcribe: Transcribe | null, words = "# a comment\nConnectWise\n\nNinja # the RMM\n") {
+    const dir = mkdtempSync(join(tmpdir(), "sideshow-ai-"));
+    dirs.push(dir);
+    const db = openDb(join(dir, "t.db"));
+    dbs.push(db);
+    writeFileSync(join(dir, "dictation-words.txt"), words);
+    return new Ai(db, {}, dir, transcribe);
+  }
+  it("is off without a key", async () => {
+    const ai = withWords(null);
+    expect(ai.canTranscribe()).toBe(false);
+    await expect(ai.transcribe(audio, { seconds: 5 })).rejects.toThrow(AiStopped);
+  });
+  it("asks for the job's words and the task, and logs what it cost", async () => {
+    let hints: Parameters<Transcribe>[1] | undefined;
+    const ai = withWords(async (_a, h) => {
+      hints = h;
+      return "fixed it";
+    });
+    expect(await ai.transcribe(audio, { seconds: 120, words: ["Acme Dental", "Ninja"], context: "Printer offline" })).toBe("fixed it");
+    expect(hints!.keywords).toEqual(["ConnectWise", "Ninja", "Acme Dental"]);
+    expect(hints!.prompt).toContain("Printer offline");
+    const use = ai.usage();
+    expect(use.recent[0]).toMatchObject({ model: "gpt-transcribe", purpose: "dictation", ok: true });
+    expect(use.costUsd).toBeCloseTo(0.009);
+  });
+  it("stops at the monthly cap and when AI is off", async () => {
+    const ai = withWords(async () => "x");
+    ai.saveSettings({ ...DEFAULT_AI, monthlyLimitUsd: 0 });
+    await expect(ai.transcribe(audio, { seconds: 5 })).rejects.toThrow(/cap/);
+    ai.saveSettings({ ...DEFAULT_AI, model: "off" });
+    await expect(ai.transcribe(audio, { seconds: 5 })).rejects.toThrow(/off/);
+  });
+  it("records a provider's failure and passes it on", async () => {
+    const ai = withWords(async () => {
+      throw new Error("boom");
+    });
+    await expect(ai.transcribe(audio, { seconds: 5 })).rejects.toThrow("boom");
+    expect(ai.usage().recent[0]).toMatchObject({ ok: false, purpose: "dictation", costUsd: 0 });
   });
 });

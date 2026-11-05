@@ -65,6 +65,16 @@ export interface Profile {
   /** Starting contents of each list, used when the list is empty (and for item defaults). */
   lists?: Record<string, ProfileListEntry[]>;
   entryFormat?: EntryFormat;
+  /** One-tap travel (▶ Travel, Arrived): which list field holds the work type, and its items by name. */
+  travel?: {
+    field: string;
+    /** Going to the client: what ▶ Travel starts. */
+    to: string;
+    /** On the way back. */
+    from: string;
+    /** What the work becomes on Arrived. */
+    arrive?: string;
+  };
   /** The ConnectWise integration: which fields it reads and fills. */
   connectwise?: {
     ticketField: string;
@@ -124,6 +134,17 @@ export function profileProblems(p: Profile): string[] {
   }
   for (const k of p.entryFormat?.fields ?? []) {
     if (!keys.has(k) && !(ENTRY_BUILTINS as readonly string[]).includes(k)) out.push(`entryFormat: unknown field "${k}"`);
+  }
+  if (p.travel) {
+    const f = p.fields.find((x) => x.key === p.travel!.field);
+    if (!f || f.on !== "session" || f.type !== "list") out.push(`travel.field "${p.travel.field}" isn't a session list field`);
+    else {
+      const names = (p.lists?.[f.list!] ?? []).map((e) => listEntry(e).name);
+      for (const k of ["to", "from", "arrive"] as const) {
+        const name = p.travel[k];
+        if (name && names.length && !names.includes(name)) out.push(`travel.${k} "${name}" isn't in lists.${f.list}`);
+      }
+    }
   }
   const cw = p.connectwise;
   if (cw && !keys.has(cw.ticketField)) out.push(`connectwise.ticketField "${cw.ticketField}" isn't a field`);

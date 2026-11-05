@@ -1,7 +1,7 @@
 import { durationMs, firstLine, startOfDay, ticketNumber, type FieldDef, type FieldValue, type Id, type Session } from "@sideshow/shared";
 import { useState } from "react";
 import { clock, dayLabel, hm, timeOfDay } from "../format";
-import { sessionFieldTexts, taskTotals, useA, useM, useNow, type TaskInfo } from "../model";
+import { isTravel, sessionFieldTexts, taskTotals, travelOf, useA, useM, useNow, type TaskInfo } from "../model";
 import { at, SessionEditor, timeValue } from "./SessionEditor";
 import { SessionFieldInputs, TitleInput, TaskFieldInputs, TicketInfo, TicketLinks } from "./fields";
 import { NoteView } from "./NoteView";
@@ -15,7 +15,7 @@ import { useWeekly } from "../weekly";
 // stays mounted across switches (and while idle). That lets ▶ New focus it inside
 // the tap itself, which is what makes the iPhone keyboard appear.
 
-export function NowPanel({ onAlongside, onOpen }: { onAlongside: () => void; onOpen: (taskId: Id) => void }) {
+export function NowPanel({ onAlongside, onOpen, onFind }: { onAlongside: () => void; onOpen: (taskId: Id) => void; onFind: () => void }) {
   const m = useM();
   const a = useA();
   const now = useNow(1000);
@@ -24,7 +24,7 @@ export function NowPanel({ onAlongside, onOpen }: { onAlongside: () => void; onO
   return (
     <div className="now-stack">
       {cards.map((s, i) => (
-        <NowCard key={i} session={s} top={i === 0} now={now} />
+        <NowCard key={i} session={s} top={i === 0} now={now} onFind={onFind} />
       ))}
       {m.paused.map((info) => (
         <PausedCard key={info.task.id} info={info} now={now} onOpen={onOpen} />
@@ -52,7 +52,7 @@ export function NowPanel({ onAlongside, onOpen }: { onAlongside: () => void; onO
   );
 }
 
-function NowCard({ session, top, now }: { session: Session | null; top: boolean; now: number }) {
+function NowCard({ session, top, now, onFind }: { session: Session | null; top: boolean; now: number; onFind: () => void }) {
   const m = useM();
   const a = useA();
   const info = session ? m.tasks.get(session.taskId) : undefined;
@@ -62,7 +62,7 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
 
   return (
     <section className={`now ${running ? "is-running" : "is-idle"} ${top ? "" : "compact"}`} aria-label="Now" data-session={session?.id}>
-      {running ? <RunningHead {...running} now={now} /> : <IdleHead />}
+      {running ? <RunningHead {...running} now={now} /> : <IdleHead onFind={onFind} />}
 
       <RichNotes
         editorRef={top ? a.notesRef : undefined}
@@ -71,13 +71,10 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
         value={session?.notes ?? ""}
         resetKey={session?.id ?? null}
         placeholder={
-          session
-            ? earlier.length
-              ? "Continuing… (leave empty for “continuation of previous work”)"
-              : "What are you doing? Notes save as you type."
-            : "Start typing to start a new task…"
+          earlier.length ? "Continuing… (leave empty for “continuation of previous work”)" : "What are you doing? Notes save as you type."
         }
         label="Session notes"
+        dictationContext={info?.titleText}
         onValue={(notes) => {
           const id = session?.id ?? a.startNew();
           if (id) a.updateSession(id, { notes });
@@ -120,12 +117,31 @@ function NowCard({ session, top, now }: { session: Session | null; top: boolean;
   );
 }
 
-function IdleHead() {
+/** Nothing running: one tap starts the clock, and the keyboard comes up for the notes. */
+function IdleHead({ onFind }: { onFind: () => void }) {
+  const m = useM();
+  const a = useA();
+  const travel = !!travelOf(m.profile, m.view);
   return (
-    <div className="now-top">
-      <span className="idle-dot" aria-hidden />
-      <span className="idle-label">Nothing running</span>
-    </div>
+    <>
+      <div className="now-top">
+        <span className="idle-dot" aria-hidden />
+        <span className="idle-label">Nothing running</span>
+      </div>
+      <div className="idle-actions">
+        <button className="btn primary idle-start" onClick={(e) => a.startNew("", e.shiftKey)} title="Start the clock on a new task (Alt+N)">
+          <span aria-hidden>▶</span> Start
+        </button>
+        <button className="btn" onClick={onFind} title="Find a task or a ticket and start it (Ctrl+K)">
+          <span aria-hidden>⌕</span> {m.config.cw ? "Ticket or task" : "Find a task"}
+        </button>
+        {travel && (
+          <button className="btn" onClick={(e) => a.startTravel(e.shiftKey)} title="Start traveling to a client (Alt+T); pick the ticket whenever you like">
+            <span aria-hidden>🚗</span> Travel
+          </button>
+        )}
+      </div>
+    </>
   );
 }
 
@@ -143,6 +159,9 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
   const weekly = useWeekly(!!m.config.cwWeekly);
   const ticketField = m.profile.connectwise?.ticketField;
   const isWeekly = !!weekly && !!ticketField && ticketNumber(String(info.task.fields[ticketField] ?? "")) === String(weekly.ticket);
+  const travel = travelOf(m.profile, m.view);
+  const traveling = !!travel && isTravel(travel, session);
+  const goingBack = !!travel && session.fields[travel.field] === travel.from;
 
   const newEntry = () => {
     const id = a.newEntry(session.id);
@@ -192,6 +211,16 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
         </button>
       </div>
       <StartedLine session={session} info={info} now={now} />
+      {/* Big, and on its own line: this gets tapped standing in a parking lot. */}
+      {traveling && (
+        <button
+          className="btn primary arrive-btn"
+          onClick={() => a.arrived(session.id)}
+          title={goingBack || !travel?.arrive ? "Stop the clock: you're back" : "End the travel now and start the work on the same task"}
+        >
+          {goingBack ? "Back" : "Arrived"}
+        </button>
+      )}
       <TitleInput
         className="title-input"
         value={info.titleText}
@@ -205,6 +234,22 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
         <TaskFieldInputs task={info.task} />
         <TicketLinks task={info.task} />
         <SessionFieldInputs session={session} onChange={onField} />
+        {traveling ? (
+          // Which way doesn't change the work, so no "new entry?" question.
+          <button
+            className="btn subtle"
+            onClick={() => a.setSessionField(session.id, travel!.field, goingBack ? travel!.to : travel!.from)}
+            title="Traveling the other way"
+          >
+            ⇄ {goingBack ? "To client" : "From client"}
+          </button>
+        ) : (
+          travel && (
+            <button className="btn subtle" onClick={() => a.travelEntry(session.id)} title="End this entry now and carry on as travel on the same task">
+              <span aria-hidden>🚗</span> Travel
+            </button>
+          )
+        )}
         {m.config.cwWeekly && !isWeekly && (
           <button
             className="btn subtle"

@@ -17,6 +17,7 @@ import { showToast } from "../toast";
 import { ChatIcon, LockIcon, RefreshIcon } from "./icons";
 import { Spinner } from "./Spinner";
 import { useA, useM } from "../model";
+import { TicketPicker } from "./TicketPicker";
 
 // Text fields bound to synced values. They keep a local draft so that
 // updates arriving from another device never yank text out from under the cursor.
@@ -592,15 +593,42 @@ export function TaskFieldInputs({ task }: { task: Task }) {
     <>
       {m.profile.fields
         .filter((d) => d.on === "task")
-        .map((d) => (
-          <FieldInput
-            key={d.key}
-            def={d}
-            value={task.fields[d.key]}
-            resetKey={task.id}
-            onChange={(v) => a.setTaskField(task.id, d.key, v)}
-          />
-        ))}
+        .map((d) =>
+          d.key === m.profile.connectwise?.ticketField && m.config.cw ? (
+            <span className="ticket-field" key={d.key}>
+              <FieldInput def={d} value={task.fields[d.key]} resetKey={task.id} onChange={(v) => a.setTaskField(task.id, d.key, v)} />
+              <FindTicketButton task={task} />
+            </span>
+          ) : (
+            <FieldInput key={d.key} def={d} value={task.fields[d.key]} resetKey={task.id} onChange={(v) => a.setTaskField(task.id, d.key, v)} />
+          ),
+        )}
+    </>
+  );
+}
+
+/** ⌕ beside a task's ticket field: find the ticket in CW and put it on this task. */
+export function FindTicketButton({ task, label }: { task: Task; label?: string }) {
+  const m = useM();
+  const a = useA();
+  const [open, setOpen] = useState(false);
+  if (!m.config.cw) return null;
+  const clientKey = m.profile.connectwise?.clientField;
+  const client = clientKey ? m.view.lists[String(task.fields[clientKey] ?? "")] : undefined;
+  return (
+    <>
+      <button type="button" className={`btn subtle ${label ? "sm" : "icon"}`} onClick={() => setOpen(true)} title="Find the ticket in ConnectWise" aria-label={label ?? "Find the ticket in ConnectWise"}>
+        <span aria-hidden>⌕</span>
+        {label && ` ${label}`}
+      </button>
+      {open && (
+        <TicketPicker
+          companyId={linkedCompanyId(client)}
+          companyName={client?.name}
+          onPick={(t) => a.linkTicket(task.id, t)}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }

@@ -9,11 +9,12 @@ import { newId, OP_TYPES, type OpEnvelope } from "@sideshow/shared";
 import { FileStore, MAX_FILE } from "./files";
 import { ConnectWiseClient, CwError } from "./integrations/connectwise/client";
 import { ENV_KEYS, resolve, settingsFromEnv, shown, testConnection, type CwSettings } from "./integrations/connectwise/connection";
-import { Ai, AiStopped, MAX_NOTES, parseAiSettings, providersFromEnv } from "./ai";
+import { Ai, AiStopped, MAX_NOTES, parseAiSettings, providersFromEnv, transcriberFromEnv } from "./ai";
 import { DevNotes, devNotesFile, parseFiles, parsePage, TEXT_MAX as DEV_NOTE_MAX } from "./devnotes";
 import { updateEnvFile } from "./envfile";
 import { parseRule } from "./integrations/connectwise/holds";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
+import { searchTickets } from "./integrations/connectwise/ticketsearch";
 import type { NewTicket } from "./integrations/connectwise/tickets";
 import { listProfiles } from "./profile";
 import { Push } from "./push";
@@ -242,7 +243,7 @@ app.post("/api/devnotes/:id", async (c) => {
 
 // AI note cleanup (ai.ts): one set of settings and one bill for the whole server, so not per
 // workspace. The keys stay here; the app only learns which providers have one.
-const ai = new Ai(workspaces.main.db, providersFromEnv());
+const ai = new Ai(workspaces.main.db, providersFromEnv(), undefined, transcriberFromEnv());
 if (ai.configured().length) console.log(`AI: ${ai.configured().join(", ")}`);
 /** The templates for the app's menus, or what's wrong with their files (ai-templates/). */
 const aiTemplates = () => {
@@ -308,6 +309,35 @@ app.use("/api/*", async (c, next) => {
 const cwOf = (ws: Workspace) => (ctx.cw && ws.cwParts ? { cw: ctx.cw, ...ws.cwParts, profile: ws.profile, cwSettings: ws.profile.connectwise! } : null);
 const NO_CW = { error: "ConnectWise isn't set up for this workspace" };
 
+// Dictation: audio in, text out. Per workspace only for its company names, which it listens for.
+const MAX_AUDIO = 25 * 1024 * 1024;
+app.post("/api/ai/transcribe", async (c) => {
+  const type = c.req.header("content-type") ?? "";
+  if (!type.startsWith("audio/")) return c.json({ error: "Not audio" }, 400);
+  const data = new Uint8Array(await c.req.arrayBuffer());
+  if (!data.byteLength) return c.json({ error: "Nothing recorded" }, 400);
+  if (data.byteLength > MAX_AUDIO) return c.json({ error: "That recording is too long" }, 413);
+  const ws = c.get("ws");
+  const clientList = ws.profile.fields.find((f) => f.key === ws.profile.connectwise?.clientField)?.list ?? ws.profile.fields.find((f) => f.groupBy)?.list;
+  const words = Object.values(ws.store.state.lists)
+    .filter((x) => x.list === clientList && !x.archived)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 60)
+    .map((x) => x.name);
+  let context: string | undefined;
+  try {
+    context = decodeURIComponent(c.req.header("x-context") ?? "") || undefined;
+  } catch {
+    // Not URL-encoded: go without it.
+  }
+  try {
+    return c.json({ text: await ai.transcribe({ data, type }, { seconds: Number(c.req.header("x-seconds")) || 0, words, context }) });
+  } catch (err) {
+    const f = aiFailure(err);
+    return c.json({ error: f.error }, f.status);
+  }
+});
+
 app.get("/api/state", (c) => {
   const ws = c.get("ws");
   const on = !!cwOf(ws);
@@ -322,6 +352,8 @@ app.get("/api/state", (c) => {
       cwHolds: on && !!ws.cwParts?.holds,
       // A key for at least one AI provider: notes can be cleaned up (✨).
       ai: ai.configured().length > 0,
+      // Notes can be dictated (🎙): the audio goes to the transcription model.
+      dictation: ai.canTranscribe(),
       cwTicketUrl: on ? ticketUrl() : null,
       workspace: { id: ws.id, name: ws.entry.name },
       workspaces: workspaces.all().map((w) => ({ id: w.id, name: w.entry.name })),
@@ -341,6 +373,30 @@ app.get("/api/cw/tickets/:id", async (c) => {
     if (err instanceof CwError && err.status === 404) return c.json({ error: `No ticket #${id}` }, 404);
     console.error(err);
     return c.json({ error: "ConnectWise lookup failed" }, 502);
+  }
+});
+
+// Finding a ticket from the app: what's typed, maybe a company, maybe only yours.
+app.get("/api/cw/ticket-search", async (c) => {
+  const x = cwOf(c.get("ws"));
+  if (!x) return c.json(NO_CW, 503);
+  const companyId = Number(c.req.query("companyId"));
+  try {
+    return c.json(
+      await searchTickets(
+        x.cw,
+        {
+          q: c.req.query("q")?.slice(0, 200),
+          companyId: Number.isInteger(companyId) && companyId > 0 ? companyId : undefined,
+          member: c.req.query("mine") && ctx.cwMember ? ctx.cwMember : undefined,
+          closed: !!c.req.query("closed"),
+        },
+        ctx.cwMember,
+      ),
+    );
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: "ConnectWise search failed" }, 502);
   }
 });
 

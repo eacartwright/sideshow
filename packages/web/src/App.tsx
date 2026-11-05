@@ -6,6 +6,7 @@ import { DevNotesDialog } from "./components/DevNotes";
 import type { DevNotePage } from "./devnotes";
 import { HoldsDialog } from "./components/HoldsDialog";
 import { InboxAdd } from "./components/InboxAdd";
+import { MiniWindow, miniSupported, openMiniWindow } from "./components/MiniWindow";
 import { NowPanel } from "./components/NowPanel";
 import { ProjectDetail } from "./components/ProjectDetail";
 import { SettingsDialog, type SettingsTab } from "./components/Settings";
@@ -17,7 +18,7 @@ import { useWeekly } from "./weekly";
 import { RefreshIcon } from "./components/icons";
 import { Spinner } from "./components/Spinner";
 import { ActionsContext, ModelContext, useActionsFactory, useModel, type Model } from "./model";
-import { dismissToast, useToast } from "./toast";
+import { dismissToast, showToast, useToast } from "./toast";
 import { Lightbox } from "./components/Lightbox";
 import { undo } from "./undo";
 
@@ -48,6 +49,21 @@ export function App() {
   const modelRef = useRef(model);
   modelRef.current = model;
   const lastNewTap = useRef(-Infinity);
+  // The always-on-top mini window, while it's open.
+  const [mini, setMini] = useState<Window | null>(null);
+  const toggleMini = async () => {
+    if (mini) {
+      mini.close();
+      return;
+    }
+    try {
+      const win = await openMiniWindow();
+      win.addEventListener("pagehide", () => setMini(null));
+      setMini(win);
+    } catch {
+      showToast("This browser wouldn't open the mini window");
+    }
+  };
 
   // Desktop keyboard shortcuts. Alt+letter works even while typing in notes.
   useEffect(() => {
@@ -89,6 +105,13 @@ export function App() {
             const top = modelRef.current.running[0];
             if (top) actions.moveToWeekly(top.id);
             else startWeekly(e.shiftKey);
+          },
+          KeyT: () => {
+            // Travel: on what's running, or a new task with nothing running.
+            setOverlay(null);
+            const top = modelRef.current.running[0];
+            if (top) actions.travelEntry(top.id);
+            else actions.startTravel(e.shiftKey);
           },
           KeyI: () => setOverlay({ kind: "inbox" }),
           // Dev notes, even over a dialog (which covers 🧪), so the note can name it.
@@ -212,6 +235,17 @@ export function App() {
               </span>
             </button>
           )}
+          {miniSupported() && (
+            <button
+              className={`btn icon mini-btn ${mini ? "btn-on" : ""}`}
+              aria-pressed={!!mini}
+              onClick={() => void toggleMini()}
+              title="Mini window: a small one that stays on top of everything, with what's running"
+              aria-label="Mini window"
+            >
+              <MiniIcon />
+            </button>
+          )}
           {/* The installed iPhone app has no browser reload; unsent changes are already in the outbox. */}
           <button className="btn icon refresh-btn" onClick={() => location.reload()} title="Refresh" aria-label="Refresh">
             <RefreshIcon />
@@ -233,6 +267,7 @@ export function App() {
             <NowPanel
               onAlongside={() => setOverlay({ kind: "switcher", alongside: true })}
               onOpen={(taskId) => setOverlay({ kind: "detail", taskId })}
+              onFind={() => setOverlay({ kind: "switcher" })}
             />
             <TaskList
               onOpen={(taskId) => setOverlay({ kind: "detail", taskId })}
@@ -261,6 +296,13 @@ export function App() {
         )}
         {overlay?.kind === "detail" && (
           <TaskDetail taskId={overlay.taskId} onClose={() => setOverlay(overlay.back ?? null)} />
+        )}
+        {mini && (
+          <MiniWindow
+            win={mini}
+            onFind={() => setOverlay({ kind: "switcher" })}
+            onOpenTask={(taskId) => setOverlay({ kind: "detail", taskId })}
+          />
         )}
         {/* Last, so it's the top layer over any dialog (Esc closes it first). */}
         <Lightbox />
@@ -327,6 +369,15 @@ function CwSyncBadge() {
       <Spinner /> <span className="wide-only">{text}</span>
       <span className="narrow-only">{short}</span>
     </span>
+  );
+}
+
+function MiniIcon() {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <rect x="12" y="12" width="6" height="5" rx="1" fill="currentColor" />
+    </svg>
   );
 }
 

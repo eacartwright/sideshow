@@ -998,3 +998,53 @@ describe("moving a session (▶ WRIT on the running card)", () => {
     expect(s.sessions[`A@${T0 + H}`]!.taskId).toBe("A");
   });
 });
+
+describe("what counts as empty on Stop", () => {
+  const travelStart = (s: State, at: number) =>
+    run(s, at, { type: "task.start", taskId: "t", sessionId: "s", newTask: { title: "Travel" }, sessionFields: { workType: "travel" } });
+
+  it("keeps a note-less task whose entry has a work type (▶ Travel)", () => {
+    const s = emptyState();
+    travelStart(s, T0);
+    stop(s, T0 + H, "s");
+    expect(s.tasks.t!.deleted).toBeFalsy();
+    expect(span(s, "s")).toEqual([T0, T0 + H]);
+    expect(s.sessions.s!.deleted).toBe(false);
+  });
+  it("keeps one with a ticket or a company on it", () => {
+    const s = emptyState();
+    run(s, T0, { type: "task.start", taskId: "t", sessionId: "s", newTask: { title: "", fields: { ticket: "106745" } } });
+    stop(s, T0 + H, "s");
+    expect(s.tasks.t!.deleted).toBeFalsy();
+  });
+  it("still drops one with nothing chosen, even with a location stamp", () => {
+    const s = emptyState();
+    startNew(s, T0, "t");
+    run(s, T0 + S, { type: "session.update", sessionId: `t@${T0}`, patch: { ext: { geo: { startLat: 1, startLon: 2 } } } });
+    stop(s, T0 + H, `t@${T0}`);
+    expect(s.tasks.t!.deleted).toBe(true);
+  });
+  it("a location stamp doesn't count as editing an entered session", () => {
+    const s = emptyState();
+    travelStart(s, T0);
+    stop(s, T0 + H, "s");
+    run(s, T0 + 2 * H, { type: "session.update", sessionId: "s", patch: { enteredAt: T0 + 2 * H } });
+    run(s, T0 + 3 * H, { type: "session.update", sessionId: "s", patch: { ext: { geo: { endLat: 1, endLon: 2 } } } });
+    expect(s.sessions.s!.enteredAt).toBe(T0 + 2 * H);
+    expect(s.sessions.s!.ext?.geo?.endLat).toBe(1);
+  });
+});
+
+describe("arriving", () => {
+  it("ends the travel entry and starts the work at the same instant, with its billing default", () => {
+    const s = emptyState();
+    run(s, T0 - H, { type: "list.create", itemId: "onsite", list: "workTypes", name: "Onsite" });
+    run(s, T0 - H, { type: "list.update", itemId: "onsite", patch: { defaults: { billing: "Billable" } } });
+    run(s, T0, { type: "task.start", taskId: "t", sessionId: "go", newTask: { title: "Travel" }, sessionFields: { workType: "travel", billing: "Do Not Bill" } });
+    run(s, T0 + 40 * M, { type: "task.start", taskId: "t", sessionId: "work", mode: "alongside", fresh: true, sessionFields: { workType: "onsite" } });
+    expect(span(s, "go")).toEqual([T0, T0 + 40 * M]);
+    expect(span(s, "work")).toEqual([T0 + 40 * M, null]);
+    expect(s.sessions.work!.fields).toMatchObject({ workType: "onsite", billing: "Billable" });
+    expect(s.sessions.go!.fields.workType).toBe("travel");
+  });
+});

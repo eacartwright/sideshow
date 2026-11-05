@@ -32,6 +32,8 @@ export interface Config {
   cwHolds?: boolean;
   /** The server has a key for an AI provider: notes can be cleaned up (✨). */
   ai?: boolean;
+  /** The server can transcribe audio: notes can be dictated (🎙). */
+  dictation?: boolean;
   /** The workspace this is (DESIGN.md §4), and every workspace there is. Missing from servers before workspaces. */
   workspace?: { id: string; name: string };
   workspaces?: { id: string; name: string }[];

@@ -35,6 +35,8 @@ import { api, SignedOut, sync, type Snapshot } from "./sync";
 import { showToast } from "./toast";
 import { getWeekly, refreshWeekly } from "./weekly";
 import { send, undoable } from "./undo";
+import { recordLocation, wantsLocation } from "./location";
+import type { TicketHit } from "./tickets";
 import { workspaceId } from "./workspace";
 
 // Everything the UI reads (derived from the synced state) and every action it can take.
@@ -269,6 +271,18 @@ export interface Actions {
   moveToWeekly(sessionId: Id): void;
   /** ▶ on an existing task. */
   continueTask(taskId: Id, alongside?: boolean): void;
+  /** ▶ Travel: a new task with one running entry of the profile's "to the client" work type. No keyboard: you're leaving. */
+  startTravel(alongside?: boolean): Id | undefined;
+  /** 🚗 on a running entry: end it now and carry on as travel on the same task. */
+  travelEntry(sessionId: Id): Id | undefined;
+  /** Arrived on a travel entry: the work starts (a new entry), or coming back it just stops. */
+  arrived(sessionId: Id): void;
+  /** The task for a CW ticket: an existing one, else a new one (looked up in CW). */
+  taskForTicket(ticket: TicketHit): Id;
+  /** Start (or continue) work on a CW ticket found in search. */
+  startTicket(ticket: TicketHit, alongside?: boolean): void;
+  /** Put a ticket found in search on this task. */
+  linkTicket(taskId: Id, ticket: TicketHit): void;
   /** Stop the clock but keep the task on the Now stack; everything running if none given. */
   pause(sessionId?: Id): void;
   /**
@@ -330,6 +344,21 @@ export interface Actions {
 
 const coarse = () => window.matchMedia("(pointer: coarse)").matches;
 
+/** The profile's one-tap travel, with its work types as list item ids; null if it has none (or they're gone from the list). */
+export function travelOf(profile: Profile, view: State) {
+  const t = profile.travel;
+  const list = t && profile.fields.find((f) => f.key === t.field)?.list;
+  if (!t || !list) return null;
+  const items = Object.values(view.lists).filter((x) => x.list === list && !x.archived);
+  const id = (name?: string) => (name ? items.find((x) => x.name === name)?.id : undefined);
+  const to = id(t.to);
+  const from = id(t.from);
+  return to && from ? { field: t.field, to, from, arrive: id(t.arrive) } : null;
+}
+export type Travel = NonNullable<ReturnType<typeof travelOf>>;
+/** Whether this session is travel, either way. */
+export const isTravel = (t: Travel, s: Session) => s.fields[t.field] === t.to || s.fields[t.field] === t.from;
+
 /** A profile field's label ("Work type"), for naming an undo step. */
 const fieldLabel = (key: string) => sync.getSnapshot().config.profile.fields.find((f) => f.key === key)?.label ?? "Field";
 
@@ -382,9 +411,22 @@ export function useActionsFactory(): Actions {
         .sort((x, y) => Number(x.status === "archived") - Number(y.status === "archived") || y.updatedAt - x.updatedAt)[0];
       return { w, field, n, task };
     };
+    /** Where this entry starts or ends, if this device keeps that (location.ts). */
+    const stamp = (sessionId: Id, which: "start" | "end", travel = false) => {
+      if (wantsLocation(travel)) recordLocation(sessionId, which);
+    };
+    /** These running sessions are ending: stamp the ones this device stamps. */
+    const stampEnds = (ids?: Id[]) => {
+      const snap = sync.getSnapshot();
+      const t = travelOf(snap.config.profile, snap.view);
+      for (const s of Object.values(snap.view.sessions)) {
+        if (s.deleted || s.end !== null || (ids && !ids.includes(s.id))) continue;
+        stamp(s.id, "end", !!t && isTravel(t, s));
+      }
+    };
     const openSessionOf = (taskId: Id) =>
       Object.values(sync.getSnapshot().view.sessions).some((s) => !s.deleted && s.end === null && s.taskId === taskId);
-    return {
+    const actions: Actions = {
       notesRef,
       startNew(title = "", alongside = false, projectId = null) {
         const taskId = newId();
@@ -398,7 +440,84 @@ export function useActionsFactory(): Actions {
           newTask: { title, projectId },
           mode: alongside ? "alongside" : "switch",
         });
+        stamp(sessionId, "start");
         return sessionId;
+      },
+      startTravel(alongside = false) {
+        const snap = sync.getSnapshot();
+        const t = travelOf(snap.config.profile, snap.view);
+        if (!t) return undefined;
+        const taskId = newId();
+        const sessionId = newId();
+        activate(taskId);
+        focusNotes(false);
+        send({
+          type: "task.start",
+          taskId,
+          sessionId,
+          newTask: { title: "Travel", projectId: null },
+          mode: alongside ? "alongside" : "switch",
+          sessionFields: { [t.field]: t.to },
+        });
+        stamp(sessionId, "start", true);
+        return sessionId;
+      },
+      travelEntry(sessionId) {
+        const snap = sync.getSnapshot();
+        const t = travelOf(snap.config.profile, snap.view);
+        const s = snap.view.sessions[sessionId];
+        if (!t || !s || s.deleted || s.end !== null) return undefined;
+        // Work types say where you are: leaving onsite work is the way back.
+        const name = snap.view.lists[String(s.fields[t.field] ?? "")]?.name ?? "";
+        const id = newId();
+        send({
+          type: "task.start",
+          taskId: s.taskId,
+          sessionId: id,
+          mode: "alongside",
+          fresh: true,
+          sessionFields: { [t.field]: /onsite/i.test(name) ? t.from : t.to },
+        });
+        stamp(id, "start", true);
+        return id;
+      },
+      arrived(sessionId) {
+        const snap = sync.getSnapshot();
+        const t = travelOf(snap.config.profile, snap.view);
+        const s = snap.view.sessions[sessionId];
+        if (!t || !s || s.deleted || s.end !== null) return;
+        stamp(sessionId, "end", true);
+        if (s.fields[t.field] === t.from || !t.arrive) {
+          send({ type: "timer.stop", sessionId, taskId: s.taskId });
+          return;
+        }
+        const id = newId();
+        send({ type: "task.start", taskId: s.taskId, sessionId: id, mode: "alongside", fresh: true, sessionFields: { [t.field]: t.arrive } });
+        stamp(id, "start");
+      },
+      taskForTicket(ticket) {
+        const snap = sync.getSnapshot();
+        const field = snap.config.profile.connectwise?.ticketField;
+        const n = String(ticket.id);
+        const existing = field
+          ? Object.values(snap.view.tasks)
+              .filter((t) => !t.deleted && ticketNumber(String(t.fields[field] ?? "")) === n)
+              .sort((x, y) => Number(x.status === "archived") - Number(y.status === "archived") || y.updatedAt - x.updatedAt)[0]
+          : undefined;
+        if (existing) return existing.id;
+        const taskId = newId();
+        send({ type: "task.create", taskId, title: ticket.summary, projectId: null, fields: field ? { [field]: n } : {} });
+        void actions.lookupTicket(taskId);
+        return taskId;
+      },
+      startTicket(ticket, alongside = false) {
+        actions.continueTask(actions.taskForTicket(ticket), alongside);
+      },
+      linkTicket(taskId, ticket) {
+        const field = sync.getSnapshot().config.profile.connectwise?.ticketField;
+        if (!field) return;
+        send({ type: "task.update", taskId, patch: { fields: { [field]: String(ticket.id) } } });
+        void actions.lookupTicket(taskId);
       },
       startWeekly(alongside = false) {
         const weekly = findWeekly();
@@ -439,14 +558,18 @@ export function useActionsFactory(): Actions {
       continueTask(taskId, alongside = false) {
         activate(taskId);
         focusNotes(false);
-        send({ type: "task.start", taskId, sessionId: newId(), mode: alongside ? "alongside" : "switch" });
+        const sessionId = newId();
+        send({ type: "task.start", taskId, sessionId, mode: alongside ? "alongside" : "switch" });
+        stamp(sessionId, "start");
       },
       pause(sessionId) {
+        stampEnds(sessionId ? [sessionId] : undefined);
         send({ type: "timer.pause", sessionId });
       },
       newEntry(sessionId, fields) {
         const s = sync.getSnapshot().view.sessions[sessionId];
         if (!s || s.deleted || s.end !== null) return;
+        stampEnds([sessionId]);
         const id = newId();
         send({
           type: "task.start",
@@ -459,6 +582,10 @@ export function useActionsFactory(): Actions {
         return id;
       },
       stop(target) {
+        const running = Object.values(sync.getSnapshot().view.sessions).filter(
+          (s) => !s.deleted && s.end === null && (!target || s.id === target.sessionId || s.taskId === target.taskId),
+        );
+        stampEnds(running.map((s) => s.id));
         send({ type: "timer.stop", ...target });
       },
       addInbox(title, projectId, fields = {}) {
@@ -722,6 +849,7 @@ export function useActionsFactory(): Actions {
         send({ type: "settings.update", patch });
       },
     };
+    return actions;
   }, []);
 }
 

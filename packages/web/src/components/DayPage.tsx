@@ -1,12 +1,9 @@
 import {
-  DEFAULT_ENTRY_FORMAT,
   durationMs,
   firstLine,
   plainNote,
   startOfDay,
-  type EntryFormat,
   type FieldDef,
-  type FieldValue,
   type Id,
   type Ms,
   type Session,
@@ -15,12 +12,14 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { copyText } from "../clipboard";
 import { entryDate, entryHours, entryTime, hm, whenLabel } from "../format";
-import { bareText, fieldText, useA, useM, useNow, type Model, type TaskInfo } from "../model";
+import { fieldText, useA, useM, useNow, type TaskInfo } from "../model";
 import { CleanupButton } from "./Cleanup";
 import { DayCalendar } from "./DayCalendar";
+import { EntryList } from "./EntryList";
+import { CONTINUATION, copyValue, layout, useMedia } from "./entryLayout";
 import { addDays, DayNav } from "./DayNav";
 import { NewTicketButton } from "./CreateTicket";
-import { FieldInput, TicketInfo, ticketUrl } from "./fields";
+import { FieldInput, FindTicketButton, TicketInfo, ticketUrl } from "./fields";
 import { isUpdate, PushDialog, pushProblem } from "./PushDialog";
 import { Switcher } from "./Switcher";
 import { dateValue, dayPatch, defaultManualSpan, endPatch, SessionEditor, startPatch, timeValue } from "./SessionEditor";
@@ -33,11 +32,26 @@ import { undo, useUndoLabel } from "../undo";
 // formats come from the profile's entryFormat. With an integration (CW) the
 // values are edited in place; without one, click a value to copy it.
 // "Day" is one day's log; "To enter" is everything not yet marked entered, across days.
-// Built for the desktop's width; on a phone each row wraps into a small card.
+// The table is for a full-width window (LIST_BELOW); anything narrower, phone included, gets the
+// list in EntryList.tsx. The calendar is shown or hidden per device, and starts hidden unless
+// there's room for it and the table side by side.
 
 type Mode = "day" | "todo";
 
-const CONTINUATION = "Continuation of previous work";
+/** Below this the table doesn't fit: the list instead. */
+const LIST_BELOW = 1700;
+/** From here there's room for the calendar beside the table. */
+const CALENDAR_FROM = 1880;
+/** Whether this device wants the calendar; unset = by the window's width. */
+const CALENDAR_KEY = "sideshow:dayCalendar";
+function loadCalendar(): boolean | null {
+  try {
+    const v = localStorage.getItem(CALENDAR_KEY);
+    return v === null ? null : v === "1";
+  } catch {
+    return null;
+  }
+}
 
 /** Tasks whose sessions are hidden (collapsed) on this device. */
 const COLLAPSED_KEY = "sideshow:dayCollapsed";
@@ -50,34 +64,6 @@ function loadCollapsed(): Set<Id> {
 }
 const TIMES = new Set(["date", "start", "end", "hours"]);
 const TIME_LABELS: Record<string, string> = { date: "Date", start: "Start", end: "End", hours: "Hours" };
-
-/** The entry format, with the profile's fields split into task-level and per-entry. */
-function layout(m: Model) {
-  const fmt: EntryFormat = m.profile.entryFormat ?? {
-    ...DEFAULT_ENTRY_FORMAT,
-    // Without an entryFormat, every field the profile has.
-    fields: [...DEFAULT_ENTRY_FORMAT.fields, ...m.profile.fields.map((d) => d.key)],
-  };
-  const def = (k: string) => m.profile.fields.find((d) => d.key === k);
-  // The task's fields, the ticket first: they lead the table, filled in on each group's header row.
-  const taskFields = fmt.fields.map(def).filter((d): d is FieldDef => d?.on === "task");
-  const ticket = taskFields.filter((d) => d.key === m.profile.connectwise?.ticketField);
-  const taskDefs = [...ticket, ...taskFields.filter((d) => !ticket.includes(d))];
-  // Notes don't fit a table row in any useful way: they show on ✎ (hover) and in the push preview.
-  const columns = fmt.fields.filter((k) => k !== "notes" && (!def(k) || def(k)!.on === "session"));
-  // With an integration (CW) entries go there by push: the table is edited in place. Without one
-  // they're typed into the other system by hand, so its values copy with a click.
-  const editable = !!m.config.cw;
-  return { fmt, def, taskDefs, columns, target: fmt.target ?? "the other system", editable };
-}
-
-/** What a field copies as: a list item's name, a ticket # without its "#". An unset field with a default copies that. */
-function copyValue(m: Model, d: FieldDef, v: FieldValue | undefined): string {
-  v ??= d.default;
-  if (d.type === "text") return bareText(d, v);
-  if (d.type === "bool") return v ? "Yes" : "";
-  return fieldText(d, v, m.view);
-}
 
 /** What the Day page shows, for a dev note's "this page" ("Entries · Thu, Oct 29"). */
 export let dayPageShown = "Entries";
@@ -93,6 +79,33 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
   const [selectedId, setSelectedId] = useState<Id | null>(null);
   // A span dragged out on the calendar, waiting for a task to be picked.
   const [adding, setAdding] = useState<{ start: Ms; end: Ms } | null>(null);
+  // An entry whose editor should open (one just added, or moved to another day).
+  const [openId, setOpenId] = useState<Id | null>(null);
+  const asList = useMedia(`(max-width: ${LIST_BELOW - 1}px)`);
+  const roomForCalendar = useMedia(`(min-width: ${CALENDAR_FROM}px)`);
+  const [calendarChoice, setCalendarChoice] = useState(loadCalendar);
+  const showCalendar = mode === "day" && (calendarChoice ?? roomForCalendar);
+  const toggleCalendar = () => {
+    const next = !(calendarChoice ?? roomForCalendar);
+    setCalendarChoice(next);
+    try {
+      localStorage.setItem(CALENDAR_KEY, next ? "1" : "0");
+    } catch {
+      // Not remembered: fine for this visit.
+    }
+  };
+  // An entry moved to another day: go with it, in case there's more to change.
+  const movedDay = (sessionId: Id, to: Ms) => {
+    if (mode !== "day") return;
+    setDay(to);
+    setSelectedId(sessionId);
+    setOpenId(sessionId);
+  };
+  const toggleGroup = (taskId: Id) => {
+    const next = new Set(collapsed);
+    if (!next.delete(taskId)) next.add(taskId);
+    setCollapsed(next);
+  };
   // Pushing to CW: the ticked rows, and the sessions in the open push preview.
   const canPush = !!m.config.cwPush;
   const [checked, setChecked] = useState<Set<Id>>(() => new Set());
@@ -201,13 +214,22 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
           </button>
         </div>
         <button
-          className="btn subtle sm"
+          className="btn subtle sm day-undo"
           disabled={!undoLabel}
           onClick={undo}
           title={undoLabel ? `Undo: ${undoLabel} (Ctrl+Z)` : "Nothing to undo yet"}
         >
           ↶ Undo
         </button>
+        <button className="btn primary sm" onClick={() => setAdding(defaultManualSpan(mode === "day" ? day : null))} title="Add time you didn't track, on any day, to a task, a ticket or a new task">
+          + Add entry
+        </button>
+        {mode === "day" && (
+          <button className={`btn subtle sm ${showCalendar ? "btn-on" : ""}`} aria-pressed={showCalendar} onClick={toggleCalendar} title="Show or hide the day's calendar">
+            Calendar
+          </button>
+        )}
+        {collapseAll}
         {canPush && shownChecked.length > 0 && (
           <div className="push-bar" role="status">
             <strong>{shownChecked.length} selected</strong>
@@ -221,21 +243,19 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
         )}
         {mode === "day" ? (
           <DayNav day={day} onDay={setDay} now={now}>
-            {collapseAll}
             {list.length > 0 && <span className="day-total">Total {hm(total)}</span>}
           </DayNav>
         ) : (
           <div className="day-nav">
             <span className="muted small">Everything not yet entered in {target}, oldest first.</span>
             <span className="spacer" />
-            {collapseAll}
             {list.length > 0 && <span className="day-total">Total {hm(total)}</span>}
           </div>
         )}
       </div>
 
-      <div className={mode === "day" ? "day-split" : ""}>
-        {mode === "day" && (
+      <div className={showCalendar ? "day-split" : ""}>
+        {showCalendar && (
           <DayCalendar
             day={day}
             dayEnd={dayEnd}
@@ -248,9 +268,24 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
             onAdd={setAdding}
           />
         )}
-        {groups.length > 0 ? (
+        {groups.length > 0 && asList ? (
+          <EntryList
+            groups={groups}
+            now={now}
+            day={mode === "day" ? day : null}
+            showDate={mode !== "day"}
+            collapsed={collapsed}
+            onToggle={toggleGroup}
+            onOpenTask={onOpenTask}
+            onPush={setPushing}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            openId={openId}
+            onMovedDay={movedDay}
+          />
+        ) : groups.length > 0 ? (
           <div className="table-wrap">
-            <table className={`entries-table ${mode === "day" ? "one-day" : ""}`}>
+            <table className={`entries-table ${showCalendar ? "one-day" : ""}`}>
               <thead>
                 <tr>
                   {canPush && (
@@ -294,22 +329,31 @@ export function DayPage({ onClose, onOpenTask }: { onClose: () => void; onOpenTa
                   onCheck={toggleCheck}
                   onPush={setPushing}
                   collapsed={collapsed.has(g.info.task.id)}
-                  onToggle={() => {
-                    const next = new Set(collapsed);
-                    if (!next.delete(g.info.task.id)) next.add(g.info.task.id);
-                    setCollapsed(next);
-                  }}
+                  onToggle={() => toggleGroup(g.info.task.id)}
+                  openId={openId}
+                  onMovedDay={movedDay}
                 />
               ))}
             </table>
           </div>
         ) : (
           <p className="empty">
-            {mode === "todo" ? `Nothing left to enter in ${target}.` : "No time tracked that day. Drag across the calendar to add some."}
+            {mode === "todo" ? `Nothing left to enter in ${target}.` : "No time tracked that day. + Add entry puts some on it."}
           </p>
         )}
       </div>
-      {adding && <Switcher span={adding} onAdded={setSelectedId} onClose={() => setAdding(null)} />}
+      {adding && (
+        <Switcher
+          span={adding}
+          onAdded={(id, start) => {
+            // Show it wherever it landed, ready to fill in.
+            if (mode === "day") setDay(startOfDay(start));
+            setSelectedId(id);
+            setOpenId(id);
+          }}
+          onClose={() => setAdding(null)}
+        />
+      )}
       {pushing && (
         <PushDialog sessionIds={pushing} onClose={() => setPushing(null)} onDone={(ids) => toggleCheck(ids, false)} />
       )}
@@ -330,10 +374,15 @@ function EntryGroup({
   onPush,
   collapsed,
   onToggle,
+  openId,
+  onMovedDay,
 }: {
   info: TaskInfo;
   sessions: Session[];
   now: number;
+  /** Open this entry's editor (one just added, or moved here). */
+  openId: Id | null;
+  onMovedDay: (sessionId: Id, day: Ms) => void;
   /** The day being shown, for "+ Add time"; null in To enter. */
   day: Ms | null;
   onOpenTask: (taskId: Id) => void;
@@ -352,6 +401,9 @@ function EntryGroup({
   const [editingId, setEditingId] = useState<Id | null>(null);
   const [merging, setMerging] = useState(false);
   const [picked, setPicked] = useState<Set<Id>>(() => new Set());
+  useEffect(() => {
+    if (openId && sessions.some((s) => s.id === openId)) setEditingId(openId);
+  }, [openId]);
   const { def, taskDefs, columns, target, editable } = layout(m);
   const canPush = !!m.config.cwPush;
   const span = (canPush ? 2 : 0) + taskDefs.length + columns.length + 1;
@@ -392,6 +444,14 @@ function EntryGroup({
         ) : (
           <FieldInput def={d} value={fields[d.key]} resetKey={info.task.id} onChange={(v) => a.setTaskField(info.task.id, d.key, v)} />
         );
+      if (isTicket && !value) {
+        return (
+          <span className="ticket-field group-missing">
+            {input}
+            <FindTicketButton task={info.task} />
+          </span>
+        );
+      }
       if (!isTicket || !link) return <span className={value ? "" : "group-missing"}>{input}</span>;
       return (
         <span className="ticket-chip">
@@ -554,6 +614,7 @@ function EntryGroup({
           selected={selectedId === s.id}
           onSelect={() => onSelect(s.id)}
           picked={picked.has(s.id)}
+          onMovedDay={onMovedDay}
           onPick={() =>
             setPicked((prev) => {
               const next = new Set(prev);
@@ -619,9 +680,11 @@ function SessionRows({
   onSelect,
   picked,
   onPick,
+  onMovedDay,
 }: {
   session: Session;
   now: number;
+  onMovedDay: (sessionId: Id, day: Ms) => void;
   span: number;
   editing: boolean;
   onEdit: () => void;
@@ -669,7 +732,11 @@ function SessionRows({
         const save = (patch: SessionPatch | null) => patch && a.updateSession(s.id, patch);
         const box =
           k === "date" ? (
-            <input type="date" className="cell-input cell-time" aria-label={label} value={dateValue(s.start)} onChange={(e) => save(dayPatch(s, e.target.value))} />
+            <input type="date" className="cell-input cell-time" aria-label={label} value={dateValue(s.start)} onChange={(e) => {
+                const patch = dayPatch(s, e.target.value);
+                save(patch);
+                if (patch?.start !== undefined) onMovedDay(s.id, startOfDay(patch.start));
+              }} />
           ) : k === "start" ? (
             <input type="time" className="cell-input cell-time" aria-label={label} value={timeValue(s.start)} onChange={(e) => save(startPatch(s, e.target.value))} />
           ) : k === "end" ? (
@@ -844,7 +911,7 @@ function SessionRows({
       {editing && (
         <tr className="editor-row">
           <td colSpan={span}>
-            <SessionEditor session={s} onDone={onEdit} />
+            <SessionEditor session={s} onDone={onEdit} onMovedDay={(d) => onMovedDay(s.id, d)} />
           </td>
         </tr>
       )}

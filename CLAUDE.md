@@ -42,6 +42,7 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   CW is optional: the server enables it only when `CW_SITE` is set and the profile has a
   `connectwise` section (`config.cw` in `/api/state`; the UI hides CW features otherwise). `npm run dev` loads the root `.env`. Endpoint so far:
   `GET /api/cw/tickets/:id` → `{summary, company, companyId, closed}`;
+  `GET /api/cw/ticket-search?q=&companyId=&mine=1&closed=1` → service + project tickets (`ticketsearch.ts`);
   `GET /api/cw/boards` → service boards with types/statuses + the owner;
   `POST /api/cw/tickets {taskId, summary, boardId, typeId?, statusId?, assign, description?,
   pushSessionIds?}` → `{ticketId, pushed?}` (`tickets.ts`; writes the number onto the task, then
@@ -82,6 +83,8 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   `web/src/workspace.ts` (`workspaceId`, `wsKey()` for per-workspace localStorage; main keeps
   the old keys), switching reloads. `/api/ops` refuses a batch whose `workspace` differs (409).
   Tests: `workspaces.test.ts` (incl. the CW → none → CW round trip).
+- **Dialogs render into `document.body`** (`Dialog.tsx`, a portal): a CSS container above one
+  could hold a fixed overlay inside its box.
 - **Notifications** (DESIGN.md §7, 2026-10-31): Web Push. `server/src/push.ts` (VAPID keys +
   subscriptions in `data/push.json`, not per workspace; watches each workspace's store and
   pushes what's running when it changes, reminders every minute; `/api/push[/subscribe|
@@ -136,7 +139,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 - Blips (< `settings.blipSec`, default 30 s; no notes; not the task's only session) are discarded
   when they end.
 - A task ▶ New made, stopped (`timer.stop`, not pause) with its only session note-less, is
-  dropped (`dropIfEmpty`), however long it ran. Inbox tasks, descriptions, entered/pushed stay.
+  dropped (`dropIfEmpty`), however long it ran. Inbox tasks, descriptions, entered/pushed stay,
+  and so does anything with a ticket, company or work type chosen (a location stamp doesn't count).
 - `session.move` moves a session to another task (WRIT on the running card); the task it leaves goes the same way.
 - Continuing a task within `settings.resumeGapMin` (default 10) of its last session reopens it,
   unless `task.start` has `fresh` (New entry): that always makes a new session, ending the task's
@@ -186,7 +190,24 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-11-02)
+## Status (2026-11-04)
+
+- **Built 2026-11-04 from Evan's list of what keeps him from reaching for the app.** ▶ Start on the idle card (typing no longer starts the clock); the phone
+  toolbar works (WebKit drops a tap's click if `pointerdown` is cancelled, so use `onMouseDown`;
+  Edge's touch emulation doesn't show this, Playwright's WebKit does) and fits (no U or link there);
+  notes start at two lines; no dashed or dotted outlines anywhere; **find a ticket** in CW (§10);
+  **+ Add entry** and following an entry to another day; Entries as a **list** under 1700 px
+  (`EntryList.tsx`), calendar a toggle; **🚗 Travel / Arrived** with **location stamps** (§7,
+  `location.ts`, profile `travel`); **🎙 dictation** via `gpt-transcribe` (§11); the always-on-top
+  **mini window** (§7, `MiniWindow.tsx`).
+  **Not yet seen for real, ask how they went:** all of it on the iPhone (the keyboard coming up from
+  ▶ Start with the notes box hidden; the mic and location prompts; whether the status bar fade is
+  gone, which is a best guess: iOS draws it, so `--top-inset` adds room in the installed app);
+  ticket search against live CW, project tickets above all; dictation with a real key (needs
+  `OPENAI_API_KEY` on the mini PC; quality is the point of it, so ask).
+  Evan is weighing M9 (Tauri); suggested after a few days with the mini window, to see what it
+  still lacks. Browser checks can now use WebKit too: `PLAYWRIGHT_BROWSERS_PATH=<scratch> npx playwright-core
+  install webkit`.
 
 - **2026-11-02:** the tab title and Home Screen name are "Sideshow" (the header's wordmark
   stays lowercase, Evan's choice). Evan's dev notes of the day are sorted into the backlog

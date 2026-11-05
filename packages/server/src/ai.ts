@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import OpenAI from "openai";
+import OpenAI, { toFile } from "openai";
 import {
   AI_MODELS,
   cleanupInput,
@@ -9,6 +9,8 @@ import {
   DEFAULT_AI,
   modelInfo,
   monthOf,
+  TRANSCRIBE_MODEL,
+  TRANSCRIBE_USD_PER_MIN,
   type AiProvider,
   type AiSettings,
   type AiTemplates,
@@ -16,6 +18,8 @@ import {
   type AiUsage,
   type CleanupResult,
 } from "@sideshow/shared";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { loadTemplates, TEMPLATES_DIR } from "./aiTemplates";
 import type { DB } from "./db";
 
@@ -63,6 +67,29 @@ export function providersFromEnv(env: NodeJS.ProcessEnv = process.env): Partial<
   };
 }
 
+/** Speech to text: audio and the words to listen for in, text out. */
+export type Transcribe = (audio: { data: Uint8Array; type: string }, hints: { prompt: string; keywords: string[] }) => Promise<string>;
+
+/** A file name the API accepts, from what the browser recorded (the iPhone's is mp4). */
+const AUDIO_EXT: Record<string, string> = { "audio/webm": "webm", "audio/mp4": "mp4", "audio/ogg": "ogg", "audio/mpeg": "mp3", "audio/wav": "wav", "audio/x-m4a": "m4a" };
+
+/** Dictation needs an OpenAI key (Anthropic has no speech to text). */
+export function transcriberFromEnv(env: NodeJS.ProcessEnv = process.env): Transcribe | null {
+  if (!env.OPENAI_API_KEY) return null;
+  const client = new OpenAI({ apiKey: env.OPENAI_API_KEY });
+  return async (audio, hints) => {
+    const type = audio.type.split(";")[0]!;
+    const file = await toFile(audio.data, `dictation.${AUDIO_EXT[type] ?? "webm"}`, { type });
+    const res = await client.audio.transcriptions.create({
+      file,
+      model: TRANSCRIBE_MODEL,
+      prompt: hints.prompt,
+      ...(hints.keywords.length ? { keywords: hints.keywords } : {}),
+    });
+    return res.text;
+  };
+}
+
 /** A provider's error, short enough to show and log. */
 function errorNote(err: unknown): string {
   if (err instanceof Anthropic.APIError || err instanceof OpenAI.APIError) return `${err.status ?? ""} ${err.message}`.trim().slice(0, 200);
@@ -74,7 +101,53 @@ export class Ai {
     private db: DB,
     private providers: Partial<Record<AiProvider, Ask>>,
     private templatesDir = TEMPLATES_DIR,
+    private transcriber: Transcribe | null = null,
   ) {}
+
+  /** Dictation can be used: there's a key for it. */
+  canTranscribe(): boolean {
+    return !!this.transcriber;
+  }
+
+  /** The words dictation should get right, from dictation-words.txt (read each time, like the templates). */
+  dictationWords(): string[] {
+    try {
+      return readFileSync(join(this.templatesDir, "dictation-words.txt"), "utf8")
+        .split(/\r?\n/)
+        .map((l) => l.replace(/#.*/, "").trim())
+        .filter(Boolean);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Audio to text, for dictation. Under the same switch and monthly cap as cleanup, and in the same
+   * usage log. Throws AiStopped when it can't run; a provider's error is recorded and rethrown.
+   */
+  async transcribe(audio: { data: Uint8Array; type: string }, opts: { seconds: number; words?: string[]; context?: string }): Promise<string> {
+    if (!this.transcriber) throw new AiStopped("Dictation needs OPENAI_API_KEY on the server (.env)");
+    const ai = this.settings();
+    if (ai.model === "off") throw new AiStopped("AI is off (Settings › AI)");
+    if (ai.monthlyLimitUsd !== null && this.monthSpend() >= ai.monthlyLimitUsd) throw new AiStopped(`This month's $${ai.monthlyLimitUsd} cap is spent (Settings › AI)`);
+    const started = Date.now();
+    const record = (cost: number, ok: boolean, note: string) =>
+      this.db
+        .prepare(
+          "INSERT INTO ai_usage (at, month, model, purpose, input_tokens, output_tokens, cache_read_tokens, cost_usd, ok, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        )
+        .run(started, monthOf(started), TRANSCRIBE_MODEL, "dictation", 0, 0, 0, cost, ok ? 1 : 0, note);
+    const keywords = [...new Set([...this.dictationWords(), ...(opts.words ?? [])])].slice(0, 100);
+    const prompt = `Spoken work notes from an IT technician at a managed service provider.${opts.context ? ` Working on: ${opts.context}.` : ""}`;
+    try {
+      const text = await this.transcriber(audio, { prompt, keywords });
+      record((Math.max(opts.seconds, 0) / 60) * TRANSCRIBE_USD_PER_MIN, true, `${Math.round(opts.seconds)} s`);
+      return text;
+    } catch (err) {
+      record(0, false, errorNote(err));
+      throw err;
+    }
+  }
 
   /** The templates as the files say now (they're read every time); throws AiStopped if they're wrong. */
   templates(): AiTemplates {

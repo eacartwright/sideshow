@@ -5,6 +5,7 @@ import { useA, useM } from "../model";
 import { FONTS, fontChoice, loaded, setFont, type FontSlot } from "../fonts";
 import { ALL_SANS } from "../fonts-sans";
 import { setThemePref, themePref, type ThemePref } from "../theme";
+import { locationMode, setLocationMode, type LocationMode } from "../location";
 import { Dialog } from "./Dialog";
 import { WorkspaceSettings } from "./WorkspaceSettings";
 import { ConnectionSettings } from "./ConnectionSettings";
@@ -123,6 +124,7 @@ function GeneralSettings({ onClients }: { onClients: () => void }) {
     <>
       <h3 className="settings-group">On this device</h3>
       <ThemeSetting />
+      {m.profile.travel && <LocationSetting />}
 
       <h3 className="settings-group">On every device</h3>
 
@@ -163,6 +165,40 @@ function GeneralSettings({ onClients }: { onClients: () => void }) {
         session already marked entered is never reopened.
       </Setting>
     </>
+  );
+}
+
+const LOCATION: { value: LocationMode; label: string }[] = [
+  { value: "off", label: "Off" },
+  { value: "travel", label: "Travel" },
+  { value: "all", label: "Every entry" },
+];
+
+function LocationSetting() {
+  const [mode, setMode] = useState(locationMode);
+  return (
+    <section className="setting">
+      <span className="setting-label" id="location-label">
+        Location
+      </span>
+      <span className="segmented" role="group" aria-labelledby="location-label">
+        {LOCATION.map((o) => (
+          <button
+            key={o.value}
+            type="button"
+            className={`seg ${mode === o.value ? "seg-on" : ""}`}
+            aria-pressed={mode === o.value}
+            onClick={() => {
+              setMode(o.value);
+              setLocationMode(o.value);
+            }}
+          >
+            {o.label}
+          </button>
+        ))}
+      </span>
+      <p className="muted small setting-help">Note where this device is when an entry starts and stops, so you can see when you left and where you were. Only at those moments, not in between.</p>
+    </section>
   );
 }
 

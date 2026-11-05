@@ -9,15 +9,25 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 ## Inbox
 
 Dev notes of 2026-11-02 (🧪 on the live site), sorted here; each is marked with that date.
-Folded into existing items: the ticket pickers, travel / GPS, the notes toolbar on the phone.
+Folded into existing items: the ticket pickers, travel / GPS. (Those two, and the phone toolbar,
+were built 2026-11-04.)
 - **AI summary of an existing ticket (2026-11-02).** On a linked task, ✨ Summarize: fetch the
   ticket's description and notes from CW and have the AI model sum them up (where it stands,
   what's been tried, what's next). Same providers and settings as note cleanup (DESIGN.md
   §11); probably its own template in `server/ai-templates/`. Pin down: shown where (Task
   details?), kept or redone each time.
-- **Running sessions in the Entries view (2026-11-02).** Mark rows still running (a ▶ / pulse
-  and a live duration) so they aren't mistaken for finished time, and so pushing one is
-  clearly early.
+- **Running sessions in the Entries view (2026-11-02).** The list marks them ("running", built
+  2026-11-04); the full table doesn't yet.
+- **The running card on a phone, still crowded (2026-11-04).** Four rows of controls above the
+  notes. Evan's words: "editing is close but things are messy and crowded". Worth looking at
+  with him once he's used the new Start and Travel: maybe company + ticket on one line, with
+  notes-to, WRIT and New entry folded away.
+- **Dictation, live as you speak (2026-11-04, maybe).** Today's 🎙 gives the text when you stop.
+  `gpt-live-transcribe` could show words as they come, at about four times the price. Only if
+  waiting turns out to bother him.
+- **Location, next steps (2026-11-04, maybe).** Addresses instead of coordinates (needs a geocoding
+  service; decide what's sent where), a day's stamps on the calendar, and arrive/leave detection
+  through iOS Shortcuts automations (M10).
 - **Collapse pushed (2026-11-02).** On the Day page / Entries, a group whose sessions are all
   pushed starts collapsed, so what's left to do stands out. A group you open stays open.
 - **More work types (2026-11-02).** Research & Development, Service Coordination, others. A
@@ -115,9 +125,7 @@ Folded into existing items: the ticket pickers, travel / GPS, the notes toolbar 
 - **Delete, the rest (2026-10-12).** Tasks without a ticket # can be deleted (Task details).
   Still to do: projects (proposed: their tasks and subprojects move up to the parent), tasks
   with a ticket or pushed time (warn; their CW entries stay), and notes once M8 Notes exist.
-- **Ticket and project-ticket picker (2026-10-12, M5/M6), next.** See the
-  Ticket search window and Track a CW project below. Asked again 2026-11-02 (dev note):
-  "project and project-ticket picker, and service ticket picker".
+- **Ticket picker: built 2026-11-04** (DESIGN.md §10). Left: Track a CW project below.
 - **Rich notes, follow-ups (2026-10-13).** Built: the editor, attachments, push to CW
   (DESIGN.md §7 "Rich notes", §10 "Attachments on push").
   - Check on the iPhone: ▶ New still raises the keyboard (the notes field is now an editor).
@@ -127,8 +135,6 @@ Folded into existing items: the ticket pickers, travel / GPS, the notes toolbar 
   - The editor made the app's script ~820 kB (256 kB gzipped); load it lazily if the phone
     feels slower to start.
   - Project descriptions are still plain text boxes.
-  - Show / hide the toolbar on the phone (2026-11-02, dev note): a toggle to fold it away for
-    room. The running card already shows it only while the notes have focus.
 
 - **Edit the profile in the app (later).** Fields, lists and the entry format from Settings,
   instead of editing the profile JSON in the repo.
@@ -143,19 +149,6 @@ Items marked **(?)** need a word from Evan on what was meant before building.
 
 ## Soon — with the CW milestones (M4–M6)
 
-- **Travel quick buttons (M5).** One tap to add a travel session / set the travel work type.
-  Pin down: does it add a separate session, and with which work type(s) and default length?
-  2026-11-02 (dev notes): a **Start traveling** button, and travel **with GPS location**
-  (where from / to, maybe distance). Location needs https (the live site has it, not the LAN
-  address) and a permission prompt; on the iPhone it's only read while the app is open, so
-  arriving can't be detected in the background. Decide what the location is for (the note,
-  mileage, picking the company) before building.
-
-- **Ticket search window (M5, larger).** A dense results window for finding the right ticket:
-  search all open tickets at minimum, and closed ones too, since the work may belong to a
-  closed ticket. Results offer **Track** (DESIGN.md §10, Tracked vs. findable). Ties in with
-  §10 "suggest likely existing tickets". On desktop this may mean a more information-dense
-  layout overall; design it before building.
 - **Track a CW project (M6).** Search CW projects, track one, pick which of its tickets to
   track, with the template tickets (Project Coordination, Client Communication, In-house
   Preparation) preselected by name from the profile.

@@ -44,6 +44,14 @@ export interface CwTicket {
   closedFlag?: boolean;
 }
 
+/** A ticket as the app's search asks for it. */
+export interface CwSearchTicket extends CwTicket {
+  /** Who's assigned, comma-separated member identifiers. */
+  resources?: string;
+  project?: CwRef;
+  phase?: CwRef;
+}
+
 export interface CwMember {
   id: number;
   identifier: string;
@@ -314,6 +322,16 @@ export class ConnectWiseClient {
   /** e.g. `summary like "%TEST%"` or `company/id=20021`. Newest first. */
   findTickets(conditions: string, pageSize = 25) {
     return this.get<CwTicket[]>("/service/tickets", { conditions, pageSize, orderBy: "id desc" });
+  }
+
+  /** Tickets of one kind for the app's search (ticketsearch.ts). Newest first, only what a result row shows. */
+  searchTickets(kind: "service" | "project", conditions: string, pageSize: number) {
+    return this.get<CwSearchTicket[]>(`/${kind}/tickets`, {
+      conditions,
+      pageSize,
+      orderBy: "id desc",
+      fields: `id,summary,recordType,company/id,company/name,board/name,status/name,closedFlag,owner/identifier,resources${kind === "project" ? ",project/name,phase/name" : ""}`,
+    });
   }
 
   getTicketNotes(ticketId: number) {

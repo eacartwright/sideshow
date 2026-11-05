@@ -245,7 +245,9 @@ Derived: **duration** = end − start − deduct.
   deleted (task and session, as a tombstone) when it's **stopped**, however long it ran, with no
   Undo (Evan's call). Pausing or switching away doesn't drop it (it stays on the Now stack to
   come back to), but stopping it later does. Kept: tasks made beforehand (Inbox: created before
-  the session started), ones with a description, and sessions entered or pushed.
+  the session started), ones with a description, sessions entered or pushed, and (2026-11-04)
+  anything with a choice made on it: a ticket, a company or a work type. ▶ Travel's entry is all
+  time and no notes. A location stamp alone doesn't count.
 - **Resume, don't fragment**: continuing a task within 10 minutes of its last session ending
   reopens that session instead of starting a new one, so bouncing between tasks doesn't produce a
   pile of tiny entries. (Both thresholds are **Settings** (⚙ in the header), synced so every device
@@ -341,8 +343,10 @@ kept three copies of "what's running," and they drifted apart. Here there is onl
 
 ### The core flow
 
-1. **Press ▶.** The exact date/time is recorded, a new task starts, and a **note field opens with
-   the cursor in it**. No title or client is needed yet.
+1. **Press ▶ Start.** The exact date/time is recorded, a new task starts, and a **note field opens with
+   the cursor in it**. No title or client is needed yet. (Until 2026-11-04 typing into an empty box
+   also started the clock. Evan found that made the clock depend on writing something, so with
+   nothing running the card shows ▶ Start, ⌕ Ticket or task and 🚗 Travel, and no box to type in.)
 2. **Type what you're doing** (desk keyboard, phone, dictation). Leave it running while you
    work. Come back and add to it whenever you can. Notes save as you type.
 3. **Pivot: press ▶ again.** The current session stops at that instant, a new task starts, and a
@@ -433,7 +437,19 @@ pressing ▶ New.
 
 ### Day page (M3)
 
-Built for the desktop (§2, principle 7). Opened with **Entries** / Alt+E, full width:
+Opened with **Entries** / Alt+E. Two forms of one page (2026-11-04): the **table** below from a
+1700 px wide window up, and under that a **list** (`EntryList.tsx`), the phone and a desktop
+window sharing the screen alike, because the table needs nearly a whole monitor. A list row says
+when, how long, what and the note's first line, with Push… beside it; tapping it opens the
+session editor, where everything else is (date, deduct, notes to, email, mark entered, move,
+delete). From about 720 px the row also has the work type and billing, since they're what's
+usually left to fill in. The calendar is a toggle per device, on by default from 1880 px.
+
+**+ Add entry** (2026-11-04) adds time on any day without a dummy task: date, start and end, then
+a task, a ticket from CW or a new task. The page goes to that day with its editor open. Changing
+an entry's date anywhere on the Day tab takes the page along with it, editor still open.
+
+The table:
 
 ```
 Day  ‹ Fri 10/09/2026 ›  Today                         [ Day | To enter ]    7h 45m
@@ -505,7 +521,7 @@ at now; layout in `calendar.ts`, tested); (3) drag to move and resize (**done** 
 mouse and pen: a press becomes a drag after 4 px, so a click still selects; Esc cancels; the
 drop shows a toast with Undo (see Undo below), which also restores "entered"; a session that crosses midnight
 isn't draggable; touch only selects for now); (4) drag across empty space to add time
-(**done** 2026-10-10: a dashed ghost shows the span; the switcher opens as "Add 3:00 PM–3:45 PM
+(**done** 2026-10-10: a ghost block shows the span; the switcher opens as "Add 3:00 PM–3:45 PM
 to…"; a new title makes a new task; the new session is selected). Left for later: dragging on
 touch screens (docs/backlog.md).
 
@@ -590,6 +606,37 @@ list, to paste into a work session.
   not yet.
 - Deleting is soft (archive) by default. Hard delete requires confirmation.
 - Undo for this device's recent changes (see Undo, above).
+
+### Travel and location (2026-11-04)
+
+**🚗 Travel** starts a running entry in one tap: work type *Travel - To Client* (with its billing
+default) on a new task titled Travel, with no keyboard. Pick the ticket whenever; the work type
+stays. On a running entry, Travel ends it and continues as travel on the same task (from an
+*Onsite* entry that means *From Client*). While traveling the card has a big **Arrived**, which
+ends the travel and starts *Onsite - Business Hours* on the same task at the same instant (coming
+back it says **Back** and stops), and **⇄** for the other direction, which doesn't ask "new
+entry?". The names come from the profile's `travel` section, so a job without travel has no
+button. Alt+T does it on a desktop.
+
+**Location stamps**: where the device is when an entry starts and stops, kept in
+`session.ext.geo` and shown in the session editor as links to the map, for "when did I leave,
+and where was I?". Settings › General, per device: Off, Travel (the default) or Every entry.
+Only stamps, no trail: **a web app can't read the location while it's closed**, so it can't
+notice you leaving by itself. Continuous tracking needs a native app (M9 and later), or iOS
+Shortcuts automations (arrive/leave a saved place) calling an endpoint, which could fit with M10.
+Coordinates only so far; turning them into addresses means sending them to a geocoding service,
+which hasn't been decided.
+
+### The mini window (2026-11-04)
+
+Evan's screens are full, so the app is out of sight and he forgets to use it. The header's mini
+window button (Chrome and Edge, desktop) opens a small window that **floats above every other
+app** (Document Picture-in-Picture, `MiniWindow.tsx`): each running task's clock, title, Pause
+and Stop, a one-line box that adds to its notes on Enter, and paused tasks with ▶; with nothing
+running, ▶ Start and ⌕ Find. Tapping a title brings the full app forward on that task. It's the
+same page drawn in a second window, so it needs no sync of its own, and it closes with the tab
+that opened it. It has to be opened with a click (browsers don't allow it on load). M9 (Tauri)
+stays the way to get global hotkeys and a window that outlives the tab.
 
 ### Notifications (2026-10-31)
 
@@ -774,6 +821,16 @@ folders stay `.env`-only: a wrong value there locks you out.
 
 - **Client mapping**: CW has duplicates (active / lead / former…). Filter to active client types
   and map each local client to one CW company **once**.
+- **Finding a ticket** (built 2026-11-04, `ticketsearch.ts`, `TicketPicker.tsx`, `GET
+  /api/cw/ticket-search`): **⌕** beside every ticket field opens a picker: a search box (a number,
+  or words from the summary, company or project), a Company filter, Mine / Everyone's, Closed too.
+  Service and project tickets in one list, project ones under their project and phase. Picking
+  puts it on the task. **Find** (and ▶'s "Ticket or task") lists your open tickets with nothing
+  typed and matches as you type, after your own tasks; picking starts it, reusing a task already
+  on that ticket. Searched live, nothing imported but what's picked (Tracked vs. findable, above);
+  a pick is tracked at once rather than asking. "Mine" is owner or `resources`. If one kind of
+  ticket fails, the other still shows, with a note. **Not yet tried against the live CW**: only a
+  fake, so the conditions on `/project/tickets` are the first thing to check.
 - **Ticket # workflow** (works today): find the ticket in CW manually, paste its number into the
   task → once you leave the field (2026-10-29; it was 0.8 s after typing stopped), sideshow fetches the summary + company (the summary becomes the task's title,
   replacing whatever it was), and from then on **pushes each of that task's
@@ -965,6 +1022,15 @@ below. **Use these notes** replaces the notes; the raw ones are kept on the sess
 (`ext.ai.raw`, the first ones if it's cleaned up twice) and **Restore the original**, under the
 notes, puts them back. Undo works too. Pushing sends whatever the notes say then.
 
+- **Dictation** (🎙, built 2026-11-04, `web/src/dictation.ts`, `POST /api/ai/transcribe`): the
+  iPhone keyboard's dictation is the phone's own and an app can't improve it, so this records in
+  the app and has the server transcribe the audio with OpenAI's `gpt-transcribe` ($0.0045 a minute,
+  checked 2026-11-04; `gpt-4o-transcribe` is deprecated). It's told the words to expect: the task's
+  title, the companies on your tasks, and `ai-templates/dictation-words.txt`, which is yours to add
+  to. Tap to record, tap to stop; the text lands at the cursor a moment later, not as you speak.
+  A failed send keeps the recording, with Try again. Needs `OPENAI_API_KEY`, follows AI off and the
+  monthly cap, and shows in the usage log. **Audio goes to OpenAI**, as notes do with ✨ (Evan's OK
+  2026-11-04: nothing sensitive gets dictated). Not kept by sideshow. Then ✨ tidies the text as usual. Works over https only (the live site, localhost).
 - **Two providers** (Evan wants to try both): Anthropic (Claude) and OpenAI (GPT), each on when
   the server has its key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in `.env`; never sent to the
   browser). Models, with list prices checked on both providers' pages on 2026-10-29
@@ -1010,7 +1076,7 @@ entries comes first. **M4 is built and pushed live (test ticket #106745); next i
 | **M2** | Projects & profiles | **Done** 2026-10-10 | Projects (any depth) with tasks under them, and a Projects view. The profile engine (§4): field types, the `fields` blob, one active profile, `entryFormat` driving Time entries. Client, work type and ticket # moved out of core columns into the CW profile (a migration), with no change in what I see. With no profile, the app is a plain task and time tracker. Billing field with defaults per work type. |
 | **M3** | Day page & calendar | **Done** 2026-10-10 on the desktop; touch dragging is in the backlog | The Day page (§7): calendar and entries table side by side, drag to move/resize, drag across empty space to add time, visible gaps, segmented billing control. |
 | **M4** | CW write | **Done** 2026-10-10 | Push sessions as time entries from the Day page (one, a ticket's, or ticked ones) through a preview; notes Internal / Discussion; email per entry, off by default; edits update the same CW entry; ticket # links to CW (§10). |
-| **M5** | CW tickets & lists | Started: ticket lookup done | Ticket lookup (done). Live CW ticket search with **Track**. Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
+| **M5** | CW tickets & lists | Started: ticket lookup and search done (search not yet tried live) | Ticket lookup (done). Live CW ticket search (done 2026-11-04; a pick is tracked straight away). Client mapping (local client → one CW company, coping with duplicates). Work-type sync with billing defaults. |
 | **M6** | CW projects | Not started | CW project search, Track with ticket picking and template preselection, the sidebar with CW Tickets / CW Projects views and a Client page. |
 | **M7** | AI note cleanup | **Built** 2026-10-29, Claude and GPT (§11) | Clean-up button with template. |
 | **M8** | Notes | Not started | Markdown Notes, standalone or on a project, tied to a client with CW; line → inbox task (§5, Notes). |

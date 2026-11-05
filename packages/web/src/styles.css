@@ -1,5 +1,8 @@
 /* Design tokens. Every color in the app comes from here. */
 :root {
+  /* Room at the top of the screen. An installed iPhone app gets more than the safe area says:
+     iOS draws a soft fade under the status bar, over whatever's there, reaching past it. */
+  --top-inset: env(safe-area-inset-top, 0px);
   color-scheme: light;
   --bg: #f4f5f7;
   --surface: #ffffff;
@@ -67,6 +70,11 @@
 
 * {
   box-sizing: border-box;
+}
+@media (display-mode: standalone) and (pointer: coarse) {
+  :root {
+    --top-inset: calc(env(safe-area-inset-top, 0px) + 16px);
+  }
 }
 html {
   /* Room for the scrollbar even before there is one, so the layout doesn't shift. */
@@ -202,7 +210,7 @@ select:focus {
   min-height: var(--control);
   padding: 0 12px;
   border-radius: var(--control-radius);
-  border: 1.5px dashed var(--border-strong);
+  border: 1.5px solid var(--border);
   background: transparent;
   color: var(--muted);
   font-weight: 600;
@@ -228,7 +236,7 @@ select:focus {
 }
 .select.unset {
   color: var(--muted);
-  border-style: dashed;
+  border-color: var(--border);
 }
 
 /* ---- header / action bar ---- */
@@ -237,7 +245,7 @@ select:focus {
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
-  padding-top: calc(12px + env(safe-area-inset-top, 0px));
+  padding-top: calc(12px + var(--top-inset));
 }
 .app-header h1 {
   font-family: var(--font-brand, var(--font));
@@ -367,7 +375,6 @@ select:focus {
   gap: 8px;
   padding: 8px 10px;
   border-color: var(--paused);
-  border-style: dashed;
   background: var(--paused-bg);
 }
 .pause-mark {
@@ -420,8 +427,6 @@ select:focus {
   border-radius: 6px;
   background: none;
   color: inherit;
-  text-decoration: underline dotted;
-  text-underline-offset: 3px;
   cursor: pointer;
 }
 .since-btn:hover {
@@ -522,8 +527,39 @@ textarea.title-input {
   background: var(--bg);
   line-height: 1.55;
 }
-.is-idle .notes {
-  min-height: 6rem;
+/* Nothing running: no notes box, so nothing suggests typing starts anything. It stays rendered
+   (not display:none) because Start focuses it inside the tap, which raises the iPhone keyboard. */
+.now.is-idle {
+  position: relative;
+}
+.is-idle .rich.notes {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.idle-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.idle-actions .btn {
+  min-height: 44px;
+  justify-content: center;
+}
+.idle-actions .idle-start {
+  flex: 1 1 100%;
+  min-height: 52px;
+  font-size: 1.15rem;
+}
+.idle-actions .btn:not(.idle-start) {
+  flex: 1 1 0;
+  white-space: nowrap;
 }
 
 .now-stack {
@@ -547,8 +583,7 @@ textarea.title-input {
   gap: 8px;
   flex-wrap: wrap;
 }
-/* A quiet action. Solid: a dashed outline means a field that isn't set yet (+ Client, an empty
-   work type), and an action can't be "set". */
+/* A quiet action. */
 .btn.subtle {
   border-color: var(--border);
   color: var(--muted);
@@ -659,10 +694,8 @@ textarea.title-input {
   flex-wrap: wrap;
   gap: 6px;
 }
-/* The company filter is a control, not a field still to fill in: solid, not dashed. Blue while
-   a company is picked. */
+/* The company filter is a control, not a field still to fill in. Blue while a company is picked. */
 .company-filter .chip {
-  border-style: solid;
   /* Like the date box beside it on Day. */
   background: var(--surface);
 }
@@ -850,7 +883,7 @@ textarea.title-input {
   /* Phone: dialogs become full-height sheets. */
   .backdrop {
     padding: 0;
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: var(--top-inset);
   }
   .dialog {
     max-width: none;
@@ -1231,7 +1264,7 @@ textarea.title-input {
   margin: 0;
 }
 .hold-removed {
-  border-style: dashed;
+  opacity: 0.65;
 }
 .hold-head {
   display: flex;
@@ -1749,10 +1782,10 @@ textarea.title-input {
 .cell-time:not(:hover):not(:focus)::-webkit-calendar-picker-indicator {
   opacity: 0;
 }
-/* Unset: a dashed box, like the other fields still to fill. */
+/* Unset: a quiet box, like the other fields still to fill. */
 .group-missing .cell-input,
 .cell-ref:placeholder-shown {
-  border: 1.5px dashed var(--border-strong);
+  border: 1.5px solid var(--border);
 }
 
 /* Click to copy. The value is the button; "Copied ✓" flashes over it. */
@@ -1850,7 +1883,6 @@ textarea.title-input {
   background: var(--surface);
 }
 .segmented.unset {
-  border-style: dashed;
   border-color: var(--warn);
 }
 .seg {
@@ -2051,7 +2083,7 @@ textarea.title-input {
   display: flex;
   align-items: flex-start;
   padding: 3px 6px;
-  border: 2px dashed var(--block-edge);
+  border: 2px solid var(--block-edge);
   border-radius: 6px;
   background: var(--block-bg);
   font-size: 0.8rem;
@@ -3059,6 +3091,22 @@ p.picker-footer {
   .rich.toolbar-on-focus:not(:focus-within) .rich-toolbar {
     display: none;
   }
+  /* What a phone has room for (bold, italics, the lists, a file, a picture). */
+  .rich-btn.desk-only {
+    display: none;
+  }
+  .rich-sep {
+    margin: 0 1px;
+  }
+  /* Two lines of empty box, not a big empty slab; it grows as you write. */
+  .rich.notes,
+  .rich.description {
+    min-height: 0;
+  }
+  .rich-content {
+    min-height: calc(2 * 1.55em + 24px);
+    line-height: 1.55;
+  }
 }
 
 /* A time with its "now" clock beside it (session editor). */
@@ -3116,7 +3164,7 @@ p.picker-footer {
 /* A note's picture over the page (Lightbox.tsx). Above dialogs, since it opens from them. */
 .backdrop.lightbox {
   z-index: 60;
-  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  padding: var(--top-inset) 0 env(safe-area-inset-bottom, 0px);
   background: var(--lightbox-scrim);
   flex-direction: column;
   align-items: stretch;
@@ -3325,4 +3373,443 @@ p.picker-footer {
 .conn-ok {
   color: var(--running);
   font-weight: 600;
+}
+
+/* ---- Finding a ticket (TicketPicker.tsx, and the switcher) ---- */
+.ticket-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.ticket-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ticket-closed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--control);
+}
+.ticket-hit {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  text-align: left;
+}
+.ticket-hit-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.ticket-hit-num {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.ticket-hit .row-meta {
+  white-space: normal;
+}
+.ticket-hit-mine {
+  color: var(--primary);
+  font-weight: 600;
+}
+.ticket-picker .results .picker-section,
+.switcher .results .picker-section {
+  padding: 8px 10px 2px;
+}
+.switcher-cw {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.span-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+}
+.span-fields label {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.span-fields .editor-input {
+  width: 100%;
+  min-width: 0;
+}
+.span-length {
+  padding-bottom: 8px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- The Day page as a list (EntryList.tsx): the phone, and a window sharing the screen ---- */
+.elist {
+  container-type: inline-size;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.elist-group {
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.elist-group.all-entered {
+  opacity: 0.75;
+}
+.elist-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--surface-2);
+}
+.elist-head .group-toggle {
+  flex: none;
+}
+.elist-group.collapsed .group-toggle svg {
+  transform: rotate(-90deg);
+}
+.elist-head-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+.elist-title {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.elist-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  font-size: 0.85rem;
+}
+.elist-sub .chip,
+.elist-sub .picker {
+  min-height: 30px;
+  font-size: 0.85rem;
+}
+.elist-ticket {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.elist-ticket a {
+  margin-left: 4px;
+  padding: 0 4px;
+  text-decoration: none;
+  color: var(--primary);
+}
+.elist-head-end {
+  flex: none;
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.elist-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.elist-item + .elist-item {
+  border-top: 1px solid var(--border);
+}
+.elist-item.selected {
+  background: var(--surface-2);
+}
+.elist-item.entered .elist-main {
+  opacity: 0.65;
+}
+.elist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 10px 2px 0;
+}
+.elist-pick {
+  flex: none;
+  margin-left: 10px;
+}
+.elist-main {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+  padding: 8px 0 8px 10px;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+.elist-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.elist-date {
+  color: var(--muted);
+}
+.elist-hours {
+  color: var(--muted);
+  font-weight: 500;
+}
+.elist-running {
+  color: var(--running);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.elist-what,
+.elist-note {
+  font-size: 0.85rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.elist-what {
+  color: var(--muted);
+}
+.elist-fields {
+  display: none;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+}
+.elist-fields .select {
+  width: 11rem;
+  text-overflow: ellipsis;
+}
+.elist-tools {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.elist-editor {
+  padding: 4px 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.elist-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border);
+}
+/* Room on the row: the work type and billing there, not repeated in the summary line. */
+@container (min-width: 720px) {
+  .elist-fields {
+    display: flex;
+  }
+  .elist-what {
+    display: none;
+  }
+}
+.location-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.location-line a {
+  color: inherit;
+  text-decoration: none;
+}
+.location-line a:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+/* The Day page's head on a phone: what's needed, without the heading. */
+@media (max-width: 599px) {
+  .day-head {
+    gap: 8px;
+  }
+  .day-head h2,
+  .day-head > .btn:first-child {
+    display: none;
+  }
+  .day-head .tabs {
+    flex: 1 1 100%;
+  }
+  .day-undo {
+    display: none;
+  }
+  .day-head .day-nav {
+    flex: 1 1 100%;
+  }
+  .page-wide {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+}
+
+.arrive-btn {
+  min-height: 48px;
+  justify-content: center;
+  font-size: 1.05rem;
+}
+@media (max-width: 599px) {
+  /* A phone is too narrow for the three in a row: the date gets its own line. */
+  .span-fields {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .span-fields label:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ---- Dictation: the record button (RichNotes.tsx) ---- */
+.rich {
+  position: relative;
+}
+.rich-mic {
+  margin-left: auto;
+  color: var(--primary);
+}
+.rich-mic.recording {
+  color: var(--on-primary);
+  background: var(--warn);
+}
+.rich-mic.recording:hover {
+  color: var(--on-primary);
+  background: var(--warn);
+}
+.rich-mic-text {
+  padding: 0 4px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+@media (pointer: coarse) {
+  /* Not typing yet: the rest of the toolbar is away, but talking is one tap, keyboard or not. */
+  .rich.toolbar-on-focus:not(:focus-within) .rich-toolbar {
+    display: flex;
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    z-index: 1;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .rich.toolbar-on-focus:not(:focus-within) .rich-btn:not(.rich-mic),
+  .rich.toolbar-on-focus:not(:focus-within) .rich-sep {
+    display: none;
+  }
+  /* The text keeps clear of the button in the corner. */
+  .rich.toolbar-on-focus:not(:focus-within) .rich-content {
+    padding-right: 48px;
+  }
+  .rich.toolbar-on-focus.dictating:not(:focus-within) .rich-content {
+    padding-right: 76px;
+  }
+}
+
+/* ---- The mini window (MiniWindow.tsx) ---- */
+.mini-body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+.mini-btn {
+  display: none;
+}
+@media (min-width: 900px) {
+  .mini-btn {
+    display: inline-flex;
+  }
+}
+.mini {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+}
+.mini-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.mini-grow {
+  flex: 1;
+  justify-content: center;
+}
+.mini-idle {
+  display: grid;
+  gap: 6px;
+}
+.mini-card {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--surface);
+  border: 1.5px solid var(--running);
+  border-radius: 10px;
+}
+.mini-timer {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--running);
+}
+.mini-title {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  color: var(--text);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mini-note {
+  width: 100%;
+  min-height: 30px;
+  margin-top: 4px;
+  padding: 0 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+.mini-paused {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  background: var(--paused-bg);
+  border: 1.5px solid var(--paused);
+  border-radius: 10px;
+}
+.mini-paused .mini-title {
+  flex: 1;
+  font-weight: 500;
 }

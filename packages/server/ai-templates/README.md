@@ -10,6 +10,8 @@ cleanup, so a change shows on the next ✨ or Compare without a restart.
   The id is the file name without the number (`01-communication.md` → `communication`).
   Sessions record the template's name, so renaming or renumbering one breaks nothing.
 - `<!-- comments -->` in any of them are notes to yourself; the model doesn't see them.
+- `dictation-words.txt`: not a template. The words dictation (🎙) should get right, one per
+  line; the companies on your tasks are added automatically. Add what it gets wrong.
 - Other files here (like this one) are ignored.
 
 CW shows "* " as bullets, not "- ", so say "* " wherever bullets come up.

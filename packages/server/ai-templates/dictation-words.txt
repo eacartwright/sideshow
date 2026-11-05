@@ -1,0 +1,29 @@
+# Words dictation should get right (DESIGN.md §11): one per line, a # starts a comment.
+# Read on every recording, so an edit works on the next one. The companies on your tasks are
+# added automatically. Add what it gets wrong: product names, people, jargon, acronyms.
+ConnectWise
+Ninja
+NinjaOne
+Veritaz
+WRIT
+Microsoft 365
+Entra
+Intune
+SharePoint
+OneDrive
+Outlook
+Teams
+Exchange
+BitLocker
+Active Directory
+domain controller
+VLAN
+DHCP
+DNS
+VPN
+UPS
+RDP
+BIOS
+firewall
+switch
+access point

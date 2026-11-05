@@ -25,6 +25,7 @@
       { "name": "Training - Receiving", "defaults": { "billing": "Do Not Bill" } }
     ]
   },
+  "travel": { "field": "workType", "to": "Travel - To Client", "from": "Travel - From Client", "arrive": "Onsite - Business Hours" },
   "entryFormat": {
     "target": "ConnectWise",
     "date": "MM/DD/YYYY",

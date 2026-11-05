@@ -246,14 +246,16 @@ function endSession(state: State, s: Session, at: Ms, t: Touched) {
 /**
  * Drop a task ▶ New made that's left with nothing written: no notes in its one session (or no
  * session at all), no description, nothing entered or pushed. Tasks made beforehand (Inbox)
- * stay, so do running ones.
+ * stay, so do running ones. Nor is it empty if something was chosen for it: a ticket, a company
+ * or a work type (▶ Travel's entry is all time and no notes). A location stamp alone doesn't count.
  */
 function dropIfEmpty(state: State, taskId: Id, at: Ms, t: Touched) {
   const task = state.tasks[taskId];
-  if (!task || task.deleted || task.description.trim()) return;
+  if (!task || task.deleted || task.description.trim() || Object.keys(task.fields).length) return;
   const own = taskSessions(state, taskId);
   const s = own[0];
-  if (own.length > 1 || (s && (s.end === null || s.notes.trim() || s.enteredAt || Object.keys(s.ext ?? {}).length))) return;
+  const integrations = Object.keys(s?.ext ?? {}).filter((k) => k !== "geo");
+  if (own.length > 1 || (s && (s.end === null || s.notes.trim() || s.enteredAt || integrations.length || Object.keys(s.fields).length))) return;
   // Made by the start itself (the start may since have been moved earlier).
   if (s && task.createdAt < s.start) return;
   task.deleted = true;

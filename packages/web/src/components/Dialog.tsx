@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export function Dialog({
   title,
@@ -25,7 +26,9 @@ export function Dialog({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  // On the page itself, wherever it was opened from: a CSS container further up (the Entries list
+  // has one) can otherwise hold a fixed overlay inside its own box.
+  return createPortal(
     <div className="backdrop" ref={backdrop} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`dialog ${className}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="dialog-head">
@@ -37,6 +40,7 @@ export function Dialog({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

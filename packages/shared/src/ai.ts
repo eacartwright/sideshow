@@ -24,6 +24,13 @@ export const AI_MODELS: AiModelInfo[] = [
   { id: "gpt-6.1-sol", provider: "openai", label: "GPT-6.1 Sol", input: 2, output: 10, cacheRead: 0.1 },
 ];
 
+/**
+ * Dictation's model (OpenAI). Billed by the minute, not by the token; list price checked
+ * 2026-11-04 (gpt-4o-transcribe is deprecated in its favor).
+ */
+export const TRANSCRIBE_MODEL = "gpt-transcribe";
+export const TRANSCRIBE_USD_PER_MIN = 0.0045;
+
 export const PROVIDER_NAMES: Record<AiProvider, string> = { anthropic: "Anthropic", openai: "OpenAI" };
 
 export const modelInfo = (id: string) => AI_MODELS.find((m) => m.id === id);
