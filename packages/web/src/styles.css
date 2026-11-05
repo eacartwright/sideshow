@@ -15,6 +15,7 @@
   --primary-hover: #0f3aa8;
   --on-primary: #ffffff;
   --running: #067a36;
+  --running-hover: #05682e;
   --running-bg: #e4f5ea;
   --paused: #8f5300;
   --paused-bg: #fdf1dc;
@@ -54,6 +55,7 @@
   --primary-hover: #8cb4ff;
   --on-primary: #08101f;
   --running: #4bd585;
+  --running-hover: #74e2a2;
   --running-bg: #10281a;
   --paused: #ffb454;
   --paused-bg: #2a1f0d;
@@ -176,6 +178,16 @@ select:focus {
 }
 .btn.primary:hover {
   background: var(--primary-hover);
+}
+/* Start: the same green as a running clock, which is what it gets you. */
+.btn.go {
+  background: var(--running);
+  border-color: var(--running);
+  color: var(--on-primary);
+}
+.btn.go:hover {
+  background: var(--running-hover);
+  border-color: var(--running-hover);
 }
 .btn.icon {
   padding: 0;

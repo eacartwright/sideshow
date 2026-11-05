@@ -63,7 +63,7 @@ function MiniPanel({ win, onFind, onOpenTask }: { win: Window; onFind: () => voi
         <div className="mini-idle">
           <span className="idle-label">Nothing running</span>
           <div className="mini-row">
-            <button className="btn primary mini-grow" onClick={() => {
+            <button className="btn go mini-grow" onClick={() => {
                 a.startNew("");
                 leaveNotes();
               }}

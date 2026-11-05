@@ -129,7 +129,7 @@ function IdleHead({ onFind }: { onFind: () => void }) {
         <span className="idle-label">Nothing running</span>
       </div>
       <div className="idle-actions">
-        <button className="btn primary idle-start" onClick={(e) => a.startNew("", e.shiftKey)} title="Start the clock on a new task (Alt+N)">
+        <button className="btn go idle-start" onClick={(e) => a.startNew("", e.shiftKey)} title="Start the clock on a new task (Alt+N)">
           <span aria-hidden>▶</span> Start
         </button>
         <button className="btn" onClick={onFind} title="Find a task or a ticket and start it (Ctrl+K)">

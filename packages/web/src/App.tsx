@@ -202,7 +202,7 @@ export function App() {
               <span aria-hidden>⌕</span> Find
             </button>
             <button
-              className="btn primary new"
+              className="btn go new"
               onClick={(e) => {
                 // A double tap shouldn't create two tasks.
                 if (e.timeStamp - lastNewTap.current < 700) return;
