@@ -6,6 +6,7 @@ import type { TicketHit } from "../tickets";
 import { Dialog } from "./Dialog";
 import { at, dateValue, timeValue } from "./SessionEditor";
 import { TicketPicker, TicketRow, useTicketSearch } from "./TicketPicker";
+import { TicketView } from "./TicketView";
 
 // Find any task and continue it, or start a new one with what you typed.
 // Ctrl+K or / on desktop, Find on the phone. In "alongside" mode (or with Shift),
@@ -38,6 +39,7 @@ export function Switcher({
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(0);
   const [browsing, setBrowsing] = useState(false);
+  const [viewing, setViewing] = useState<{ ticket: TicketHit; along: boolean } | null>(null);
   // The span can be changed here: the day, the start and the end.
   const [when, setWhen] = useState(span);
   const listRef = useRef<HTMLUListElement>(null);
@@ -86,6 +88,12 @@ export function Switcher({
     else a.continueTask(item.info.task.id, along);
     onClose();
   };
+  // A ticket opens first, so you can see it's the right one; the rest act straight away.
+  const choose = (item: Item | undefined, along: boolean) => {
+    if (item?.kind === "ticket") setViewing({ ticket: item.ticket, along });
+    else act(item, along);
+  };
+  const actionLabel = move ? "Move it here" : when ? "Add the time here" : alongside ? "▶ Start alongside" : "▶ Start";
   const title = move
     ? `Move ${timeOfDay(move.start)}–${move.end ? timeOfDay(move.end) : "now"} (${hm((move.end ?? now) - move.start)}) to…`
     : when
@@ -113,7 +121,7 @@ export function Switcher({
           else if (e.key === "ArrowUp") setSel((s) => Math.max(s - 1, 0));
           else if (e.key === "Enter" && (e.ctrlKey || e.altKey || e.metaKey))
             act(query ? { kind: "new", title: query } : undefined, along);
-          else if (e.key === "Enter") act(items[sel], along);
+          else if (e.key === "Enter") choose(items[sel], along);
           else return;
           e.preventDefault();
         }}
@@ -127,7 +135,7 @@ export function Switcher({
             <button
               className={i === sel ? "active" : ""}
               onMouseEnter={() => setSel(i)}
-              onClick={(e) => act(item, alongside || e.shiftKey)}
+              onClick={(e) => choose(item, alongside || e.shiftKey)}
             >
               {item.kind === "new" ? (
                 <span className="result-new">
@@ -151,7 +159,14 @@ export function Switcher({
           {busy && <span className="muted small">Searching ConnectWise…</span>}
         </div>
       )}
-      {browsing && <TicketPicker onPick={(ticket) => act({ kind: "ticket", ticket }, alongside)} onClose={() => setBrowsing(false)} />}
+      {browsing && <TicketPicker actionLabel={actionLabel} onPick={(ticket) => act({ kind: "ticket", ticket }, alongside)} onClose={() => setBrowsing(false)} />}
+      {viewing && (
+        <TicketView
+          ticketId={viewing.ticket.id}
+          primary={{ label: actionLabel, run: () => act({ kind: "ticket", ticket: viewing.ticket }, viewing.along) }}
+          onClose={() => setViewing(null)}
+        />
+      )}
       <div className="hint muted small wide-only">
         {move ? (
           <>↑↓ move · Enter move it there · Ctrl+Enter new task · Esc cancel</>

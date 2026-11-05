@@ -7,6 +7,7 @@ import { CONTINUATION, copyValue, layout } from "./entryLayout";
 import { FieldInput, FindTicketButton, ticketUrl } from "./fields";
 import { isUpdate, pushProblem } from "./PushDialog";
 import { defaultManualSpan, SessionEditor } from "./SessionEditor";
+import { TicketView } from "./TicketView";
 
 // The Day page as a list, for anything narrower than the full table: the phone, and a desktop
 // window sharing the screen. A row says when, how long and what, plus the one thing to do next
@@ -100,6 +101,7 @@ function Group({
   const [editingId, setEditingId] = useState<Id | null>(null);
   const [merging, setMerging] = useState(false);
   const [picked, setPicked] = useState<Set<Id>>(() => new Set());
+  const [viewing, setViewing] = useState(false);
   const { taskDefs } = layout(m);
   const canPush = !!m.config.cwPush;
   const ticketKey = m.profile.connectwise?.ticketField;
@@ -142,7 +144,9 @@ function Group({
             {ticketKey &&
               (ticket ? (
                 <span className="elist-ticket">
-                  #{ticket}
+                  <button className="elist-ticket-open" onClick={() => setViewing(true)} title={`See #${ticket}: details, notes and time`}>
+                    #{ticket}
+                  </button>
                   {link && (
                     <a href={link} target="_blank" rel="noreferrer" title="Open the ticket in ConnectWise" aria-label="Open the ticket in ConnectWise">
                       ↗
@@ -167,6 +171,7 @@ function Group({
             })}
           </div>
         </div>
+        {viewing && <TicketView ticketId={Number(ticket.replace(/\D/g, ""))} onClose={() => setViewing(false)} />}
         <div className="elist-head-end">
           <strong className="group-total">{hm(total)}</strong>
           {entered > 0 && (

@@ -29,6 +29,53 @@ export interface TicketResults {
   note?: string;
 }
 
+/** One note or time entry on a ticket's page. */
+export interface TicketActivity {
+  id: string;
+  kind: "note" | "time";
+  who: string;
+  at: string;
+  end?: string;
+  text: string;
+  internal?: string;
+  where: string[];
+  hours?: number;
+  workType?: string;
+  billing?: string;
+}
+/** A ticket's page (server: ticketview.ts). */
+export interface TicketPage {
+  id: number;
+  summary: string;
+  kind: "service" | "project";
+  closed: boolean;
+  company: string;
+  companyId: number | null;
+  site?: string;
+  contact?: { name: string; email?: string; phone?: string };
+  board?: string;
+  status?: string;
+  priority?: string;
+  type?: string;
+  owner?: string;
+  resources: string[];
+  project?: string;
+  phase?: string;
+  enteredAt?: string;
+  enteredBy?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+  hours?: number;
+  description?: string;
+  activity: TicketActivity[];
+  note?: string;
+}
+
+export async function fetchTicketView(id: number): Promise<TicketPage> {
+  const res = await api(`/api/cw/tickets/${id}/view`);
+  return (await res.json()) as TicketPage;
+}
+
 export async function searchTickets(s: TicketSearch): Promise<TicketResults> {
   const q = new URLSearchParams();
   if (s.q?.trim()) q.set("q", s.q.trim());

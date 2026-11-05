@@ -43,6 +43,7 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   `connectwise` section (`config.cw` in `/api/state`; the UI hides CW features otherwise). `npm run dev` loads the root `.env`. Endpoint so far:
   `GET /api/cw/tickets/:id` → `{summary, company, companyId, closed}`;
   `GET /api/cw/ticket-search?q=&companyId=&mine=1&closed=1` → service + project tickets (`ticketsearch.ts`);
+  `GET /api/cw/tickets/:id/view` → a ticket's page: details, notes, time entries (`ticketview.ts`, `TicketView.tsx`; a found ticket opens this, nothing starts until its button);
   `GET /api/cw/boards` → service boards with types/statuses + the owner;
   `POST /api/cw/tickets {taskId, summary, boardId, typeId?, statusId?, assign, description?,
   pushSessionIds?}` → `{ticketId, pushed?}` (`tickets.ts`; writes the number onto the task, then
@@ -203,7 +204,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   **Not yet seen for real, ask how they went:** all of it on the iPhone (the keyboard coming up from
   ▶ Start with the notes box hidden; the mic and location prompts; whether the status bar fade is
   gone, which is a best guess: iOS draws it, so `--top-inset` adds room in the installed app);
-  ticket search against live CW, project tickets above all; dictation with a real key (needs
+  ticket search and the ticket page against live CW, project tickets above all (a project ticket's
+  notes and whether the API user may read internal notes are the things to check); dictation with a real key (needs
   `OPENAI_API_KEY` on the mini PC; quality is the point of it, so ask).
   Evan is weighing M9 (Tauri); suggested after a few days with the mini window, to see what it
   still lacks. Browser checks can now use WebKit too: `PLAYWRIGHT_BROWSERS_PATH=<scratch> npx playwright-core

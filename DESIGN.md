@@ -826,11 +826,22 @@ folders stay `.env`-only: a wrong value there locks you out.
 - **Finding a ticket** (built 2026-11-04, `ticketsearch.ts`, `TicketPicker.tsx`, `GET
   /api/cw/ticket-search`): **⌕** beside every ticket field opens a picker: a search box (a number,
   or words from the summary, company or project), a Company filter, Mine / Everyone's, Closed too.
-  Service and project tickets in one list, project ones under their project and phase. Picking
-  puts it on the task. **Find** (and ▶'s "Ticket or task") lists your open tickets with nothing
-  typed and matches as you type, after your own tasks; picking starts it, reusing a task already
-  on that ticket. Searched live, nothing imported but what's picked (Tracked vs. findable, above);
-  a pick is tracked at once rather than asking. "Mine" is owner or `resources`. If one kind of
+  Service and project tickets in one list, project ones under their project and phase. **Find**
+  (and ▶'s "Ticket or task") lists your open tickets with nothing typed and matches as you type,
+  after your own tasks. Using one reuses a task already on that ticket.
+- **A ticket's page** (built 2026-11-04, Evan: "I need to see what's inside it", `ticketview.ts`,
+  `TicketView.tsx`, `GET /api/cw/tickets/:id/view`): **a ticket found in search opens here; nothing
+  starts until its button says so** (▶ Start, Use this ticket, Add the time here, Move it here,
+  depending on what you were doing), with Back and ↗ Open in CW. Only a lookup does this: a task
+  you already have still starts straight away from Find (Evan's call, 2026-11-04). Read-only and live: summary,
+  company, status, board; Details folded (project, site, contact, priority, type, who, when, hours);
+  the Description (the oldest Discussion note); then Activity, everyone's notes and time entries
+  newest first, filterable, each with who, when and where it shows (Discussion, Internal,
+  Resolution), internal ones shaded. Also from a task with a ticket (the page icon by ↗) and the
+  ticket # in the Entries list. If notes or time can't be read the rest still shows, and says so.
+  Pictures in CW notes become links, so an outside image in a client's email isn't loaded by itself.
+  Writing to a ticket from here (a note, status) would be the next step, not built. Searched live, nothing imported but what's picked (Tracked vs. findable, above);
+  using one tracks it at once rather than asking. "Mine" is owner or `resources`. If one kind of
   ticket fails, the other still shows, with a note. **Not yet tried against the live CW**: only a
   fake, so the conditions on `/project/tickets` are the first thing to check.
 - **Ticket # workflow** (works today): find the ticket in CW manually, paste its number into the

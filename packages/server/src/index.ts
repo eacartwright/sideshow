@@ -15,6 +15,7 @@ import { updateEnvFile } from "./envfile";
 import { parseRule } from "./integrations/connectwise/holds";
 import { checkPushed, pushSessions } from "./integrations/connectwise/push";
 import { searchTickets } from "./integrations/connectwise/ticketsearch";
+import { ticketView } from "./integrations/connectwise/ticketview";
 import type { NewTicket } from "./integrations/connectwise/tickets";
 import { listProfiles } from "./profile";
 import { Push } from "./push";
@@ -371,6 +372,21 @@ app.get("/api/cw/tickets/:id", async (c) => {
     return c.json({ id: t.id, summary: t.summary, company: t.company?.name ?? "", companyId: t.company?.id ?? null, closed: !!t.closedFlag });
   } catch (err) {
     if (err instanceof CwError && err.status === 404) return c.json({ error: `No ticket #${id}` }, 404);
+    console.error(err);
+    return c.json({ error: "ConnectWise lookup failed" }, 502);
+  }
+});
+
+// A ticket's page in the app: details, notes and time entries, read live.
+app.get("/api/cw/tickets/:id/view", async (c) => {
+  const x = cwOf(c.get("ws"));
+  if (!x) return c.json(NO_CW, 503);
+  const id = Number(c.req.param("id"));
+  if (!Number.isInteger(id) || id <= 0) return c.json({ error: "Not a ticket number" }, 400);
+  try {
+    const view = await ticketView(x.cw, id);
+    return view ? c.json(view) : c.json({ error: `No ticket #${id}` }, 404);
+  } catch (err) {
     console.error(err);
     return c.json({ error: "ConnectWise lookup failed" }, 502);
   }

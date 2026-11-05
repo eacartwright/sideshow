@@ -52,6 +52,42 @@ export interface CwSearchTicket extends CwTicket {
   phase?: CwRef;
 }
 
+/** A ticket with what the app's ticket page shows. */
+export interface CwTicketDetail extends CwSearchTicket {
+  site?: CwRef;
+  contact?: CwRef;
+  contactName?: string;
+  contactEmailAddress?: string;
+  contactPhoneNumber?: string;
+  priority?: CwRef;
+  type?: CwRef;
+  subType?: CwRef;
+  item?: CwRef;
+  actualHours?: number;
+  _info?: { dateEntered?: string; enteredBy?: string; lastUpdated?: string; updatedBy?: string };
+}
+
+/** A ticket's note as the ticket page reads it. */
+export interface CwTicketNoteDetail extends CwTicketNote {
+  member?: CwRef;
+  contact?: CwRef;
+  createdBy?: string;
+  dateCreated?: string;
+  _info?: { dateEntered?: string; lastUpdated?: string };
+}
+
+/** A ticket's time entry as the ticket page reads it. */
+export interface CwTimeEntryDetail extends CwTimeEntry {
+  member?: CwRef;
+  notes?: string;
+  internalNotes?: string;
+  workType?: CwRef;
+  billableOption?: string;
+  addToDetailDescriptionFlag?: boolean;
+  addToInternalAnalysisFlag?: boolean;
+  addToResolutionFlag?: boolean;
+}
+
 export interface CwMember {
   id: number;
   identifier: string;
@@ -289,8 +325,8 @@ export class ConnectWiseClient {
    * A service or project ticket. Some instances (ours) answer 404 on /service/tickets for a
    * project ticket, so that falls back to /project/tickets, and the result says ProjectTicket.
    */
-  getTicket(id: number) {
-    return this.serviceOrProject(id, (kind) => this.get<CwTicket>(`/${kind}/tickets/${id}`));
+  getTicket(id: number): Promise<CwTicketDetail> {
+    return this.serviceOrProject(id, (kind) => this.get<CwTicketDetail>(`/${kind}/tickets/${id}`));
   }
 
   /** Change a ticket's summary (its title in CW), service or project. */
@@ -298,7 +334,7 @@ export class ConnectWiseClient {
     return this.serviceOrProject(id, (kind) => this.patch<CwTicket>(`/${kind}/tickets/${id}`, { summary }));
   }
 
-  private async serviceOrProject(id: number, call: (kind: "service" | "project") => Promise<CwTicket>) {
+  private async serviceOrProject<T extends CwTicket>(id: number, call: (kind: "service" | "project") => Promise<T>): Promise<T> {
     try {
       return await call("service");
     } catch (err) {
@@ -332,6 +368,17 @@ export class ConnectWiseClient {
       orderBy: "id desc",
       fields: `id,summary,recordType,company/id,company/name,board/name,status/name,closedFlag,owner/identifier,resources${kind === "project" ? ",project/name,phase/name" : ""}`,
     });
+  }
+
+  /** A ticket's notes, newest first, for the ticket page. */
+  ticketNoteList(kind: "service" | "project", ticketId: number, pageSize: number) {
+    return this.get<CwTicketNoteDetail[]>(`/${kind}/tickets/${ticketId}/notes`, { pageSize, orderBy: "id desc" });
+  }
+
+  /** The time entries charged to a ticket, newest first, for the ticket page. */
+  ticketTimeEntries(kind: "service" | "project", ticketId: number, pageSize: number) {
+    const type = kind === "project" ? "ProjectTicket" : "ServiceTicket";
+    return this.get<CwTimeEntryDetail[]>("/time/entries", { conditions: `chargeToId=${ticketId} and chargeToType="${type}"`, pageSize, orderBy: "timeStart desc" });
   }
 
   getTicketNotes(ticketId: number) {

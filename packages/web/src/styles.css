@@ -3851,3 +3851,157 @@ p.picker-footer {
   flex: 1;
   font-weight: 500;
 }
+
+/* ---- A ticket's page (TicketView.tsx) ---- */
+.dialog.ticket-view {
+  max-width: 780px;
+}
+.ticket-view-head h3 {
+  margin: 0;
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+.ticket-view-head p {
+  margin: 2px 0 0;
+}
+.ticket-view h4 {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.ticket-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.ticket-details dl {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0 0;
+}
+.ticket-details dl > div {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr);
+  gap: 8px;
+  font-size: 0.9rem;
+}
+.ticket-details dt {
+  color: var(--muted);
+}
+.ticket-details dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.ticket-details a {
+  color: var(--primary);
+}
+.ticket-description {
+  padding: 10px 12px;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+.ticket-activity-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ticket-activity-head h4 {
+  margin: 0;
+}
+.ticket-activity > ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+/* Lists inside a note keep their markers. */
+.ticket-view .note-view ul,
+.ticket-view .note-view ol {
+  display: block;
+  margin: 0.25em 0;
+  padding-left: 1.4em;
+}
+.ticket-view .note-view ul {
+  list-style: disc;
+}
+.ticket-view .note-view ol {
+  list-style: decimal;
+}
+.ticket-view .note-view li {
+  display: list-item;
+}
+.ticket-view .dialog-actions .btn {
+  text-decoration: none;
+}
+.ticket-item {
+  padding: 8px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+}
+.ticket-item.internal {
+  background: var(--surface-2);
+}
+.ticket-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 8px;
+  margin-bottom: 4px;
+}
+.ticket-tag {
+  padding: 0 6px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.ticket-item.internal .ticket-tag {
+  background: var(--surface);
+}
+.ticket-tag.time {
+  color: var(--running);
+}
+.ticket-internal {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+/* The note's own padding is for its editor; here the card has it. */
+.ticket-view .note-view.rich-content {
+  padding: 0;
+  min-height: 0;
+}
+/* Always in reach, however long the ticket. */
+.ticket-view-actions {
+  position: sticky;
+  bottom: -14px;
+  margin: 0 -14px -14px;
+  padding: 10px 14px;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+.ticket-view-actions .go {
+  min-width: 9rem;
+  justify-content: center;
+}
+.elist-ticket-open {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

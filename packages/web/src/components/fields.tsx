@@ -18,6 +18,7 @@ import { ChatIcon, LockIcon, RefreshIcon } from "./icons";
 import { Spinner } from "./Spinner";
 import { useA, useM } from "../model";
 import { TicketPicker } from "./TicketPicker";
+import { TicketView } from "./TicketView";
 
 // Text fields bound to synced values. They keep a local draft so that
 // updates arriving from another device never yank text out from under the cursor.
@@ -864,14 +865,27 @@ export function TicketInfo({
   );
 }
 
-/** Beside the ticket field once a task has a ticket: ↗ opens it in CW. */
+/** The icon for a ticket's page in the app. */
+const TicketPageIcon = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+    <path d="M14 3v6h6M8 13h8M8 17h6" />
+  </svg>
+);
+
+/** Beside the ticket field once a task has a ticket: see it here, or ↗ open it in CW. */
 export function TicketLinks({ task }: { task: Task }) {
   const m = useM();
+  const [viewing, setViewing] = useState(false);
   const url = ticketUrl(m, task);
   if (!url) return null;
   const n = ticketNumber(String(task.fields[m.profile.connectwise!.ticketField] ?? ""));
   return (
     <span className="ticket-links">
+      <button type="button" className="btn icon" onClick={() => setViewing(true)} title={`See #${n}: details, notes and time`} aria-label={`See ticket #${n}`}>
+        <TicketPageIcon />
+      </button>
+      {viewing && <TicketView ticketId={Number(n)} onClose={() => setViewing(false)} />}
       <a className="btn icon ticket-open" href={url} target="_blank" rel="noreferrer" title={`Open #${n} in ConnectWise`} aria-label={`Open ticket #${n} in ConnectWise`}>
         ↗
       </a>

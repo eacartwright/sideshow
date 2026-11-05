@@ -56,6 +56,14 @@ export function serializeNote(doc: JSONContent): string {
   return md().serialize(doc).replace(/\s+$/, "");
 }
 
+/**
+ * A picture in a note from outside the app (a CW note may hold a client's email) as a plain link:
+ * it shows only if you ask, rather than loading from wherever it points as soon as it's on screen.
+ */
+export function withoutPictures(markdown: string): string {
+  return markdown.replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, (_all, alt: string, url: string) => `[Picture${alt ? `: ${alt}` : ""}](${url})`);
+}
+
 const htmlCache = new Map<string, string>();
 
 /**

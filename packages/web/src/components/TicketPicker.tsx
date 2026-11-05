@@ -6,11 +6,13 @@ import { searchTickets, type TicketHit, type TicketResults, type TicketSearch } 
 import { Dialog } from "./Dialog";
 import { CompanyLabel, ComboPicker, linkedCompanyId } from "./fields";
 import { Spinner } from "./Spinner";
+import { TicketView } from "./TicketView";
 
 // Find a ConnectWise ticket without leaving the app (DESIGN.md §10): what used to be "look up the
 // company, Service or Project, scroll, copy the number". Service and project tickets in one list;
-// narrowing by company, by what's typed, by yours. Searched live: nothing is imported until one is
-// picked, and then only that one.
+// narrowing by company, by what's typed, by yours. Tapping one opens it (TicketView), so you can see
+// it's the right one; nothing happens until you say so there. Searched live: nothing is imported
+// until one is used, and then only that one.
 
 /** Ask CW as the search changes, a moment after typing stops. Older answers are dropped. */
 export function useTicketSearch(search: TicketSearch | null, delayMs = 300) {
@@ -58,12 +60,15 @@ export function TicketRow({ t }: { t: TicketHit }) {
 
 export function TicketPicker({
   title = "Find a ticket",
+  actionLabel = "Use this ticket",
   companyId: startCompany,
   companyName: startName,
   onPick,
   onClose,
 }: {
   title?: string;
+  /** What the opened ticket's main button says. */
+  actionLabel?: string;
   /** Start narrowed to this company (the task's). */
   companyId?: number;
   companyName?: string;
@@ -77,6 +82,7 @@ export function TicketPicker({
   // A company's tickets are usually someone else's too; with no company, yours are the useful list.
   const [mine, setMine] = useState(!startCompany);
   const [closed, setClosed] = useState(false);
+  const [viewing, setViewing] = useState<TicketHit | null>(null);
   const canMine = !!m.config.cwPush;
   const { results, busy, error } = useTicketSearch({ q, companyId: company?.id ?? null, mine: mine && canMine, closed });
   const tickets = results?.tickets ?? [];
@@ -85,12 +91,7 @@ export function TicketPicker({
 
   const row = (t: TicketHit) => (
     <li key={t.id}>
-      <button
-        onClick={() => {
-          onPick(t);
-          onClose();
-        }}
-      >
+      <button onClick={() => setViewing(t)}>
         <TicketRow t={t} />
       </button>
     </li>
@@ -172,6 +173,19 @@ export function TicketPicker({
           `${tickets.length} ticket${tickets.length === 1 ? "" : "s"}, yours first`
         )}
       </div>
+      {viewing && (
+        <TicketView
+          ticketId={viewing.id}
+          primary={{
+            label: actionLabel,
+            run: () => {
+              onPick(viewing);
+              onClose();
+            },
+          }}
+          onClose={() => setViewing(null)}
+        />
+      )}
     </Dialog>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseNote, serializeNote } from "./markdown";
+import { parseNote, serializeNote, withoutPictures } from "./markdown";
 
 const round = (md: string) => serializeNote(parseNote(md));
 
@@ -29,6 +29,12 @@ describe("notes as Markdown", () => {
       expect(parseNote(note)).toEqual({ type: "doc", content: [{ type: "paragraph" }] });
       expect(round(note)).toBe("");
     }
+  });
+
+  it("turns outside pictures into links", () => {
+    expect(withoutPictures("before ![a.png](https://x.example/a.png) after")).toBe("before [Picture: a.png](https://x.example/a.png) after");
+    expect(withoutPictures('![](https://x.example/b.png "title")')).toBe("[Picture](https://x.example/b.png)");
+    expect(JSON.stringify(parseNote(withoutPictures("![a](https://x.example/a.png)")))).not.toContain('"image"');
   });
 
   it("writes underline as ++text++", () => {
