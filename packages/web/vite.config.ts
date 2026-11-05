@@ -6,6 +6,8 @@ export default defineConfig(({ mode }) => {
   const env = { ...loadEnv(mode, "../..", ""), ...process.env };
   return {
     plugins: [react()],
+    // Keep the terminal's history (the URLs Vite prints at the start).
+    clearScreen: false,
     server: {
       // Reachable from the phone on the LAN during development.
       host: true,

@@ -18,6 +18,7 @@
   --running-hover: #05682e;
   --running-bg: #e4f5ea;
   --paused: #8f5300;
+  --paused-border: #8f5300;
   --paused-bg: #fdf1dc;
   --on-paused: #ffffff;
   --warn: #a15c00;
@@ -58,6 +59,7 @@
   --running-hover: #74e2a2;
   --running-bg: #10281a;
   --paused: #ffb454;
+  --paused-border: #a17439;
   --paused-bg: #2a1f0d;
   --on-paused: #1a1000;
   --warn: #ffb454;
@@ -386,7 +388,7 @@ select:focus {
   align-items: center;
   gap: 8px;
   padding: 8px 10px;
-  border-color: var(--paused);
+  border-color: var(--paused-border);
   background: var(--paused-bg);
 }
 .pause-mark {
@@ -3844,7 +3846,7 @@ p.picker-footer {
   gap: 6px;
   padding: 2px 8px;
   background: var(--paused-bg);
-  border: 1.5px solid var(--paused);
+  border: 1.5px solid var(--paused-border);
   border-radius: 10px;
 }
 .mini-paused .mini-title {
