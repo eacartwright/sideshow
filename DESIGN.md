@@ -610,12 +610,14 @@ list, to paste into a work session.
 ### Travel and location (2026-11-04)
 
 **🚗 Travel** starts a running entry in one tap: work type *Travel - To Client* (with its billing
-default) on a new task titled Travel, with no keyboard. Pick the ticket whenever; the work type
+default) and the note "Travel" (Evan's habit; the profile's `travel.note`, also filled in when a
+travel work type is picked on an entry with no notes, and never over existing ones) on a new task
+titled Travel, with no keyboard. Pick the ticket whenever; the work type
 stays. On a running entry, Travel ends it and continues as travel on the same task (from an
 *Onsite* entry that means *From Client*). While traveling the card has a big **Arrived**, which
 ends the travel and starts *Onsite - Business Hours* on the same task at the same instant (coming
-back it says **Back** and stops), and **⇄** for the other direction, which doesn't ask "new
-entry?". The names come from the profile's `travel` section, so a job without travel has no
+back it says **Back** and stops), and **⇄** beside the work type for the other direction, which
+doesn't ask "new entry?". The names come from the profile's `travel` section, so a job without travel has no
 button. Alt+T does it on a desktop.
 
 **Location stamps**: where the device is when an entry starts and stops, kept in

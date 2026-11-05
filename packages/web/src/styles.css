@@ -1435,12 +1435,20 @@ textarea.title-input {
   display: flex;
   align-items: center;
   gap: 12px;
+  /* Its own width, not half the screen (what left: 50% would leave it), with room for two lines. */
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  min-height: 48px;
   padding: 6px 6px 6px 16px;
-  border-radius: 999px;
+  border-radius: 24px;
   background: var(--text);
   color: var(--bg);
   font-weight: 600;
   box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+}
+/* A message with no button: even on both sides. */
+.toast > span:only-child {
+  padding-right: 10px;
 }
 /* A pill inside the pill: same curve as the toast around it. */
 .toast .btn {
@@ -3663,6 +3671,24 @@ p.picker-footer {
   }
 }
 
+/* A field and the control that belongs to it (the work type and ⇄): they wrap as one. */
+.field-pair {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+.field-pair .select {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.now-meta .field-pair .btn.icon {
+  flex: none;
+  width: var(--control);
+  padding: 0;
+  font-size: 1.1rem;
+}
 .arrive-btn {
   min-height: 48px;
   justify-content: center;

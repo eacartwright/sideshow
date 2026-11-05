@@ -637,9 +637,12 @@ export function FindTicketButton({ task, label }: { task: Task; label?: string }
 export function SessionFieldInputs({
   session,
   onChange,
+  beside,
 }: {
   session: Session;
   onChange?: (def: FieldDef, value: FieldValue | null) => void;
+  /** Controls that stay right next to a field (by its key), wrapping with it. */
+  beside?: Record<string, ReactNode>;
 }) {
   const m = useM();
   const a = useA();
@@ -647,15 +650,25 @@ export function SessionFieldInputs({
     <>
       {m.profile.fields
         .filter((d) => d.on === "session")
-        .map((d) => (
-          <FieldInput
-            key={d.key}
-            def={d}
-            value={session.fields[d.key]}
-            resetKey={session.id}
-            onChange={(v) => (onChange ? onChange(d, v) : a.setSessionField(session.id, d.key, v))}
-          />
-        ))}
+        .map((d) => {
+          const input = (
+            <FieldInput
+              key={d.key}
+              def={d}
+              value={session.fields[d.key]}
+              resetKey={session.id}
+              onChange={(v) => (onChange ? onChange(d, v) : a.setSessionField(session.id, d.key, v))}
+            />
+          );
+          return beside?.[d.key] ? (
+            <span className="field-pair" key={d.key}>
+              {input}
+              {beside[d.key]}
+            </span>
+          ) : (
+            input
+          );
+        })}
     </>
   );
 }

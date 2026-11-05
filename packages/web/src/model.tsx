@@ -353,7 +353,7 @@ export function travelOf(profile: Profile, view: State) {
   const id = (name?: string) => (name ? items.find((x) => x.name === name)?.id : undefined);
   const to = id(t.to);
   const from = id(t.from);
-  return to && from ? { field: t.field, to, from, arrive: id(t.arrive) } : null;
+  return to && from ? { field: t.field, to, from, arrive: id(t.arrive), note: t.note } : null;
 }
 export type Travel = NonNullable<ReturnType<typeof travelOf>>;
 /** Whether this session is travel, either way. */
@@ -415,6 +415,15 @@ export function useActionsFactory(): Actions {
     const stamp = (sessionId: Id, which: "start" | "end", travel = false) => {
       if (wantsLocation(travel)) recordLocation(sessionId, which);
     };
+    /** Notes for a change that makes this entry travel, if it has none yet. Never replaces any. */
+    const travelNote = (sessionId: Id, fields: FieldsPatch | undefined): { notes?: string } => {
+      const snap = sync.getSnapshot();
+      const t = travelOf(snap.config.profile, snap.view);
+      const s = snap.view.sessions[sessionId];
+      if (!t?.note || !s || s.notes.trim() || !fields) return {};
+      const value = fields[t.field];
+      return value === t.to || value === t.from ? { notes: t.note } : {};
+    };
     /** These running sessions are ending: stamp the ones this device stamps. */
     const stampEnds = (ids?: Id[]) => {
       const snap = sync.getSnapshot();
@@ -459,6 +468,7 @@ export function useActionsFactory(): Actions {
           mode: alongside ? "alongside" : "switch",
           sessionFields: { [t.field]: t.to },
         });
+        if (t.note) send({ type: "session.update", sessionId, patch: { notes: t.note } });
         stamp(sessionId, "start", true);
         return sessionId;
       },
@@ -478,6 +488,7 @@ export function useActionsFactory(): Actions {
           fresh: true,
           sessionFields: { [t.field]: /onsite/i.test(name) ? t.from : t.to },
         });
+        if (t.note) send({ type: "session.update", sessionId: id, patch: { notes: t.note } });
         stamp(id, "start", true);
         return id;
       },
@@ -579,6 +590,8 @@ export function useActionsFactory(): Actions {
           fresh: true,
           ...(fields ? { sessionFields: fields } : {}),
         });
+        const note = travelNote(id, fields);
+        if (note.notes) send({ type: "session.update", sessionId: id, patch: note });
         return id;
       },
       stop(target) {
@@ -758,7 +771,7 @@ export function useActionsFactory(): Actions {
         undoable(label, () => send({ type: "session.update", sessionId, patch }, 800), { key: `s:${sessionId}:${keys.join()}` });
       },
       setSessionField(sessionId, key, value) {
-        undoable(`${fieldLabel(key)} change`, () => send({ type: "session.update", sessionId, patch: { fields: { [key]: value } } }, 800), {
+        undoable(`${fieldLabel(key)} change`, () => send({ type: "session.update", sessionId, patch: { fields: { [key]: value }, ...travelNote(sessionId, { [key]: value }) } }, 800), {
           key: `s:${sessionId}:fields.${key}`,
         });
       },

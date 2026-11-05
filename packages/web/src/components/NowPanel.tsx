@@ -233,22 +233,31 @@ function RunningHead({ session, info, now }: { session: Session; info: TaskInfo;
       <div className="now-meta">
         <TaskFieldInputs task={info.task} />
         <TicketLinks task={info.task} />
-        <SessionFieldInputs session={session} onChange={onField} />
-        {traveling ? (
-          // Which way doesn't change the work, so no "new entry?" question.
-          <button
-            className="btn subtle"
-            onClick={() => a.setSessionField(session.id, travel!.field, goingBack ? travel!.to : travel!.from)}
-            title="Traveling the other way"
-          >
-            ⇄ {goingBack ? "To client" : "From client"}
+        <SessionFieldInputs
+          session={session}
+          onChange={onField}
+          beside={
+            traveling
+              ? {
+                  [travel!.field]: (
+                    // Which way doesn't change the work, so no "new entry?" question.
+                    <button
+                      className="btn subtle icon"
+                      onClick={() => a.setSessionField(session.id, travel!.field, goingBack ? travel!.to : travel!.from)}
+                      title={goingBack ? "Traveling to the client instead" : "Traveling from the client instead"}
+                      aria-label={goingBack ? "Traveling to the client instead" : "Traveling from the client instead"}
+                    >
+                      <span aria-hidden>⇄</span>
+                    </button>
+                  ),
+                }
+              : undefined
+          }
+        />
+        {travel && !traveling && (
+          <button className="btn subtle" onClick={() => a.travelEntry(session.id)} title="End this entry now and carry on as travel on the same task">
+            <span aria-hidden>🚗</span> Travel
           </button>
-        ) : (
-          travel && (
-            <button className="btn subtle" onClick={() => a.travelEntry(session.id)} title="End this entry now and carry on as travel on the same task">
-              <span aria-hidden>🚗</span> Travel
-            </button>
-          )
         )}
         {m.config.cwWeekly && !isWeekly && (
           <button

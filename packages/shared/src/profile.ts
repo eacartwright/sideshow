@@ -74,6 +74,8 @@ export interface Profile {
     from: string;
     /** What the work becomes on Arrived. */
     arrive?: string;
+    /** The notes an empty travel entry gets. */
+    note?: string;
   };
   /** The ConnectWise integration: which fields it reads and fills. */
   connectwise?: {

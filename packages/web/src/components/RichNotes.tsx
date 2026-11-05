@@ -138,6 +138,7 @@ export function RichNotes({
   // you're typing here. The handler switches with the text, so nothing lands in the old record.
   // In a window without focus you aren't typing here, even with the cursor left in this field:
   // a note added in the mini window has to show, or the next keystroke here would overwrite it.
+  // Nor with the cursor in an empty field: there's no text to yank (a travel work type's note).
   useLayoutEffect(() => {
     if (!editor) return;
     const switched = keyRef.current !== resetKey;
@@ -145,7 +146,7 @@ export function RichNotes({
     onValueRef.current = onValue;
     if (editorRef) editorRef.current = editor.view.dom;
     if (value === last.current && !switched) return;
-    if (!switched && editor.isFocused && document.hasFocus()) return;
+    if (!switched && editor.isFocused && document.hasFocus() && !editor.isEmpty) return;
     last.current = value;
     editor.commands.setContent(parseNote(value), { emitUpdate: false });
   });
