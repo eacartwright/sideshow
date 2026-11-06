@@ -1,5 +1,6 @@
+import { getSchema } from "@tiptap/core";
 import { describe, expect, it } from "vitest";
-import { parseNote, serializeNote, withoutPictures } from "./markdown";
+import { noteExtensions, noteHtml, parseNote, serializeNote, withoutPictures } from "./markdown";
 
 const round = (md: string) => serializeNote(parseNote(md));
 
@@ -22,6 +23,25 @@ describe("notes as Markdown", () => {
     expect(round("1. Review both tickets\n2. Remote control Op6")).toBe("1. Review both tickets\n2. Remote control Op6");
     expect(round("[View your quote](https://example.com/q?a=1)")).toBe("[View your quote](https://example.com/q?a=1)");
     expect(round("![screenshot.png](/api/files/abc/screenshot.png)")).toBe("![screenshot.png](/api/files/abc/screenshot.png)");
+  });
+
+  it("turns headings, which notes don't have, into bold lines", () => {
+    const schema = getSchema(noteExtensions());
+    for (const [note, saved] of [
+      ["Next steps\n---\nCall the client", "**Next steps**\n\nCall the client"],
+      ["Next steps\n===", "**Next steps**"],
+      ["# Title\n\ntext", "**Title**\n\ntext"],
+      ["- item\n\n  Inside\n  ---", "- item\n\n  **Inside**"],
+    ] as const) {
+      expect(() => schema.nodeFromJSON(parseNote(note))).not.toThrow();
+      expect(round(note)).toBe(saved);
+    }
+    expect(() => schema.nodeFromJSON(parseNote("#"))).not.toThrow();
+  });
+
+  it("shows a note it can't format as escaped text", () => {
+    // No DOM under vitest, so generateHTML always throws here: this is the fallback's path.
+    expect(noteHtml("a <b> & c\nnext")).toBe("<p>a &lt;b&gt; &amp; c<br>next</p>");
   });
 
   it("gives an empty note one empty line, which saves as empty", () => {

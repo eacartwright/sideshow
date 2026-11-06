@@ -42,13 +42,26 @@ function md(): MarkdownManager {
 }
 
 /**
+ * Notes have no headings, but Markdown does, and a line of text with --- under it is one (common
+ * in CW's notes). A document holding one can't be built or shown, so it becomes a bold paragraph.
+ */
+function withoutHeadings(node: JSONContent): JSONContent {
+  if (node.type === "heading") {
+    const bold = (n: JSONContent): JSONContent =>
+      n.type === "text" && !n.marks?.some((m) => m.type === "bold") ? { ...n, marks: [...(n.marks ?? []), { type: "bold" }] } : n;
+    return { type: "paragraph", ...(node.content ? { content: node.content.map(bold) } : {}) };
+  }
+  return node.content ? { ...node, content: node.content.map(withoutHeadings) } : node;
+}
+
+/**
  * Markdown → the editor's document. Empty notes parse to a document with nothing in it, so the
  * editor would open with no line: no placeholder (it sits on the first line) and no proper cursor.
  * They get one empty paragraph instead, which is what the editor has after deleting everything.
  */
 export function parseNote(markdown: string): JSONContent {
   const doc = markdown.trim() ? md().parse(markdown) : null;
-  return doc?.content?.length ? doc : { type: "doc", content: [{ type: "paragraph" }] };
+  return doc?.content?.length ? withoutHeadings(doc) : { type: "doc", content: [{ type: "paragraph" }] };
 }
 
 /** The editor's document → Markdown, without trailing blank lines. */
@@ -64,6 +77,8 @@ export function withoutPictures(markdown: string): string {
   return markdown.replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, (_all, alt: string, url: string) => `[Picture${alt ? `: ${alt}` : ""}](${url})`);
 }
 
+const plainHtml = (text: string) => `<p>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r?\n/g, "<br>")}</p>`;
+
 const htmlCache = new Map<string, string>();
 
 /**
@@ -73,7 +88,13 @@ const htmlCache = new Map<string, string>();
 export function noteHtml(markdown: string): string {
   let html = htmlCache.get(markdown);
   if (html === undefined) {
-    html = generateHTML(parseNote(markdown), noteExtensions());
+    try {
+      html = generateHTML(parseNote(markdown), noteExtensions());
+    } catch (err) {
+      // A note it can't format still shows, as text; thrown from here it would blank the whole app.
+      console.error("Couldn't format a note:", err);
+      html = plainHtml(markdown);
+    }
     if (htmlCache.size > 500) htmlCache.clear();
     htmlCache.set(markdown, html);
   }
