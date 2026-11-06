@@ -100,8 +100,8 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
   setup in `web/src/markdown.ts`, round-trip tests in `markdown.test.ts`; single line breaks
   stay line breaks so old plain notes are unchanged). Show notes as text with `plainNote`.
   The Markdown parser still makes headings though the schema has none (a line with `---` under
-  it is one), so `parseNote` turns them into bold lines; an unknown node blanks the whole app,
-  as there's no error boundary.
+  it is one), so `parseNote` turns them into bold lines. Anything that throws during render ends
+  at `components/ErrorBoundary.tsx` (message + Reload), around the whole app in `main.tsx`.
   Attachments: `POST /api/files` → `server/src/files.ts` (`data/files/`, backed up); a push
   uploads a note's files to the ticket first (`connectwise/documents.ts`) and `cwNotes` rewrites
   the note for CW.

@@ -149,6 +149,31 @@ select:focus {
   padding: 24px 8px;
 }
 
+/* ---- when rendering failed (ErrorBoundary) ---- */
+.crash {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(48px + var(--top-inset)) 16px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.crash h1 {
+  margin: 0;
+  font-size: 22px;
+}
+.crash p {
+  margin: 0;
+  color: var(--muted);
+}
+.crash-detail {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 /* ---- buttons ---- */
 .btn {
   min-height: var(--tap);
