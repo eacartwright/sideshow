@@ -227,6 +227,23 @@ const MIGRATIONS: string[] = [
   );
   CREATE INDEX ai_usage_month ON ai_usage (month);
   `,
+  // Errors reported by the app's browsers (2026-11-05). One list for the server (the main
+  // workspace's database); the same error again counts up.
+  `
+  CREATE TABLE client_errors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    source TEXT NOT NULL,
+    message TEXT NOT NULL,
+    stack TEXT NOT NULL,
+    page TEXT NOT NULL,
+    build TEXT NOT NULL,
+    device TEXT NOT NULL,
+    first_at INTEGER NOT NULL,
+    last_at INTEGER NOT NULL,
+    count INTEGER NOT NULL DEFAULT 1
+  );
+  CREATE INDEX client_errors_last_at ON client_errors (last_at);
+  `,
 ];
 
 export type DB = DatabaseSync;

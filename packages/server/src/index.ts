@@ -10,6 +10,7 @@ import { FileStore, MAX_FILE } from "./files";
 import { ConnectWiseClient, CwError } from "./integrations/connectwise/client";
 import { ENV_KEYS, resolve, settingsFromEnv, shown, testConnection, type CwSettings } from "./integrations/connectwise/connection";
 import { Ai, AiStopped, MAX_NOTES, parseAiSettings, providersFromEnv, transcriberFromEnv } from "./ai";
+import { ClientErrors, parseReport, tailFile } from "./clienterrors";
 import { DevNotes, devNotesFile, parseFiles, parsePage, TEXT_MAX as DEV_NOTE_MAX } from "./devnotes";
 import { updateEnvFile } from "./envfile";
 import { parseRule } from "./integrations/connectwise/holds";
@@ -240,6 +241,23 @@ app.post("/api/devnotes/:id", async (c) => {
     return c.json({ error: "No such note" }, 404);
   }
   return c.json({ notes: devNotes.list() });
+});
+
+// What went wrong (clienterrors.ts), for reading from the desktop while working on the app: the
+// browsers' errors, and the end of the log run.cmd writes beside the data. Not per workspace.
+const clientErrors = new ClientErrors(workspaces.main.db);
+app.get("/api/client-errors", (c) => c.json({ errors: clientErrors.list() }));
+app.post("/api/client-errors", async (c) => {
+  if (!fromApp(c)) return c.json({ error: "Not from the app" }, 403);
+  const report = parseReport(await c.req.json().catch(() => null));
+  if (!report) return c.json({ error: "A report (message) needed" }, 400);
+  clientErrors.add(report);
+  return c.json({ ok: true });
+});
+app.get("/api/server-log", (c) => {
+  const lines = Math.min(Math.max(Number(c.req.query("lines")) || 200, 1), 5000);
+  const text = tailFile(join(dirname(DB_FILE), "server.log"), lines);
+  return text === null ? c.json({ error: "No server.log here" }, 404) : c.text(text);
 });
 
 // AI note cleanup (ai.ts): one set of settings and one bill for the whole server, so not per

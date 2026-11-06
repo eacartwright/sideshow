@@ -3,6 +3,7 @@ import HardBreak from "@tiptap/extension-hard-break";
 import Image from "@tiptap/extension-image";
 import { MarkdownManager } from "@tiptap/markdown";
 import StarterKit from "@tiptap/starter-kit";
+import { reportClientError } from "./errorlog";
 
 // Notes are stored as Markdown (DESIGN.md §5), the flavor CW's own editor writes: **bold**,
 // *italic*, lists, [links](…), ![images](…). The editor (RichNotes.tsx) shows it formatted;
@@ -93,6 +94,7 @@ export function noteHtml(markdown: string): string {
     } catch (err) {
       // A note it can't format still shows, as text; thrown from here it would blank the whole app.
       console.error("Couldn't format a note:", err);
+      reportClientError("note", err);
       html = plainHtml(markdown);
     }
     if (htmlCache.size > 500) htmlCache.clear();

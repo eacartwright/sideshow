@@ -11,7 +11,7 @@ can do and check.
 
 | | |
 |---|---|
-| Machine | Mini PC (Intel N97, Windows 11), always on, Autologon on |
+| Machine | Mini PC **ripley**, `192.168.187.26` (Intel N97, Windows 11), always on, Autologon on |
 | Code | `C:\Apps\sideshow`, a clone that only pulls `main` (never edit it there) |
 | Server | Scheduled task **sideshow** (at startup, as SYSTEM, signed in or not); `scripts\run.cmd` restarts it if it exits |
 | Port | **8081**, reached as `127.0.0.1:8081` |
@@ -20,7 +20,8 @@ can do and check.
 | Data | `C:\Apps\sideshow\data\sideshow.db` |
 | Backups | Daily to `\\evnas\Junk\Tech\DBBackups\sideshow` (TrueNAS), 30 kept; attachments (`data\files`) copied to its `files` folder hourly, all kept |
 | Settings | `C:\Apps\sideshow\.env` (git-ignored) |
-| Log | `C:\Apps\sideshow\data\server.log` |
+| Log | `C:\Apps\sideshow\data\server.log`; from the home network, `http://ripley:8081/api/server-log?lines=200` |
+| Browser errors | `http://ripley:8081/api/client-errors` (home network; table `client_errors`) |
 
 ```
  any browser / iPhone

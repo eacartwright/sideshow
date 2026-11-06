@@ -606,6 +606,11 @@ list, to paste into a work session.
   not yet.
 - Deleting is soft (archive) by default. Hard delete requires confirmation.
 - Undo for this device's recent changes (see Undo, above).
+- If drawing the page fails, a message with Reload shows instead of a blank page (2026-11-05),
+  and browsers report such errors to the server, where they can be read later: `client_errors`
+  in the main database, the latest 500, the same error counting up. They hold the message, stack,
+  address, build and browser, not notes as such, though an error's message can quote what it
+  choked on.
 
 ### Travel and location (2026-11-04)
 

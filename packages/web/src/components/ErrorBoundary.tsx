@@ -1,4 +1,5 @@
-import { Component, type ReactNode } from "react";
+import { Component, type ErrorInfo, type ReactNode } from "react";
+import { reportClientError } from "../errorlog";
 
 /**
  * What's left if rendering throws, instead of React unmounting everything and leaving a blank
@@ -11,6 +12,10 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, { error: E
 
   static getDerivedStateFromError(error: unknown) {
     return { error: error instanceof Error ? error : new Error(String(error)) };
+  }
+
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    reportClientError("render", error, info.componentStack ?? "");
   }
 
   render() {

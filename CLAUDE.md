@@ -116,9 +116,19 @@ installed in a scratch folder, headless. For CW, point the scratch server at a f
 - **Dev notes** (DESIGN.md §7, 🧪 / Alt+B): notes about the app itself, one list for the server
   (`server/src/devnotes.ts`, table `dev_notes` in the main DB; `GET|POST /api/devnotes`,
   `POST /api/devnotes/:id` {text, done, files, deleted}; not per workspace, not synced state).
-  Mirrored to `data/dev-notes.md` beside the main DB on every change: **read Evan's dev notes
-  there** (on the mini PC, `C:\Apps\sideshow\data\dev-notes.md`). UI: `components/DevNotes.tsx`,
+  Mirrored to `data/dev-notes.md` beside the main DB on every change (on the mini PC,
+  `C:\Apps\sideshow\data\dev-notes.md`). UI: `components/DevNotes.tsx`,
   `web/src/devnotes.ts`; "this page" comes from `here()` in `App.tsx` (+ `dayPageShown`).
+- **Reading the live app from the desktop** (home network only; the mini PC is **ripley**,
+  `192.168.187.26`, port 8081, no login on the LAN; the public address is behind Cloudflare Access).
+  All GETs: **`http://ripley:8081/api/devnotes`** (Evan's dev notes),
+  **`/api/client-errors`** (browser errors), **`/api/server-log?lines=200`** (the end of
+  `data/server.log`). Check these first when Evan reports something broke.
+- **Browser errors** (DESIGN.md §7 "Safety nets"): `web/src/errorlog.ts` reports render crashes
+  (`components/ErrorBoundary.tsx`), uncaught errors and notes that fell back to plain text to
+  `POST /api/client-errors` (`server/src/clienterrors.ts`, table `client_errors`, latest 500).
+  Each has the commit it was built from. Production stacks are minified; the maps sit beside the
+  files (`/assets/<file>.js.map`, not linked from them), so a stack can be read with those.
 
 Every change is an **op**. To add one: type in `shared/src/ops.ts` (+ `OP_TYPES`), handle it in
 `shared/src/reducer.ts`, add tests in `reducer.test.ts`. The reducer must be deterministic and
