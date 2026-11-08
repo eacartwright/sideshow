@@ -134,7 +134,9 @@ Every change is an **op**. To add one: type in `shared/src/ops.ts` (+ `OP_TYPES`
 `shared/src/reducer.ts`, add tests in `reducer.test.ts`. The reducer must be deterministic and
 safe to re-apply (the client replays pending ops on top of server state).
 
-Schema changes: **append** a migration to `MIGRATIONS` in `server/src/db.ts`; never edit old ones.
+Schema changes: **append** a migration to `MIGRATIONS` in `server/src/db.ts`; never edit one
+that has been committed, even if it seems unreleased (a dev DB on another machine may have run it,
+and a database never runs the same migration twice). An extra migration costs nothing.
 Before migrating an existing database the server copies it to `<db>.before-v<N>.db`.
 Ops from before profiles (groupId, ref, categoryId, group.*) may still sit in a device's outbox;
 `upgradeOp` in the reducer maps them onto the CW profile's keys (`LEGACY_KEYS`). Keep it.
@@ -309,6 +311,8 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 ## Working with Evan
 
 - Commit and push only when asked.
+- Deploys with the **Update Sideshow** shortcut on ripley's desktop (it runs `scripts\update.ps1`);
+  point him to that, not the script.
 - **"Dev notes" means the live ones** on the mini PC (ripley), never this machine's dev DB:
   read `\\ripley\C\Apps\sideshow\data\dev-notes.md` (`Z:\Apps\sideshow\...` on the laptop). Read
   only; never open the live `.db` over the share.
