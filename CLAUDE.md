@@ -309,6 +309,9 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 ## Working with Evan
 
 - Commit and push only when asked.
+- **"Dev notes" means the live ones** on the mini PC (ripley), never this machine's dev DB:
+  read `\\ripley\C\Apps\sideshow\data\dev-notes.md` (`Z:\Apps\sideshow\...` on the laptop). Read
+  only; never open the live `.db` over the share.
 - Prefers the Claude desktop app / claude.ai over the terminal. Give GUI steps, not shell
   commands, where possible.
 - Develops on **NOSTROMO** (the desktop, `C:\Dev\sideshow`; `C:\Dev\fieldtime` until 2026-10-10) since 2026-10-06; DEVvm (a Win 11 VM)
