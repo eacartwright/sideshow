@@ -206,7 +206,13 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
   numberofports=1`, `net start winnat`). Vite's 5173 needs the same (it fell in a reserved range
   2026-10-12); reserve it the same way. Don't just pick another port; it can be grabbed too.
 
-## Status (2026-11-04)
+## Status (2026-11-09)
+
+- **2026-11-09, from the dev notes:** WRIT sets the profile's `connectwise.weekly` fields
+  (Office, notes to Discussion); a start moved past the end takes the end along (+ Add entry,
+  Entries table); the AI rules say no sub-bullets; an edited pushed entry reads "⚠ In CW ·
+  changed" instead of a bare ⚠. Ask how they went. Next in line (backlog Inbox): browsing
+  projects like CW's work plan, and two-way sync, which Evan now wants.
 
 - **Built 2026-11-04 from Evan's list of what keeps him from reaching for the app.** ▶ Start on the idle card (typing no longer starts the clock); the phone
   toolbar works (WebKit drops a tap's click if `pointerdown` is cancelled, so use `onMouseDown`;

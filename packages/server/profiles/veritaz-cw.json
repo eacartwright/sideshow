@@ -33,5 +33,5 @@
     "hours": "decimal",
     "fields": ["ticket", "client", "date", "start", "end", "hours", "workType", "billing", "noteTo", "notes"]
   },
-  "connectwise": { "ticketField": "ticket", "clientField": "client", "workTypeField": "workType", "billingField": "billing", "noteToField": "noteTo" }
+  "connectwise": { "ticketField": "ticket", "clientField": "client", "workTypeField": "workType", "billingField": "billing", "noteToField": "noteTo", "weekly": { "workType": "Office", "noteTo": "Discussion" } }
 }

@@ -347,8 +347,8 @@ function Row({
         <div className="elist-tools">
           {s.ext?.cw?.removedAt && !s.enteredAt && <span className="warn small nowrap">⚠ Deleted in CW</span>}
           {s.changedSinceEntered && !s.enteredAt && !s.ext?.cw?.removedAt && (
-            <span className="warn" title={`Changed after it went to ${target}`}>
-              ⚠
+            <span className="warn small nowrap" title={`Changed after it went to ${target}${s.ext?.cw?.entryId ? "; Update… sends the change" : ""}`}>
+              {s.ext?.cw?.entryId ? "⚠ In CW · changed" : "⚠ Changed"}
             </span>
           )}
           {s.enteredAt ? (

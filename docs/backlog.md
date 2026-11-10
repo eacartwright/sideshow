@@ -8,6 +8,18 @@ under Status in [CLAUDE.md](../CLAUDE.md).
 
 ## Inbox
 
+From the dev notes of 2026-11-06 to 2026-11-09 (talked over 2026-11-09):
+- **Browse projects like CW does (2026-11-09, Evan; next big one after the small fixes).** Ticket
+  search is noisy for project tickets; Evan ends up in CW, where he sees a company's few open
+  projects, opens one and picks the ticket in its work plan. So: projects as one row each (with
+  the CW project number), click in to see the work plan's tickets in CW's order, grouped by
+  phase. Project tickets in search say which project (number + name) they're in, and the task's
+  Project field shows the number. (Screenshot: #106857 showed "+ Project".)
+- **AI cleanup on the Now screen (2026-11-09, Evan).** Too much going back and forth: Now and
+  Entries should be able to do the same things; Entries is just everything on one page, by date.
+- **My CW calendar, and scheduling myself on tickets (2026-11-06, Evan).** See the calendar;
+  add myself to a ticket's resources for work I plan to do later.
+
 Dev notes of 2026-11-02 (🧪 on the live site), sorted here; each is marked with that date.
 Folded into existing items: the ticket pickers, travel / GPS. (Those two, and the phone toolbar,
 were built 2026-11-04.)
@@ -76,7 +88,9 @@ were built 2026-11-04.)
   blank on session rows today. Maybe: a work type picks the matching template ticket (Travel →
   the travel ticket). Folds in "Track a CW project (M6)" below. **Move to…** (built
   2026-10-19) already covers one-off moves between tasks.
-- **Two-way sync of pushed entries (2026-10-19, Evan asked; proposed).** Each pushed session
+- **Two-way sync of pushed entries (2026-10-19, Evan asked; proposed; 2026-11-09 Evan: yes,
+  wanted, so Sideshow can be trusted after changes made in CW. The ticket side too: status,
+  summary, company changed in CW).** Each pushed session
   has its CW entry id (`ext.cw.entryId`). Proposed: keep a fingerprint of what was pushed;
   when the entries are on screen (Entries page, a group's ↻, Task details) fetch them and
   compare (the deleted-in-CW check, `checkPushed`, already runs then). Changed in CW only →

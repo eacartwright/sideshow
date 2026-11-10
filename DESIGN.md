@@ -991,7 +991,9 @@ folders stay `.env`-only: a wrong value there locks you out.
   session**, notes and all, onto this week's WRIT task (made with the ticket # if there's none
   yet; the lookup fills title and client). The task ▶ New made goes; one with other time, or
   from the Inbox, keeps its other time. Fields the session hasn't set come from the WRIT's
-  earlier sessions. Hidden when the card already is the WRIT; refused if the WRIT is running
+  earlier sessions, except those the profile's `connectwise.weekly` sets, which an entry
+  always gets on the WRIT, moved or started (2026-11-09, Evan: Office, notes to Discussion;
+  list items by name, like `travel`). Hidden when the card already is the WRIT; refused if the WRIT is running
   too. Op: `session.move`. **Alt+W** does it to the top card, or with nothing running starts
   the WRIT (Shift = alongside). Each week is its own task, so last week's unpushed time
   still goes to last week's ticket. The browser keeps the current ticket (`web/src/weekly.ts`)

@@ -849,10 +849,10 @@ function SessionRows({
                 )}
                 {s.changedSinceEntered && !s.enteredAt && !s.ext?.cw?.removedAt && (
                   <span
-                    className="warn"
+                    className="warn small nowrap"
                     title={canPush && inCw ? `Changed after you pushed it; Update… sends the change to entry #${String(s.ext!.cw!.entryId)}` : `Changed after you entered it; update it in ${target}`}
                   >
-                    ⚠
+                    {inCw ? "⚠ In CW · changed" : "⚠ Changed"}
                   </span>
                 )}
                 {!s.enteredAt && <CleanupButton session={s} className="btn subtle sm icon" iconOnly />}

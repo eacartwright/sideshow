@@ -87,6 +87,11 @@ export interface Profile {
     billingField?: string;
     /** Values: Internal or Discussion (where the entry's notes show on the ticket). */
     noteToField?: string;
+    /**
+     * Session fields an entry gets when it goes to this week's WRIT (▶ WRIT, WRIT on the
+     * running card), by field key; list fields name their item (like `travel`).
+     */
+    weekly?: Fields;
   };
 }
 
@@ -152,6 +157,15 @@ export function profileProblems(p: Profile): string[] {
   if (cw && !keys.has(cw.ticketField)) out.push(`connectwise.ticketField "${cw.ticketField}" isn't a field`);
   for (const k of ["clientField", "workTypeField", "billingField", "noteToField"] as const) {
     if (cw?.[k] && !keys.has(cw[k])) out.push(`connectwise.${k} "${cw[k]}" isn't a field`);
+  }
+  for (const [k, v] of Object.entries(cw?.weekly ?? {})) {
+    const f = p.fields.find((x) => x.key === k);
+    if (!f || f.on !== "session") out.push(`connectwise.weekly: "${k}" isn't a session field`);
+    else if (f.type === "choice" && !f.options?.includes(String(v))) out.push(`connectwise.weekly: "${v}" isn't one of ${k}'s options`);
+    else if (f.type === "list") {
+      const names = (p.lists?.[f.list!] ?? []).map((e) => listEntry(e).name);
+      if (names.length && !names.includes(String(v))) out.push(`connectwise.weekly: "${v}" isn't in lists.${f.list}`);
+    }
   }
   return out;
 }

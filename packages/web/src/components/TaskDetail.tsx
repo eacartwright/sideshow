@@ -250,7 +250,9 @@ export function TaskDetail({ taskId, onClose }: { taskId: Id; onClose: () => voi
                       {s.enteredAt ? (
                         <span className="entered-label small">✓ Entered</span>
                       ) : (
-                        s.changedSinceEntered && <span className="warn small">⚠ Changed since entered</span>
+                        s.changedSinceEntered && (
+                          <span className="warn small">{s.ext?.cw?.entryId && !s.ext.cw.removedAt ? "⚠ In CW · changed since pushed" : "⚠ Changed since entered"}</span>
+                        )
                       )}
                     </button>
                     {editing && <SessionEditor session={s} onDone={() => setEditingId(null)} />}

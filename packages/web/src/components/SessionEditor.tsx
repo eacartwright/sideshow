@@ -57,11 +57,16 @@ export function dayPatch(s: Session, value: string): SessionPatch | null {
   return s.end === null ? { start: s.start + shift } : { start: s.start + shift, end: s.end + shift };
 }
 
-/** A start time ("09:15") on the session's day: before its end (or now, while it runs). */
+/**
+ * A start time ("09:15") on the session's day. While it runs, no later than now. A start at or
+ * past the end takes the end along, keeping the length, so the start can be set first (Evan,
+ * 2026-11-06: a new 5:00–5:30 entry couldn't start at 9:00 until its end was moved).
+ */
 export function startPatch(s: Session, value: string): SessionPatch | null {
   const t = at(startOfDay(s.start), value);
-  if (t === null || t === s.start || !(s.end === null ? t <= Date.now() : t < s.end)) return null;
-  return { start: t };
+  if (t === null || t === s.start) return null;
+  if (s.end === null) return t <= Date.now() ? { start: t } : null;
+  return t < s.end ? { start: t } : { start: t, end: t + (s.end - s.start) };
 }
 
 /** An end time ("17:30"); one at or before the start means past midnight. */

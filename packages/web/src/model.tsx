@@ -356,6 +356,21 @@ export function travelOf(profile: Profile, view: State) {
   return to && from ? { field: t.field, to, from, arrive: id(t.arrive), note: t.note } : null;
 }
 export type Travel = NonNullable<ReturnType<typeof travelOf>>;
+
+/** The fields an entry gets on the WRIT (profile `connectwise.weekly`), list items as ids; those it can't find are left out. */
+export function weeklyFieldsOf(profile: Profile, view: State): FieldsPatch {
+  const out: FieldsPatch = {};
+  for (const [k, v] of Object.entries(profile.connectwise?.weekly ?? {})) {
+    const list = profile.fields.find((f) => f.key === k && f.on === "session")?.list;
+    if (!list) {
+      out[k] = v;
+      continue;
+    }
+    const id = Object.values(view.lists).find((x) => x.list === list && !x.archived && x.name === v)?.id;
+    if (id) out[k] = id;
+  }
+  return out;
+}
 /** Whether this session is travel, either way. */
 export const isTravel = (t: Travel, s: Session) => s.fields[t.field] === t.to || s.fields[t.field] === t.from;
 
@@ -409,7 +424,8 @@ export function useActionsFactory(): Actions {
       const task = Object.values(snap.view.tasks)
         .filter((t) => !t.deleted && ticketNumber(String(t.fields[field] ?? "")) === n)
         .sort((x, y) => Number(x.status === "archived") - Number(y.status === "archived") || y.updatedAt - x.updatedAt)[0];
-      return { w, field, n, task };
+      const fields = weeklyFieldsOf(snap.config.profile, snap.view);
+      return { w, field, n, task, fields: Object.keys(fields).length ? fields : undefined };
     };
     /** Where this entry starts or ends, if this device keeps that (location.ts). */
     const stamp = (sessionId: Id, which: "start" | "end", travel = false) => {
@@ -533,7 +549,7 @@ export function useActionsFactory(): Actions {
       startWeekly(alongside = false) {
         const weekly = findWeekly();
         if (!weekly) return;
-        const { w, field, n, task } = weekly;
+        const { w, field, n, task, fields } = weekly;
         const taskId = task?.id ?? newId();
         activate(taskId);
         focusNotes(true);
@@ -543,13 +559,14 @@ export function useActionsFactory(): Actions {
           sessionId: newId(),
           ...(task ? {} : { newTask: { title: w.summary, fields: { [field]: n } } }),
           mode: alongside ? "alongside" : "switch",
+          sessionFields: fields,
         });
       },
       moveToWeekly(sessionId) {
         const weekly = findWeekly();
         const s = sync.getSnapshot().view.sessions[sessionId];
         if (!weekly || !s || s.deleted) return;
-        const { w, field, n, task } = weekly;
+        const { w, field, n, task, fields } = weekly;
         if (task?.id === s.taskId) return;
         if (task && s.end === null && openSessionOf(task.id)) {
           showToast("This week's WRIT is already running");
@@ -562,6 +579,7 @@ export function useActionsFactory(): Actions {
             if (!task) send({ type: "task.create", taskId, title: w.summary, projectId: null, fields: { [field]: n } });
             activate(taskId);
             send({ type: "session.move", sessionId, taskId });
+            if (fields) send({ type: "session.update", sessionId, patch: { fields } });
           },
           { toast: `Moved to this week's WRIT (#${n})` },
         );
