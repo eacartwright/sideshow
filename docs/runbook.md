@@ -61,6 +61,10 @@ cd C:\Apps\sideshow
 .\scripts\update.ps1
 ```
 
+Or from a dev machine: `ssh ripley-deploy sideshow`. **Deploys over SSH** (all the apps in
+`C:\Apps`) are set up in foodlab's runbook ("Deploys over SSH"): a key locked to
+`C:\Apps\deploy.ps1`, which runs an app's `scripts\update.ps1` and nothing else.
+
 It pulls, stops the task, runs `npm ci`, builds, starts the task and checks `/api/health`. The
 iPhone app picks up the new build on its next launch (index.html is served `no-cache`). A schema
 change copies the database to `data\sideshow.db.before-v<N>.db` before migrating it.

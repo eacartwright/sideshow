@@ -317,8 +317,10 @@ Deletions are tombstones (`deleted` flag), so they sync like any other change.
 ## Working with Evan
 
 - Commit and push only when asked.
-- Deploys with the **Update Sideshow** shortcut on ripley's desktop (it runs `scripts\update.ps1`);
-  point him to that, not the script.
+- **Deploys:** when Evan asks, run `ssh ripley-deploy sideshow` (ripley's `C:\Apps\deploy.ps1` runs
+  this app's `scripts\update.ps1`; the key can do nothing else) and report how it ended (the health
+  line). It goes live, so only when asked. The **Update Sideshow** shortcut on ripley still works.
+  No `ripley-deploy` key on this machine: runbook, "Deploys over SSH".
 - **"Dev notes" means the live ones** on the mini PC (ripley), never this machine's dev DB:
   read `\\ripley\C\Apps\sideshow\data\dev-notes.md` (`Z:\Apps\sideshow\...` on the laptop). Read
   only; never open the live `.db` over the share.
